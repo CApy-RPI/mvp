@@ -1,16 +1,13 @@
-from datetime import datetime
 import mongoengine as me
 
-from .restricted import RestrictedDocument, RestrictedEmbeddedDocument
 
-
-class EventReactions(RestrictedEmbeddedDocument):
+class EventReactions(me.EmbeddedDocument):
     yes = me.IntField(default=0)
     maybe = me.IntField(default=0)
     no = me.IntField(default=0)
 
 
-class EventDetails(RestrictedEmbeddedDocument):
+class EventDetails(me.EmbeddedDocument):
     name = me.StringField(required=True)
     datetime = me.DateTimeField(required=True)
     location = me.StringField()
@@ -18,10 +15,11 @@ class EventDetails(RestrictedEmbeddedDocument):
     reactions = me.EmbeddedDocumentField(EventReactions, default=EventReactions)
 
 
-class Event(RestrictedDocument):
+class Event(me.Document):
+    _id = me.IntField(primary_key=True)
     users = me.ListField(me.IntField())
     guild_id = me.IntField()
     message_id = me.IntField()
     details = me.EmbeddedDocumentField(EventDetails, required=True)
 
-    meta = {**RestrictedDocument.meta, "collection": "event"}
+    meta = {"collection": "event"}

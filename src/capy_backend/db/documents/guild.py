@@ -1,23 +1,22 @@
 import mongoengine as me
 
-from .restricted import RestrictedDocument, RestrictedEmbeddedDocument
 
-
-class GuildChannels(RestrictedEmbeddedDocument):
+class GuildChannels(me.EmbeddedDocument):
     reports = me.IntField()
     announcements = me.IntField()
     moderator = me.IntField()
 
 
-class GuildRoles(RestrictedEmbeddedDocument):
+class GuildRoles(me.EmbeddedDocument):
     eboard = me.StringField()
     admin = me.StringField()
 
 
-class Guild(RestrictedDocument):
+class Guild(me.Document):
+    _id = me.IntField(primary_key=True)
     users = me.ListField(me.IntField())
     events = me.ListField(me.IntField())
-    channels = me.kEmbeddedDocumentField(GuildChannels, default=GuildChannels)
+    channels = me.EmbeddedDocumentField(GuildChannels, default=GuildChannels)
     roles = me.EmbeddedDocumentField(GuildRoles, default=GuildRoles)
 
-    meta = {**RestrictedDocument.meta, "collection": "guilds"}
+    meta = {"collection": "guilds"}

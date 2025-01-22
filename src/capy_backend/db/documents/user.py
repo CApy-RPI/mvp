@@ -1,15 +1,13 @@
 import mongoengine as me
 
-from .restricted import RestrictedDocument, RestrictedEmbeddedDocument
 
-
-class UserName(RestrictedEmbeddedDocument):
+class UserName(me.EmbeddedDocument):
     first = me.StringField(required=True)
-    middle = me.StringField
+    middle = me.StringField()
     last = me.StringField(required=True)
 
 
-class UserProfile(RestrictedEmbeddedDocument):
+class UserProfile(me.EmbeddedDocument):
     name = me.EmbeddedDocumentField(UserName, required=True)
     school_email = me.EmailField(required=True, unique=True)
     student_id = me.IntField(required=True, unique=True)
@@ -18,10 +16,10 @@ class UserProfile(RestrictedEmbeddedDocument):
     phone = me.IntField()
 
 
-class User(RestrictedDocument):
+class User(me.Document):
     _id = me.IntField(primary_key=True)
     guilds = me.ListField(me.IntField())
     events = me.ListField(me.IntField())
     profile = me.EmbeddedDocumentField(UserProfile, required=True)
 
-    meta = {**RestrictedDocument.meta, "collection": "users"}
+    meta = {"collection": "users"}

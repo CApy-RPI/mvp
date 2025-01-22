@@ -9,4 +9,3 @@ MONGO_URI = os.getenv("MONGO_URI")
 MONGO_DBNAME = os.getenv("MONGO_DBNAME")
 
 COG_PATH = "src/capy_discord/cogs"
-DATA_TEMPLATE_PATH = "src/capy_backend/res/template"
