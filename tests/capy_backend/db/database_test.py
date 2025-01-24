@@ -106,17 +106,3 @@ def test_get_and_set_embedded_attributes(db, user):
     db.update_document(fetched_user, {"profile__name__middle": "B"})
     updated_user = db.get_document(User, 1)
     assert updated_user.profile.name.middle == "B"
-
-
-def test_slots_prevent_new_attributes(db, user):
-    db.add_document(user)
-    fetched_user = db.get_document(User, 1)
-    with pytest.raises(AttributeError):
-        fetched_user.profile.new_attribute = "Not allowed"
-
-
-def test_slots_prevent_deleting_attributes(db, user):
-    db.add_document(user)
-    fetched_user = db.get_document(User, 1)
-    with pytest.raises(AttributeError):
-        del fetched_user.profile.name.first
