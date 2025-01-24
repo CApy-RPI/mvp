@@ -1,6 +1,7 @@
 import pytest
 from mongoengine import connect, disconnect
 import mongomock
+from datetime import datetime
 
 from src.capy_backend.db.database import Database
 from src.capy_backend.db.documents.user import User, UserProfile, UserName
@@ -70,7 +71,10 @@ def test_get_user(db, user):
 def test_update_user(db, user):
     db.add_document(user)
     updates = {"profile__name__first": "Jane"}
+    assert user.profile.name.first == "John"
     updated_user = db.update_document(user, updates)
+    assert updated_user.profile.name.first == "Jane"
+    updated_user = db.get_document(User, 1)
     assert updated_user.profile.name.first == "Jane"
 
 
@@ -92,7 +96,6 @@ def test_get_and_set_attributes(db, user):
     db.add_document(user)
     fetched_user = db.get_document(User, 1)
     assert fetched_user.profile.name.first == "John"
-    fetched_user.profile.name.first = "Jane"
     db.update_document(fetched_user, {"profile__name__first": "Jane"})
     updated_user = db.get_document(User, 1)
     assert updated_user.profile.name.first == "Jane"
