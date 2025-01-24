@@ -1,18 +1,17 @@
 import logging
 import discord
+import os
 
-from config import COG_PATH
-import capy_backend
+from src.config import COG_PATH
+import src.capy_backend
 
 # Create the bot class, inheriting from commands.AutoShardedBot
 class Bot(discord.ext.commands.AutoShardedBot):
-    async def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger = logging.getLogger("discord.main")
         self.logger.setLevel(logging.INFO)
-        self.email = Email()
-        self.db = await Database()
-
+        
     # Event that runs when the bot joins a new server
     async def on_guild_join(self, guild: discord.Guild):
         # If already in guild, do nothing

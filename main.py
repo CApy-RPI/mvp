@@ -1,22 +1,16 @@
-import os
+
 import discord
 import logging
 from discord.ext import commands
 from dotenv import load_dotenv
-from modules.database import Database
-from modules.email_auth import create_app
+from src.capy_backend.db.database import Database
+from src.capy_discord.bot import Bot
 import threading
-
-
-def run_flask():
-    app = create_app()
-    app.run(port=5000)
-
+import os
 
 def main():
     load_dotenv()
     bot = Bot(command_prefix="!", intents=discord.Intents.all())
-
     """
     DEVS: If testing bot in certain channel to avoid conflicts with other bot instances set CHANNEL_LOCK = "True" in .env
     otherwise can remove CHANNEL_LCOK or set CHANNEL_LOCK = "False"
@@ -29,11 +23,7 @@ def main():
         bot.allowed_channel_id = int(allowed_channel_id)
     else:
         bot.allowed_channel_id = None
-
     bot.run(os.getenv("DEV_BOT_TOKEN"), reconnect=True)
-
-
+    
 if __name__ == "__main__":
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.start()
     main()
