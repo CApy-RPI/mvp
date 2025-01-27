@@ -1,12 +1,8 @@
-
 import discord
-import logging
-from discord.ext import commands
 from dotenv import load_dotenv
-from src.capy_backend.db.database import Database
-from src.capy_discord.bot import Bot
-import threading
+from .capy_discord.bot import Bot
 import os
+
 
 def main():
     load_dotenv()
@@ -24,6 +20,7 @@ def main():
     else:
         bot.allowed_channel_id = None
     bot.run(os.getenv("DEV_BOT_TOKEN"), reconnect=True)
-    
+
+
 if __name__ == "__main__":
     main()
