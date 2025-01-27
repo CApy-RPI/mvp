@@ -46,7 +46,7 @@ The use of AI is not only allowed but also encouraged. AI tools can assist in:
 - **Code Suggestions:** Accelerating development by generating code snippets and tests.
 - **Research Assistance:** Streamlining research into best practices and tools.
 
-However, we maintain high standards for students' ability to debug and research issues independently. All development practices must be met before marking a task as done. If any criteria are unmet, we will work with the student to review and improve the work.
+However, we maintain high standards for students' ability to debug and research issues independently. All development practices must be met before marking a task as done. If any criteria are unmet, we will work with the developer to review and improve the work.
 
 ## Pre-Push Checklist
 
