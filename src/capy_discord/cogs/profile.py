@@ -1,11 +1,16 @@
+# stl imports
 import asyncio
-import discord
 import logging
+import subprocess
+
+# third-party imports
+import discord
 from discord.ext import commands
+
+# local imports
 from src.capy_backend.db.database import Database as db
 from src.capy_backend.db.documents.user import User, UserProfile, UserName
 from src.capy_backend.mods.email import remove_verified_email, get_verified_email
-import subprocess
 
 
 class Profile(commands.Cog):
@@ -56,10 +61,6 @@ class Profile(commands.Cog):
         )
         user = db.get_document(User, ctx.author.id)
 
-        self.logger.info(
-            f"User document retrieval {'succeeded' if user else 'failed'} for user ID: {ctx.author.id}"
-        )
-
         if user:
             await ctx.author.send(
                 "You already have a profile. Are you sure want to override it? If you do not please use the update command.\n Type Y or N"
@@ -101,16 +102,24 @@ class Profile(commands.Cog):
         major = await self.ask_major(ctx.author)
         if major is None:
             return
+
         # Ask for graduation year
         self.logger.info("Asking user for graduation year")
         grad_year = await self.ask_graduation_year(ctx.author)
         if grad_year is None:
             return
+
         # Ask for user's RPI email
-        self.logger.info("Asking user for RPI email")
-        rpi_email = await self.ask_email(ctx.author)
-        if rpi_email is None:
-            return
+
+        # * Skipping email: dependency on email auth
+        self.logger.info("Skipping email call ------")
+        # self.logger.info("Asking user for RPI email")
+        # rpi_email = await self.ask_email(ctx.author)
+        # * placeholder email until email auth working
+        rpi_email = "testing@rpi.edu"
+        # if rpi_email is None:
+        #     return
+
         # Ask for user's RPI RIN
         self.logger.info("Asking user for RPI RIN")
         rpi_rin = await self.ask_rin(ctx.author)
@@ -144,8 +153,13 @@ class Profile(commands.Cog):
         }
 
         if user:
+            self.logger.info(
+                f"Updating existing user with ID {ctx.author.id} in the database."
+            )
             db.update_document(user, updates)
+            self.logger.info("User information updated successfully.")
         else:
+            self.logger.info(f"Creating a new user with ID {ctx.author.id}.")
             new_user = User(
                 _id=ctx.author.id,
                 profile=UserProfile(
@@ -157,6 +171,7 @@ class Profile(commands.Cog):
                 ),
             )
             db.add_document(new_user)
+            self.logger.info("New user created and added to the database.")
 
         # Send the profile back to the user for confirmation
         await ctx.author.send(embed=profile_embed)
@@ -292,8 +307,11 @@ class Profile(commands.Cog):
             await user.send(
                 f"Click the link and login with your RPI email! \nLink: {oauth_url}"
             )
+
+            # TODO: resources/temp_files.txt needs to be replaced
             with open("resources/temp_emails.txt", "w") as f:
                 f.write(str(user.id))
+
             # Poll for verification result
             for _ in range(100):  # Wait up to 100 seconds, checking every 2 seconds
                 await asyncio.sleep(2)
@@ -345,7 +363,7 @@ class Profile(commands.Cog):
         Updates your profile by allowing you to modify each individual aspect of your profile.
         """
         self.logger.info("Updating user profile...")
-        updated_user = db.get_document("User", ctx.author.id)
+        updated_user = db.get_document(User, ctx.author.id)
         if not updated_user:
             self.logger.info(
                 f"User {ctx.author.id} does not have a profile yet! Please use the !profile command to create one."
@@ -394,54 +412,63 @@ class Profile(commands.Cog):
                     new_value = await self.ask_question(
                         ctx.author, "What is your updated first name? (Example: John)"
                     )
-                    db.update_document(
-                        updated_user, {"profile__name__first": new_value}
-                    )
-                elif aspect == "Last Name":
-                    await ctx.author.send(
-                        f"Your previous response was: {updated_user.profile.name.last}"
-                    )
-                    self.logger.info("Updating last name")
-                    new_value = await self.ask_question(
-                        ctx.author, "What is your updated last name? (Example: Smith)"
-                    )
-                    db.update_document(updated_user, {"profile__name__last": new_value})
-                elif aspect == "Major":
-                    await ctx.author.send(
-                        "Your previous response was: "
-                        + ", ".join(updated_user.profile.major)
-                    )
-                    self.logger.info("Updating major")
-                    new_value = await Profile.ask_major(self, ctx.author)
-                    db.update_document(updated_user, {"profile__major": new_value})
-                elif aspect == "Graduation Year":
-                    await ctx.author.send(
-                        "Your previous response was: "
-                        + str(updated_user.profile.graduation_year)
-                    )
-                    self.logger.info("Updating graduation year")
-                    new_value = await Profile.ask_graduation_year(self, ctx.author)
-                    db.update_document(
-                        updated_user, {"profile__graduation_year": new_value}
-                    )
-                elif aspect == "RIN":
-                    await ctx.author.send(
-                        "Your previous response was: "
-                        + str(updated_user.profile.student_id)
-                    )
-                    self.logger.info("Updating RIN")
-                    new_value = await Profile.ask_rin(self, ctx.author)
-                    db.update_document(updated_user, {"profile__student_id": new_value})
-                elif aspect == "RPI Email":
-                    await ctx.author.send(
-                        "Your previous response was: "
-                        + updated_user.profile.school_email
-                    )
-                    self.logger.info("Updating RPI Email")
-                    new_value = await Profile.ask_email(self, ctx.author)
-                    db.update_document(
-                        updated_user, {"profile__school_email": new_value}
-                    )
+                    # Create updates dictionary to store all changes
+                    updates = {}
+
+                    if aspect == "First Name":
+                        updates["profile__name__first"] = new_value
+                        updated_user.profile.name.first = new_value
+                    elif aspect == "Last Name":
+                        await ctx.author.send(
+                            f"Your previous response was: {updated_user.profile.name.last}"
+                        )
+                        self.logger.info("Updating last name")
+                        new_value = await self.ask_question(
+                            ctx.author,
+                            "What is your updated last name? (Example: Smith)",
+                        )
+                        updates["profile__name__last"] = new_value
+                        updated_user.profile.name.last = new_value
+                    elif aspect == "Major":
+                        await ctx.author.send(
+                            "Your previous response was: "
+                            + ", ".join(updated_user.profile.major)
+                        )
+                        self.logger.info("Updating major")
+                        new_value = await Profile.ask_major(self, ctx.author)
+                        updates["profile__major"] = new_value
+                        updated_user.profile.major = new_value
+                    elif aspect == "Graduation Year":
+                        await ctx.author.send(
+                            "Your previous response was: "
+                            + str(updated_user.profile.graduation_year)
+                        )
+                        self.logger.info("Updating graduation year")
+                        new_value = await Profile.ask_graduation_year(self, ctx.author)
+                        updates["profile__graduation_year"] = new_value
+                        updated_user.profile.graduation_year = new_value
+                    elif aspect == "RIN":
+                        await ctx.author.send(
+                            "Your previous response was: "
+                            + str(updated_user.profile.student_id)
+                        )
+                        self.logger.info("Updating RIN")
+                        new_value = await Profile.ask_rin(self, ctx.author)
+                        updates["profile__student_id"] = new_value
+                        updated_user.profile.student_id = new_value
+                    elif aspect == "RPI Email":
+                        await ctx.author.send(
+                            "Your previous response was: "
+                            + updated_user.profile.school_email
+                        )
+                        self.logger.info("Updating RPI Email")
+                        new_value = await Profile.ask_email(self, ctx.author)
+                        updates["profile__school_email"] = new_value
+                        updated_user.profile.school_email = new_value
+
+                    # Update database with all changes at once
+                    if updates:
+                        db.update_document(updated_user, updates)
 
                 await ctx.author.send(f"Your {aspect} has been updated.")
 
@@ -525,7 +552,7 @@ class Profile(commands.Cog):
         Shows your profile.
         """
         self.logger.info("Showing user profile!")
-        user = db.get_document("User", ctx.author.id)
+        user = db.get_document(User, ctx.author.id)
         if user == -1 or not user:
             await ctx.author.send(
                 "You don't have a profile. Please use the !profile command to create one."
