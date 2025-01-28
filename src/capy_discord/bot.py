@@ -5,6 +5,7 @@ import os
 from src.config import COG_PATH
 
 
+
 # Create the bot class, inheriting from commands.AutoShardedBot
 class Bot(discord.ext.commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
@@ -51,7 +52,7 @@ class Bot(discord.ext.commands.AutoShardedBot):
         for filename in os.listdir(COG_PATH):
             if filename.endswith(".py"):
                 try:
-                    await self.load_extension(f"cogs.{filename[:-3]}")
+                    await self.load_extension(f"src.capy_discord.cogs.{filename[:-3]}")
                     self.logger.info(f"Loaded {filename}")
                 except Exception as e:
                     self.logger.error(f"Failed to load {filename}: {e}")
