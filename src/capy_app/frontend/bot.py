@@ -1,13 +1,13 @@
 import logging
 import discord
+from discord.ext import commands
 import os
 
-from src.config import COG_PATH
-
+from config import COG_PATH
 
 
 # Create the bot class, inheriting from commands.AutoShardedBot
-class Bot(discord.ext.commands.AutoShardedBot):
+class Bot(commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger = logging.getLogger("discord.main")

@@ -3,8 +3,8 @@ from mongoengine import connect, disconnect
 import mongomock
 from datetime import datetime
 
-from src.capy_backend.db.database import Database
-from src.capy_backend.db.documents.user import User, UserProfile, UserName
+from src.capy_app.backend.db.database import Database
+from src.capy_app.backend.db.documents.user import User, UserProfile, UserName
 
 
 @pytest.fixture(scope="module")

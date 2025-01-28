@@ -1,7 +1,8 @@
+import os
 import discord
 from dotenv import load_dotenv
-from .capy_discord.bot import Bot
-import os
+
+from frontend.bot import Bot
 
 
 def main():

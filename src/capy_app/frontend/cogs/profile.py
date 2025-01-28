@@ -8,9 +8,9 @@ import discord
 from discord.ext import commands
 
 # local imports
-from src.capy_backend.db.database import Database as db
-from src.capy_backend.db.documents.user import User, UserProfile, UserName
-from src.capy_backend.mods.email import remove_verified_email, get_verified_email
+from src.backend.db.database import Database as db
+from src.backend.db.documents.user import User, UserProfile, UserName
+from src.backend.mods.email import remove_verified_email, get_verified_email
 
 
 class Profile(commands.Cog):

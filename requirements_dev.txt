@@ -9,8 +9,7 @@ mypy==1.14.1
 tox==4.23.2
 
 
-discord==2.3.2
-logging==0.4.9.6
+discord.py==2.4.0
 python-dotenv==1.0.1
 pytz==2024.2
 mongoengine==0.29.1
