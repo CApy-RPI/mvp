@@ -1,20 +1,40 @@
 import discord
-from datetime import datetime, timezone
 from discord.ext import commands
-from modules.timestamp import now, format_time
 
 
 class Guild(commands.Cog):
-    def __init__(self, bot):
+    """
+    A class that represents a Discord Cog for managing server settings.
+    """
+
+    def __init__(self, bot: commands.Bot) -> None:
+        """
+        Initialize the Guild cog.
+
+        Args:
+            bot (commands.Bot): The bot instance.
+        """
         self.bot = bot
 
     @commands.group(name="settings", help="Manage server settings")
-    async def settings(self, ctx):
+    async def settings(self, ctx: commands.Context) -> None:
+        """
+        Group command for managing server settings.
+
+        Args:
+            ctx (commands.Context): The context of the command.
+        """
         if ctx.invoked_subcommand is None:
             await ctx.send("Invalid settings command. Use !settings [list, set]")
 
     @settings.command(name="list", help="List server settings")
-    async def list_settings(self, ctx):
+    async def list_settings(self, ctx: commands.Context) -> None:
+        """
+        List the current server settings.
+
+        Args:
+            ctx (commands.Context): The context of the command.
+        """
         guild = self.bot.db.get_data("guild", ctx.guild.id)
         embed = discord.Embed(
             title="Server Settings",
@@ -38,7 +58,17 @@ class Guild(commands.Cog):
 
     @settings.command(name="set", help="Change a server setting")
     @commands.has_permissions(administrator=True)
-    async def modify_setting(self, ctx, name: str, value):
+    async def modify_setting(
+        self, ctx: commands.Context, name: str, value: str
+    ) -> None:
+        """
+        Modify a server setting.
+
+        Args:
+            ctx (commands.Context): The context of the command.
+            name (str): The name of the setting to change.
+            value (str): The new value for the setting.
+        """
         guild = self.bot.db.get_data("guild", ctx.guild.id)
         try:
             previous_value = str(guild.get_value(name))
@@ -50,8 +80,7 @@ class Guild(commands.Cog):
                 color=discord.Color.green(),
             )
             await ctx.send(embed=valid_embed)
-            return
-        except KeyError as e:
+        except KeyError:
             fail_embed = discord.Embed(
                 title=f"Setting {name} does not exist!",
                 description="Type the setting name exactly as shown",
@@ -61,5 +90,11 @@ class Guild(commands.Cog):
 
 
 # Setup function to load the cog
-async def setup(bot):
+async def setup(bot: commands.Bot) -> None:
+    """
+    Setup function to load the Guild cog.
+
+    Args:
+        bot (commands.Bot): The bot instance.
+    """
     await bot.add_cog(Guild(bot))

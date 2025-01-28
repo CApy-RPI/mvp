@@ -3,7 +3,7 @@ import discord
 import os
 
 from src.config import COG_PATH
-import src.capy_backend
+
 
 
 # Create the bot class, inheriting from commands.AutoShardedBot
