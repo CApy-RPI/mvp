@@ -2,7 +2,7 @@ import mongoengine as me
 from datetime import datetime
 from typing import Type, TypeVar, Optional, Dict, Any, List
 
-from src.config import MONGO_URI
+from src.config import MONGO_URI, MONGO_DBNAME
 
 T = TypeVar("T", bound=me.Document)
 
