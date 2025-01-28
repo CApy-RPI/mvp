@@ -2,11 +2,13 @@ import mongoengine as me
 from datetime import datetime
 from typing import Type, TypeVar, Optional, Dict, Any, List
 
-from src.config import MONGO_URI, MONGO_DBNAME
+from src.config import MONGO_URI, MONGO_DBNAME, MONGO_PASSWORD, MONGO_USERNAME
 
 T = TypeVar("T", bound=me.Document)
 
-me.connect(MONGO_URI)
+me.connect(
+    db=MONGO_DBNAME, username=MONGO_USERNAME, password=MONGO_PASSWORD, host=MONGO_URI
+)
 
 
 class Database:

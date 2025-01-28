@@ -110,15 +110,10 @@ class Profile(commands.Cog):
             return
 
         # Ask for user's RPI email
-
-        # * Skipping email: dependency on email auth
-        self.logger.info("Skipping email call ------")
-        # self.logger.info("Asking user for RPI email")
-        # rpi_email = await self.ask_email(ctx.author)
-        # * placeholder email until email auth working
-        rpi_email = "testing@rpi.edu"
-        # if rpi_email is None:
-        #     return
+        self.logger.info("Asking user for RPI email")
+        rpi_email = await self.ask_email(ctx.author)
+        if rpi_email is None:
+            return
 
         # Ask for user's RPI RIN
         self.logger.info("Asking user for RPI RIN")
@@ -284,56 +279,21 @@ class Profile(commands.Cog):
         Return None if the user doesn't respond in time or if the response is not a valid email.
         """
         while True:
-
-            # rpi_email = await self.ask_question(
-            #     user,
-            #     "What is your RPI email? Please type out your full email address! (Example: smithj23@rpi.edu)",
-            # )
-            # if rpi_email is None:
-            #     self.logger.info("User did not respond in time or did not input an email")
-            #     return None
-
-            # if rpi_email[-8:] == "@rpi.edu":
-            self.flask_process = None
-            if not self.flask_process or not self.flask_process.poll():
-                self.logger.info("Starting Flask server for OAuth verification...")
-                self.flask_process = subprocess.Popen(
-                    ["python", "email_auth.py"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                )
-
-            oauth_url = f"http://localhost:5000/login?state={user.id}"
-            await user.send(
-                f"Click the link and login with your RPI email! \nLink: {oauth_url}"
+            email = await self.ask_question(
+                user, "What is your rpi email (john@rpi.edu)"
             )
+            if email is None:
+                self.logger.info(
+                    "User did not respond in time or did not input an email"
+                )
+                return None
 
-            # TODO: resources/temp_files.txt needs to be replaced
-            with open("resources/temp_emails.txt", "w") as f:
-                f.write(str(user.id))
-
-            # Poll for verification result
-            for _ in range(100):  # Wait up to 100 seconds, checking every 2 seconds
-                await asyncio.sleep(2)
-                print("Checking for verification result...")
-                rpi_email = get_verified_email(str(user.id))
-                print(f"rpi_email now: {rpi_email}")
-                if rpi_email:
-                    self.logger.info("Email verified successfully.")
-                    remove_verified_email(str(user.id))
-                    await user.send(f"Email verified successfully as {rpi_email}.")
-                    return rpi_email
-
-            self.logger.info("Flask server timed out. Terminating process...")
-            self.flask_process.terminate()
-            await user.send("Email verification timed out. Please try again.")
-            return None
-
-            # return rpi_email
-            # else:
-            #     await user.send(
-            #         f"{rpi_email} is not a valid email. Please enter a valid email."
-            #     )
+            if email and "@" in email and email.endswith("@rpi.edu"):
+                return email
+            else:
+                await user.send(
+                    f"{email} is not a valid RPI email. Please enter a valid RPI email (john@rpi.edu)."
+                )
 
     async def ask_rin(self, user):
         """
