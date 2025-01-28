@@ -36,7 +36,7 @@ class Bot(commands.AutoShardedBot):
 
         # if guild does not exist, create it
         if not guild_data:
-            self.logger.warn(
+            self.logger.warning(
                 f"Guild {member.guild.name} does not exist in database for user {member.id} on join"
             )
             guild_data = self.db.create_data("guild", member.guild.id)
@@ -52,7 +52,9 @@ class Bot(commands.AutoShardedBot):
         for filename in os.listdir(COG_PATH):
             if filename.endswith(".py"):
                 try:
-                    await self.load_extension(f"src.capy_discord.cogs.{filename[:-3]}")
+                    await self.load_extension(
+                        f"{COG_PATH.replace('/', '.')}.{filename[:-3]}"
+                    )
                     self.logger.info(f"Loaded {filename}")
                 except Exception as e:
                     self.logger.error(f"Failed to load {filename}: {e}")

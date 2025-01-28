@@ -1,16 +1,16 @@
 # stl imports
 import asyncio
 import logging
-import subprocess
 
 # third-party imports
 import discord
 from discord.ext import commands
 
 # local imports
-from src.backend.db.database import Database as db
-from src.backend.db.documents.user import User, UserProfile, UserName
-from src.backend.mods.email import remove_verified_email, get_verified_email
+from config import MAJORS_PATH
+from backend.db.database import Database as db
+from backend.db.documents.user import User, UserProfile, UserName
+from backend.mods.email import remove_verified_email, get_verified_email
 
 
 class Profile(commands.Cog):
@@ -23,7 +23,7 @@ class Profile(commands.Cog):
 
     def load_major_list(self):
         try:
-            with open("src/capy_backend/res/majors.txt", "r") as f:
+            with open(MAJORS_PATH, "r") as f:
                 return [line.strip() for line in f.readlines()]
         except FileNotFoundError:
             self.logger.error("majors.txt not found")

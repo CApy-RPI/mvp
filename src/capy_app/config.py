@@ -10,4 +10,5 @@ MONGO_DBNAME = os.getenv("MONGO_DBNAME")
 MONGO_USERNAME = os.getenv("MONGO_USERNAME")
 MONGO_PASSWORD = os.getenv("MONGO_PASSWORD")
 
-COG_PATH = "src/capy_discord/cogs"
+COG_PATH = "frontend/cogs"
+MAJORS_PATH = "backend/res/majors.txt"
