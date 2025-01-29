@@ -26,8 +26,7 @@ class Mailer:
                         }
                     ],
                     "Subject": "Your CApy Verification Code",
-                    "TextPart": "Your Capy Verification Code is " + verification_code,
-                    # TODO someone that knows HTML, you can add an "HTMLPart" element with some fancier looking HTML.
+                    "TextPart": f"Your Capy Verification Code is {verification_code}",
                 }
             ]
         }
