@@ -1,26 +1,37 @@
-import os
-
 from mailjet_rest import Client
-from dotenv import load_dotenv
+from typing import Optional
 
-load_dotenv()
+from config import MAILJET_API_KEY, MAILJET_API_SECRET, EMAIL_ADDRESS
 
-class Mailer:
+
+class Email:
     def __init__(self):
-        self.API_KEY = os.environ.get("MAILJET_API_KEY")
-        self.API_SECRET = os.environ.get("MAILJET_API_SECRET")
-        self.mailjet = Client(auth=(self.API_KEY, self.API_SECRET), version='v3.1')
-        self.Address = os.environ.get("EMAIL_ADDRESS")
+        """
+        Initialize the Mailer with Mailjet client.
+        """
+        self.mailjet = Client(
+            auth=(MAILJET_API_KEY, MAILJET_API_SECRET), version="v3.1"
+        )
 
-    def send_mail(self, to_email, verification_code):
+    def send_mail(self, to_email: str, verification_code: str) -> Optional[dict]:
+        """
+        Send a verification email.
+
+        Args:
+            to_email (str): The recipient's email address.
+            verification_code (str): The verification code to be sent.
+
+        Returns:
+            Optional[dict]: The response from Mailjet API if successful, None otherwise.
+        """
         data = {
-            'Messages': [
+            "Messages": [
                 {
-                    'From': {
-                        "Email": self.Address,
+                    "From": {
+                        "Email": EMAIL_ADDRESS,
                         "Name": "CApy Verification",
                     },
-                    'To': [
+                    "To": [
                         {
                             "Email": to_email,
                         }
@@ -32,5 +43,8 @@ class Mailer:
         }
 
         result = self.mailjet.send.create(data=data)
-        # if (result.status_code != 200):
-        # 	idk do something
+        if result.status_code == 200:
+            return result.json()
+        else:
+            print(f"Failed to send email: {result.status_code} - {result.json()}")
+            return None
