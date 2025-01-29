@@ -13,7 +13,7 @@ You'll need to clone the repository containing the project. Open your terminal a
 ```bash 
     git clone https://github.com/CApy-RPI/mvp
 ``` 
-## Managing Dependecies:
+## Managing Dependencies:
 Use a virtual environment to manage dependecies
 ```bash
     python -m venv venv
