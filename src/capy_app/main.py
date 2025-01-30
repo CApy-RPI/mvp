@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 
 from frontend.bot import Bot
 
+# Set the current working directory to the location of this file
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 def main():
     load_dotenv()
