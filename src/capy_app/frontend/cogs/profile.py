@@ -10,7 +10,7 @@ from discord.ext import commands
 from config import MAJORS_PATH
 from backend.db.database import Database as db
 from backend.db.documents.user import User, UserProfile, UserName
-from backend.mods.email import remove_verified_email, get_verified_email
+#from backend.mods.email import remove_verified_email, get_verified_email
 
 
 class Profile(commands.Cog):
@@ -359,6 +359,7 @@ class Profile(commands.Cog):
             if user_choice.isdigit() and 1 <= int(user_choice) <= len(aspects):
                 new_value = aspects[int(user_choice) - 1]
                 aspect = aspects[int(user_choice) - 1]
+                updates = {}
 
                 if aspect == "Exit":
                     self.logger.info("Exit update page")
@@ -373,62 +374,60 @@ class Profile(commands.Cog):
                         ctx.author, "What is your updated first name? (Example: John)"
                     )
                     # Create updates dictionary to store all changes
-                    updates = {}
-
-                    if aspect == "First Name":
-                        updates["profile__name__first"] = new_value
-                        updated_user.profile.name.first = new_value
-                    elif aspect == "Last Name":
-                        await ctx.author.send(
-                            f"Your previous response was: {updated_user.profile.name.last}"
-                        )
-                        self.logger.info("Updating last name")
-                        new_value = await self.ask_question(
-                            ctx.author,
-                            "What is your updated last name? (Example: Smith)",
-                        )
-                        updates["profile__name__last"] = new_value
-                        updated_user.profile.name.last = new_value
-                    elif aspect == "Major":
-                        await ctx.author.send(
-                            "Your previous response was: "
-                            + ", ".join(updated_user.profile.major)
-                        )
-                        self.logger.info("Updating major")
-                        new_value = await Profile.ask_major(self, ctx.author)
-                        updates["profile__major"] = new_value
-                        updated_user.profile.major = new_value
-                    elif aspect == "Graduation Year":
-                        await ctx.author.send(
-                            "Your previous response was: "
-                            + str(updated_user.profile.graduation_year)
-                        )
-                        self.logger.info("Updating graduation year")
-                        new_value = await Profile.ask_graduation_year(self, ctx.author)
-                        updates["profile__graduation_year"] = new_value
-                        updated_user.profile.graduation_year = new_value
-                    elif aspect == "RIN":
-                        await ctx.author.send(
-                            "Your previous response was: "
-                            + str(updated_user.profile.student_id)
-                        )
-                        self.logger.info("Updating RIN")
-                        new_value = await Profile.ask_rin(self, ctx.author)
-                        updates["profile__student_id"] = new_value
-                        updated_user.profile.student_id = new_value
-                    elif aspect == "RPI Email":
-                        await ctx.author.send(
-                            "Your previous response was: "
-                            + updated_user.profile.school_email
-                        )
-                        self.logger.info("Updating RPI Email")
-                        new_value = await Profile.ask_email(self, ctx.author)
-                        updates["profile__school_email"] = new_value
-                        updated_user.profile.school_email = new_value
+                    
+                    updates["profile__name__first"] = new_value
+                    updated_user.profile.name.first = new_value
+                elif aspect == "Last Name":
+                    await ctx.author.send(
+                        f"Your previous response was: {updated_user.profile.name.last}"
+                    )
+                    self.logger.info("Updating last name")
+                    new_value = await self.ask_question(
+                        ctx.author,
+                        "What is your updated last name? (Example: Smith)",
+                    )
+                    updates["profile__name__last"] = new_value
+                    updated_user.profile.name.last = new_value
+                elif aspect == "Major":
+                    await ctx.author.send(
+                        "Your previous response was: "
+                        + ", ".join(updated_user.profile.major)
+                    )
+                    self.logger.info("Updating major")
+                    new_value = await Profile.ask_major(self, ctx.author)
+                    updates["profile__major"] = new_value
+                    updated_user.profile.major = new_value
+                elif aspect == "Graduation Year":
+                    await ctx.author.send(
+                        "Your previous response was: "
+                        + str(updated_user.profile.graduation_year)
+                    )
+                    self.logger.info("Updating graduation year")
+                    new_value = await Profile.ask_graduation_year(self, ctx.author)
+                    updates["profile__graduation_year"] = new_value
+                    updated_user.profile.graduation_year = new_value
+                elif aspect == "RIN":
+                    await ctx.author.send(
+                        "Your previous response was: "
+                        + str(updated_user.profile.student_id)
+                    )
+                    self.logger.info("Updating RIN")
+                    new_value = await Profile.ask_rin(self, ctx.author)
+                    updates["profile__student_id"] = new_value
+                    updated_user.profile.student_id = new_value
+                elif aspect == "RPI Email":
+                    await ctx.author.send(
+                        "Your previous response was: "
+                        + updated_user.profile.school_email
+                    )
+                    self.logger.info("Updating RPI Email")
+                    new_value = await Profile.ask_email(self, ctx.author)
+                    updates["profile__school_email"] = new_value
+                    updated_user.profile.school_email = new_value
 
                     # Update database with all changes at once
-                    if updates:
-                        db.update_document(updated_user, updates)
+                if updates:
+                    db.update_document(updated_user, updates)
 
                 await ctx.author.send(f"Your {aspect} has been updated.")
 
