@@ -1,7 +1,14 @@
+# stl imports
 import logging
+import os
+
+# third-party imports
 import discord
 from discord.ext import commands
-import os
+
+# local imports
+from backend.db.database import Database as db
+from backend.db.documents.guild import Guild
 
 from config import COG_PATH
 
@@ -16,15 +23,15 @@ class Bot(commands.AutoShardedBot):
     # Event that runs when the bot joins a new server
     async def on_guild_join(self, guild: discord.Guild):
         # If already in guild, do nothing
-        if self.db.get_data("guild", guild.id):
+        if db.get_document(Guild, guild.id):
             self.logger.info(
                 f"Joined Guild: {guild.name} (ID: {guild.id}) already exists in database"
             )
             return
 
         # Else, add guild to data base
-        new_guild_data = self.db.create_data("guild", guild.id)
-        self.db.upsert_data(new_guild_data)
+        new_guild = Guild(_id=guild.id)
+        db.add_document(new_guild)
         self.logger.info(
             f"Inserted New Guild: {guild.name} (ID: {guild.id}) into database"
         )
@@ -32,18 +39,19 @@ class Bot(commands.AutoShardedBot):
     # Event that runs when a member joins a guild
     async def on_member_join(self, member: discord.Member):
         # get current guild data
-        guild_data = self.db.get_data("guild", member.guild.id)
+        guild_doc = db.get_document(Guild, member.guild.id)
 
         # if guild does not exist, create it
-        if not guild_data:
+        if not guild_doc:
             self.logger.warning(
                 f"Guild {member.guild.name} does not exist in database for user {member.id} on join"
             )
-            guild_data = self.db.create_data("guild", member.guild.id)
+            guild_doc = Guild(_id=member.guild.id)
+            db.add_document(guild_doc)
 
         # add member id to server users list
-        guild_data.append_value("users", member.id)
-        self.db.upsert_data(guild_data)
+        guild_doc.users.append(member.id)
+        db.update_document(guild_doc, {"users": guild_doc.users})
         self.logger.info(
             f"User {member.id} joined guild {member.guild.name} (ID: {member.guild.id})"
         )
