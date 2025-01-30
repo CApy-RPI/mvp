@@ -9,7 +9,6 @@ from discord.ext import commands
 # local imports
 from backend.db.database import Database as db
 from backend.db.documents.guild import Guild
-
 from config import COG_PATH
 
 
