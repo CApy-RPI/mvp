@@ -6,7 +6,7 @@ from modules.timestamp import now, format_time, get_timezone, localize_datetime
 from discord import RawReactionActionEvent
 
 
-class Events(commands.Cog):
+class EventCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.bot.logger.info("Event cog initialized.")
@@ -637,4 +637,4 @@ class Events(commands.Cog):
 
 # Setup function to load the cog
 async def setup(bot):
-    await bot.add_cog(Events(bot))
+    await bot.add_cog(EventCog(bot))

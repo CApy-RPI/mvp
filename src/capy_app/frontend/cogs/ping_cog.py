@@ -5,7 +5,7 @@ import logging
 from discord.ext import commands
 
 
-class Ping(commands.Cog):
+class PingCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.logger = logging.getLogger(
@@ -25,4 +25,4 @@ class Ping(commands.Cog):
 
 
 async def setup(bot: commands.Bot):
-    await bot.add_cog(Ping(bot))
+    await bot.add_cog(PingCog(bot))
