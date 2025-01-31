@@ -5,7 +5,8 @@ import discord
 from discord.ext import commands
 import logging
 
-class HelpCommand(commands.HelpCommand):
+
+class HelpCog(commands.HelpCommand):
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger(
@@ -25,31 +26,33 @@ class HelpCommand(commands.HelpCommand):
         """Handles the default help command output."""
         try:
             ctx = self.context
-            bot = ctx.bot 
+            bot = ctx.bot
             embed = discord.Embed(
-                title="Help", description="Available commands", color=discord.Color.green()
+                title="Help",
+                description="Available commands",
+                color=discord.Color.green(),
             )
             await ctx.send("Custom Help Command Active!")
 
             for cog, commands in mapping.items():
-            # Filter visible commands and gather name and help description
+                # Filter visible commands and gather name and help description
                 command_list = [
                     f"**{command.name}** - {command.help or 'No description provided'}"
-                    for command in commands if not command.hidden
+                    for command in commands
+                    if not command.hidden
                 ]
                 if command_list:
                     cog_name = cog.qualified_name if cog else "No Category"
                     embed.add_field(
-                        name=cog_name,
-                        value="\n".join(command_list),
-                        inline=False
+                        name=cog_name, value="\n".join(command_list), inline=False
                     )
 
             await ctx.send(embed=embed)
         except Exception as e:
-            self.logger.error("Error occured in send_bot_help "+ e)
-            await self.send_error_message("There was an error sending the help message.")
-        
+            self.logger.error("Error occured in send_bot_help " + e)
+            await self.send_error_message(
+                "There was an error sending the help message."
+            )
 
     async def send_cog_help(self, cog):
         """Handles help for a specific cog."""
@@ -58,7 +61,7 @@ class HelpCommand(commands.HelpCommand):
             embed = discord.Embed(
                 title=f"{cog.qualified_name} Commands",
                 description="LSDFJLSDKFJSLDKJFSLKDJFLK",
-                color=discord.Color.blue()
+                color=discord.Color.blue(),
             )
 
             # Combine all commands into a single string
@@ -67,12 +70,22 @@ class HelpCommand(commands.HelpCommand):
                 if not command.hidden:
                     if isinstance(command, commands.Group):
                         # For group commands, add each subcommand
-                        subcommands = [f"**{sub.name}** - {sub.help or 'No description'}" for sub in command.commands]
-                        description = f"{command.help or 'No description'}\n" + "\n".join(subcommands)
-                        command_descriptions.append(f"**{command.name}**\n{description}")
+                        subcommands = [
+                            f"**{sub.name}** - {sub.help or 'No description'}"
+                            for sub in command.commands
+                        ]
+                        description = (
+                            f"{command.help or 'No description'}\n"
+                            + "\n".join(subcommands)
+                        )
+                        command_descriptions.append(
+                            f"**{command.name}**\n{description}"
+                        )
                     else:
                         # Add standalone command
-                        command_descriptions.append(f"**{command.name}** - {command.help or 'No description'}")
+                        command_descriptions.append(
+                            f"**{command.name}** - {command.help or 'No description'}"
+                        )
 
             # Join all command descriptions with newlines and set it in the embed description
             embed.description = "\n\n".join(command_descriptions)
@@ -83,10 +96,14 @@ class HelpCommand(commands.HelpCommand):
             await self.send_error_message("Cog is not found.")
         except commands.MissingPermissions:
             self.logger.error("Missing Permissions!")
-            await self.send_error_message("You do not have permission to view this categorie.")
+            await self.send_error_message(
+                "You do not have permission to view this categorie."
+            )
         except Exception as e:
             self.logger.error(f"Error displaying help for command '{cog}': {e}")
-            await self.send_error_message("There was an error sending the help message.")
+            await self.send_error_message(
+                "There was an error sending the help message."
+            )
 
     async def send_command_help(self, command):
         """Handles help for a specific command."""
@@ -104,23 +121,26 @@ class HelpCommand(commands.HelpCommand):
             await self.send_error_message("Command is not found.")
         except commands.MissingPermissions:
             self.logger.error("Missing Permissions!")
-            await self.send_error_message("You do not have permission to view this command.")
+            await self.send_error_message(
+                "You do not have permission to view this command."
+            )
         except Exception as e:
             self.logger.error(f"Error displaying help for command '{command}': {e}")
-            await self.send_error_message("There was an error sending the help message.")
+            await self.send_error_message(
+                "There was an error sending the help message."
+            )
 
 
 class Help(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.bot.help_command = HelpCommand()  # Assign to bot's help command
+        self.bot.help_command = HelpCog()  # Assign to bot's help command
 
     def cog_unload(self):
         print("test unloading")
         self.bot.help_command = (
             commands.DefaultHelpCommand()
         )  # Reset the help command when the cog is unloaded
-    
 
 
 async def setup(bot: commands.Bot):

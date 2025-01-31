@@ -95,3 +95,34 @@ class Database:
         if filters is None:
             filters = {}
         return document_class.objects(**filters)
+
+    @staticmethod
+    def sync_document_with_template(document: T, template: Type[T]) -> None:
+        """
+        Ensure a document has the same values as the current template.
+
+        Args:
+            document (T): The document to be synced.
+            template (Type[T]): The template class to sync with.
+        """
+
+        def sync_fields(doc, tmpl):
+            for field in tmpl._fields:
+                if not hasattr(doc, field):
+                    setattr(doc, field, getattr(tmpl, field))
+                else:
+                    value = getattr(doc, field)
+                    if isinstance(value, me.EmbeddedDocument):
+                        sync_fields(value, getattr(tmpl, field))
+                    else:
+                        setattr(tmpl, field, value)
+
+            for field in doc._fields:
+                if field not in tmpl._fields:
+                    raise ValueError(
+                        f"Warning: Field '{field}' in document is not in the template and will be ignored."
+                    )
+
+        template_instance = template()
+        sync_fields(document, template_instance)
+        document.save()

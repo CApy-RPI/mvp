@@ -1,9 +1,10 @@
+import os
 import logging
 import discord
 from discord.ext import commands
-import os
 
 from config import COG_PATH
+import backend.db as db
 
 
 # Create the bot class, inheriting from commands.AutoShardedBot
@@ -15,35 +16,37 @@ class Bot(commands.AutoShardedBot):
 
     # Event that runs when the bot joins a new server
     async def on_guild_join(self, guild: discord.Guild):
-        # If already in guild, do nothing
-        if self.db.get_data("guild", guild.id):
+        # check if guild exists, else create
+        # TODO: refactor Database out of class so methods can be called directly
+        guild_data = db.Database.get_document(db.Guild, guild.id)
+        if not guild_data:
+            guild_data = db.Guild(_id=guild.id)
+            guild_data.save()
             self.logger.info(
-                f"Joined Guild: {guild.name} (ID: {guild.id}) already exists in database"
+                f"Created new guild entry for {guild.name} (ID: {guild.id})"
             )
-            return
-
-        # Else, add guild to data base
-        new_guild_data = self.db.create_data("guild", guild.id)
-        self.db.upsert_data(new_guild_data)
-        self.logger.info(
-            f"Inserted New Guild: {guild.name} (ID: {guild.id}) into database"
-        )
+        else:
+            db.Database.sync_document_with_template(guild_data, db.Guild)
+            self.logger.info(
+                f"Guild {guild.name} (ID: {guild.id}) already exists and synced"
+            )
 
     # Event that runs when a member joins a guild
     async def on_member_join(self, member: discord.Member):
-        # get current guild data
-        guild_data = self.db.get_data("guild", member.guild.id)
-
-        # if guild does not exist, create it
+        # check if guild exists, else create
+        guild_data = db.Database.get_document(db.Guild, member.guild.id)
         if not guild_data:
-            self.logger.warning(
-                f"Guild {member.guild.name} does not exist in database for user {member.id} on join"
+            guild_data = db.Guild(_id=member.guild.id)
+            guild_data.save()
+            self.logger.info(
+                f"Created new guild entry for {member.guild.name} (ID: {member.guild.id})"
             )
-            guild_data = self.db.create_data("guild", member.guild.id)
+        else:
+            db.sync_document_with_template(guild_data, db.Guild)
 
         # add member id to server users list
-        guild_data.append_value("users", member.id)
-        self.db.upsert_data(guild_data)
+        guild_data.users.append(member.id)
+        guild_data.save()
         self.logger.info(
             f"User {member.id} joined guild {member.guild.name} (ID: {member.guild.id})"
         )

@@ -5,7 +5,7 @@ import logging
 from discord.ext import commands
 
 
-class Templates(commands.Cog):
+class TemplateCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.logger = logging.getLogger(
@@ -123,4 +123,4 @@ class Templates(commands.Cog):
 
 
 async def setup(bot: commands.Bot):
-    await bot.add_cog(Templates(bot))
+    await bot.add_cog(TemplateCog(bot))

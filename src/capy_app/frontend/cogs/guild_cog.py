@@ -8,9 +8,10 @@ from discord.ext import commands
 # local imports
 from backend.db.database import Database as db
 from backend.db.documents.guild import Guild, GuildChannels, GuildRoles
+from backend.db.documents.user import User
 
 
-class Guild(commands.Cog):
+class GuildCog(commands.Cog):
     """
     A class that represents a Discord Cog for managing server settings.
     """
@@ -46,8 +47,8 @@ class Guild(commands.Cog):
         Args:
             ctx (commands.Context): The context of the command.
         """
-        self.logger.info("Accessing guild from databse")
-        guild = db.get_document(Guild, ctx.guild.id)
+        self.logger.info("Accessing guild from database")
+        guild = Guild.objects(_id=ctx.guild.id).first()
         self.logger.info("Guild data retrieved successfully")
         if not guild:
             await ctx.send("No settings configured for this server.")
@@ -136,4 +137,4 @@ async def setup(bot: commands.Bot) -> None:
     Args:
         bot (commands.Bot): The bot instance.
     """
-    await bot.add_cog(Guild(bot))
+    await bot.add_cog(GuildCog(bot))

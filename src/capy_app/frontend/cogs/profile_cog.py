@@ -13,7 +13,7 @@ from backend.db.documents.user import User, UserProfile, UserName
 from backend.mods.email import remove_verified_email, get_verified_email
 
 
-class Profile(commands.Cog):
+class ProfileCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.logger = logging.getLogger(
