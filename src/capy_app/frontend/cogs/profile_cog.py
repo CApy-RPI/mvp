@@ -446,7 +446,7 @@ class ProfileCog(commands.Cog):
                         + ", ".join(updated_user.profile.major)
                     )
                     self.logger.info("Updating major")
-                    new_value = await Profile.ask_major(self, ctx.author)
+                    new_value = await ProfileCog.ask_major(self, ctx.author)
                     updates["profile__major"] = new_value
                     updated_user.profile.major = new_value
                 elif aspect == "Graduation Year":
@@ -455,7 +455,7 @@ class ProfileCog(commands.Cog):
                         + str(updated_user.profile.graduation_year)
                     )
                     self.logger.info("Updating graduation year")
-                    new_value = await Profile.ask_graduation_year(self, ctx.author)
+                    new_value = await ProfileCog.ask_graduation_year(self, ctx.author)
                     updates["profile__graduation_year"] = new_value
                     updated_user.profile.graduation_year = new_value
                 elif aspect == "RIN":
@@ -464,7 +464,7 @@ class ProfileCog(commands.Cog):
                         + str(updated_user.profile.student_id)
                     )
                     self.logger.info("Updating RIN")
-                    new_value = await Profile.ask_rin(self, ctx.author)
+                    new_value = await ProfileCog.ask_rin(self, ctx.author)
                     updates["profile__student_id"] = new_value
                     updated_user.profile.student_id = new_value
                 elif aspect == "RPI Email":
@@ -473,7 +473,7 @@ class ProfileCog(commands.Cog):
                         + updated_user.profile.school_email
                     )
                     self.logger.info("Updating RPI Email")
-                    new_value = await Profile.ask_email(self, ctx.author)
+                    new_value = await ProfileCog.ask_email(self, ctx.author)
                     updates["profile__school_email"] = new_value
                     updated_user.profile.school_email = new_value
 
