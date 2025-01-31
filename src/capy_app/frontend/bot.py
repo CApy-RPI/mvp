@@ -1,8 +1,15 @@
+# stl imports
 import os
 import logging
+
+
+# third-party imports
 import discord
 from discord.ext import commands
 
+# local imports
+from backend.db.database import Database as db
+from backend.db.documents.guild import Guild
 from config import COG_PATH
 import backend.db as db
 

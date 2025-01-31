@@ -1,12 +1,12 @@
 import mongoengine as me
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class RestrictedBase:
     meta = {"allow_inheritance": True}
 
     def __setattr__(self, name, value):
-        if name not in self._fields:
+        if not name.startswith("_") and name not in self._fields:
             raise AttributeError(
                 f"Cannot modify attribute {name} on {self.__class__.__name__} as it does not exist."
             )
@@ -19,9 +19,11 @@ class RestrictedBase:
 
 
 class RestrictedDocument(RestrictedBase, me.Document):
-    created_at = me.DateTimeField(default=datetime.utcnow)
-    updated_at = me.DateTimeField(default=datetime.utcnow, auto_now=True)
+    created_at = me.DateTimeField(default=lambda: datetime.now(timezone.utc))
+    updated_at = me.DateTimeField(default=lambda: datetime.now(timezone.utc), auto_now=True)
+
+    meta = {"abstract": True}
 
 
-class RestrictedEmbeddedDocument(RestrictedBase, me.Document):
+class RestrictedEmbeddedDocument(RestrictedBase, me.EmbeddedDocument):
     pass
