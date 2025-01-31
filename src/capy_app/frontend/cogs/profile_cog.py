@@ -1,6 +1,7 @@
 # stl imports
 import asyncio
 import logging
+import random
 
 # third-party imports
 import discord
@@ -10,7 +11,7 @@ from discord.ext import commands
 from config import MAJORS_PATH
 from backend.db.database import Database as db
 from backend.db.documents.user import User, UserProfile, UserName
-from backend.mods.email import remove_verified_email, get_verified_email
+from backend.mods.email import Email
 
 
 class ProfileCog(commands.Cog):
@@ -289,11 +290,62 @@ class ProfileCog(commands.Cog):
                 return None
 
             if email and "@" in email and email.endswith("@rpi.edu"):
-                return email
+                # Get existing user document
+                user_doc = db.get_document(User, user.id)
+
+                # If email hasn't changed, return it without verification
+                if user_doc and user_doc.profile.school_email == email:
+                    return email
+
+                # Otherwise verify the new email
+                verified_email = await self.verify_email(user, email)
+                if verified_email:
+                    return verified_email
             else:
                 await user.send(
                     f"{email} is not a valid RPI email. Please enter a valid RPI email (john@rpi.edu)."
                 )
+
+    async def verify_email(self, user, email):
+        """
+        Verifies the email by sending a verification code and checking the response.
+        Returns the verified email if successful, None otherwise.
+        """
+        # Generate verification code
+        verification_code = "".join(str(random.randint(0, 9)) for _ in range(6))
+
+        # Send verification email
+        email_client = Email()
+        result = email_client.send_mail(email, verification_code)
+
+        if result:
+            await user.send(
+                "A verification code has been sent to your email. Please enter it here:"
+            )
+
+            # Wait for verification code
+            try:
+                msg = await self.bot.wait_for(
+                    "message",
+                    check=lambda message: message.author == user
+                    and isinstance(message.channel, discord.DMChannel),
+                    timeout=300,
+                )
+
+                if msg.content == verification_code:
+                    await user.send("Email verified successfully!")
+                    return email
+                else:
+                    await user.send("Invalid verification code. Please try again.")
+                    return None
+
+            except asyncio.TimeoutError:
+                await user.send("Verification timed out. Please try again.")
+                return None
+
+        else:
+            await user.send("Failed to send verification email. Please try again.")
+            return None
 
     async def ask_rin(self, user):
         """
@@ -359,6 +411,7 @@ class ProfileCog(commands.Cog):
             if user_choice.isdigit() and 1 <= int(user_choice) <= len(aspects):
                 new_value = aspects[int(user_choice) - 1]
                 aspect = aspects[int(user_choice) - 1]
+                updates = {}
 
                 if aspect == "Exit":
                     self.logger.info("Exit update page")
@@ -373,62 +426,60 @@ class ProfileCog(commands.Cog):
                         ctx.author, "What is your updated first name? (Example: John)"
                     )
                     # Create updates dictionary to store all changes
-                    updates = {}
 
-                    if aspect == "First Name":
-                        updates["profile__name__first"] = new_value
-                        updated_user.profile.name.first = new_value
-                    elif aspect == "Last Name":
-                        await ctx.author.send(
-                            f"Your previous response was: {updated_user.profile.name.last}"
-                        )
-                        self.logger.info("Updating last name")
-                        new_value = await self.ask_question(
-                            ctx.author,
-                            "What is your updated last name? (Example: Smith)",
-                        )
-                        updates["profile__name__last"] = new_value
-                        updated_user.profile.name.last = new_value
-                    elif aspect == "Major":
-                        await ctx.author.send(
-                            "Your previous response was: "
-                            + ", ".join(updated_user.profile.major)
-                        )
-                        self.logger.info("Updating major")
-                        new_value = await Profile.ask_major(self, ctx.author)
-                        updates["profile__major"] = new_value
-                        updated_user.profile.major = new_value
-                    elif aspect == "Graduation Year":
-                        await ctx.author.send(
-                            "Your previous response was: "
-                            + str(updated_user.profile.graduation_year)
-                        )
-                        self.logger.info("Updating graduation year")
-                        new_value = await Profile.ask_graduation_year(self, ctx.author)
-                        updates["profile__graduation_year"] = new_value
-                        updated_user.profile.graduation_year = new_value
-                    elif aspect == "RIN":
-                        await ctx.author.send(
-                            "Your previous response was: "
-                            + str(updated_user.profile.student_id)
-                        )
-                        self.logger.info("Updating RIN")
-                        new_value = await Profile.ask_rin(self, ctx.author)
-                        updates["profile__student_id"] = new_value
-                        updated_user.profile.student_id = new_value
-                    elif aspect == "RPI Email":
-                        await ctx.author.send(
-                            "Your previous response was: "
-                            + updated_user.profile.school_email
-                        )
-                        self.logger.info("Updating RPI Email")
-                        new_value = await Profile.ask_email(self, ctx.author)
-                        updates["profile__school_email"] = new_value
-                        updated_user.profile.school_email = new_value
+                    updates["profile__name__first"] = new_value
+                    updated_user.profile.name.first = new_value
+                elif aspect == "Last Name":
+                    await ctx.author.send(
+                        f"Your previous response was: {updated_user.profile.name.last}"
+                    )
+                    self.logger.info("Updating last name")
+                    new_value = await self.ask_question(
+                        ctx.author,
+                        "What is your updated last name? (Example: Smith)",
+                    )
+                    updates["profile__name__last"] = new_value
+                    updated_user.profile.name.last = new_value
+                elif aspect == "Major":
+                    await ctx.author.send(
+                        "Your previous response was: "
+                        + ", ".join(updated_user.profile.major)
+                    )
+                    self.logger.info("Updating major")
+                    new_value = await Profile.ask_major(self, ctx.author)
+                    updates["profile__major"] = new_value
+                    updated_user.profile.major = new_value
+                elif aspect == "Graduation Year":
+                    await ctx.author.send(
+                        "Your previous response was: "
+                        + str(updated_user.profile.graduation_year)
+                    )
+                    self.logger.info("Updating graduation year")
+                    new_value = await Profile.ask_graduation_year(self, ctx.author)
+                    updates["profile__graduation_year"] = new_value
+                    updated_user.profile.graduation_year = new_value
+                elif aspect == "RIN":
+                    await ctx.author.send(
+                        "Your previous response was: "
+                        + str(updated_user.profile.student_id)
+                    )
+                    self.logger.info("Updating RIN")
+                    new_value = await Profile.ask_rin(self, ctx.author)
+                    updates["profile__student_id"] = new_value
+                    updated_user.profile.student_id = new_value
+                elif aspect == "RPI Email":
+                    await ctx.author.send(
+                        "Your previous response was: "
+                        + updated_user.profile.school_email
+                    )
+                    self.logger.info("Updating RPI Email")
+                    new_value = await Profile.ask_email(self, ctx.author)
+                    updates["profile__school_email"] = new_value
+                    updated_user.profile.school_email = new_value
 
                     # Update database with all changes at once
-                    if updates:
-                        db.update_document(updated_user, updates)
+                if updates:
+                    db.update_document(updated_user, updates)
 
                 await ctx.author.send(f"Your {aspect} has been updated.")
 
