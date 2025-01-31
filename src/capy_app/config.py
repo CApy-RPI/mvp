@@ -20,3 +20,5 @@ CHANNEL_LOCK = os.getenv("CHANNEL_LOCK")
 
 COG_PATH = "frontend/cogs"
 MAJORS_PATH = "backend/res/majors.txt"
+
+ENABLE_CHATBOT = bool(os.getenv("ENABLE_CHATBOT", False))

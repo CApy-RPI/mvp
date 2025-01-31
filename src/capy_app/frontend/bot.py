@@ -9,8 +9,7 @@ from discord.ext import commands
 
 # local imports
 from backend.db.database import Database as db
-from backend.db.documents.guild import Guild
-from config import COG_PATH
+from config import COG_PATH, ENABLE_CHATBOT
 import backend.db as db
 
 
@@ -56,10 +55,12 @@ class Bot(commands.AutoShardedBot):
         guild_data.save()
         self.logger.info(
             f"User {member.id} joined guild {member.guild.name} (ID: {member.guild.id})"
-        )
+        ) 
 
     async def setup_hook(self):
         for filename in os.listdir(COG_PATH):
+            if "ollama" in filename and ENABLE_CHATBOT == False:
+                continue
             if filename.endswith(".py"):
                 try:
                     await self.load_extension(
@@ -89,4 +90,4 @@ class Bot(commands.AutoShardedBot):
 
     async def on_command_error(self, ctx, error):
         self.logger.error(f"{ctx.command}: {error}")
-        await ctx.send(error)
+        await ctx.send(f"Failed to execute command: {error}")
