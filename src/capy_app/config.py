@@ -16,7 +16,7 @@ MAILJET_API_SECRET: str = os.getenv("MAILJET_API_SECRET", "")
 EMAIL_ADDRESS: str = os.getenv("EMAIL_ADDRESS", "")
 
 ALLOWED_CHANNEL_ID = os.getenv("ALLOWED_CHANNEL_ID")
-CHANNEL_LOCK = os.getenv("CHANNEL_LOCK")
+CHANNEL_LOCK = bool(os.getenv("CHANNEL_LOCK", False))
 
 COG_PATH = "frontend/cogs"
 MAJORS_PATH = "backend/res/majors.txt"
