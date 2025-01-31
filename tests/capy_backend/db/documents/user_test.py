@@ -5,6 +5,7 @@ from mongoengine.errors import ValidationError, NotUniqueError
 
 from src.capy_app.backend.db.documents.user import User, UserProfile, UserName
 
+
 @pytest.fixture(scope="module")
 def db():
     """
@@ -14,12 +15,11 @@ def db():
         db="test_users_db",
         alias="default",  # Set 'default' alias for MongoEngine
         host="mongodb://localhost",
-        mongo_client_class=mongomock.MongoClient  # Use MongoMock explicitly
+        mongo_client_class=mongomock.MongoClient,  # Use MongoMock explicitly
+        uuidRepresentation="standard",
     )
     yield
     mongoengine.disconnect(alias="default")  # Ensure proper cleanup
-
-
 
 
 def test_create_user_success(db):
@@ -66,13 +66,10 @@ def test_missing_required_fields(db):
         # missing school_email
         student_id=5555,
         # missing major
-        graduation_year=2024
+        graduation_year=2024,
     )
 
-    user = User(
-        _id=2,
-        profile=incomplete_profile
-    )
+    user = User(_id=2, profile=incomplete_profile)
 
     with pytest.raises(ValidationError) as excinfo:
         user.save()
@@ -112,7 +109,9 @@ def test_unique_school_email(db):
         user_b.save()
 
     # Adjusted assertion to check for duplicate key error
-    assert "E11000" in str(excinfo.value), "Expected a duplicate key error for school_email"
+    assert "E11000" in str(
+        excinfo.value
+    ), "Expected a duplicate key error for school_email"
 
 
 def test_unique_student_id(db):
@@ -144,7 +143,9 @@ def test_unique_student_id(db):
         user_d.save()
 
     # Adjusted assertion to check for duplicate key error
-    assert "E11000" in str(excinfo.value), "Expected a duplicate key error for student_id"
+    assert "E11000" in str(
+        excinfo.value
+    ), "Expected a duplicate key error for student_id"
 
 
 def test_optional_phone(db):
@@ -158,7 +159,7 @@ def test_optional_phone(db):
         student_id=22222,
         major=["Art History"],
         graduation_year=2026,
-        phone=1234567890
+        phone=1234567890,
     )
     user = User(_id=7, profile=profile).save()
 

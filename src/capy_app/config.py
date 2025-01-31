@@ -3,17 +3,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-DEV_BOT_TOKEN = os.getenv("DEV_BOT_TOKEN")
+BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
+DEV_BOT_TOKEN: str = os.getenv("DEV_BOT_TOKEN", "")
 
-MONGO_URI = os.getenv("MONGO_URI")
-MONGO_DBNAME = os.getenv("MONGO_DBNAME")
-MONGO_USERNAME = os.getenv("MONGO_USERNAME")
-MONGO_PASSWORD = os.getenv("MONGO_PASSWORD")
+MONGO_URI: str = os.getenv("MONGO_URI", "")
+MONGO_DBNAME: str = os.getenv("MONGO_DBNAME", "")
+MONGO_USERNAME: str = os.getenv("MONGO_USERNAME", "")
+MONGO_PASSWORD: str = os.getenv("MONGO_PASSWORD", "")
 
-MAILJET_API_KEY = os.getenv("MAILJET_API_KEY")
-MAILJET_API_SECRET = os.getenv("MAILJET_API_SECRET")
-EMAIL_ADDRESS = os.getenv("EMAIL_ADDRESS")
+MAILJET_API_KEY: str = os.getenv("MAILJET_API_KEY", "")
+MAILJET_API_SECRET: str = os.getenv("MAILJET_API_SECRET", "")
+EMAIL_ADDRESS: str = os.getenv("EMAIL_ADDRESS", "")
 
 ALLOWED_CHANNEL_ID = os.getenv("ALLOWED_CHANNEL_ID")
 CHANNEL_LOCK = os.getenv("CHANNEL_LOCK")
