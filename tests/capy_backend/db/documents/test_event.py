@@ -5,6 +5,7 @@ from datetime import datetime
 
 from src.capy_app.backend.db.documents.event import Event, EventDetails, EventReactions
 
+
 @pytest.fixture(scope="module")
 def db():
     """
@@ -15,6 +16,7 @@ def db():
         db="test_event_db",
         alias="default",
         mongo_client_class=mongomock.MongoClient,
+        uuidRepresentation="standard",
     )
     yield
     mongoengine.disconnect()
@@ -35,7 +37,7 @@ def test_event_creation(db):
         users=[123, 456],
         guild_id=789,
         message_id=111,
-        details=details
+        details=details,
     )
     event.save()
 
@@ -50,7 +52,9 @@ def test_event_creation(db):
 
 def test_event_reactions_defaults(db):
     # If your Event requires an _id, specify it:
-    details = EventDetails(name="Event With Reactions", datetime=datetime(2030, 5, 5, 10, 0))
+    details = EventDetails(
+        name="Event With Reactions", datetime=datetime(2030, 5, 5, 10, 0)
+    )
     event = Event(_id=200, details=details).save()
 
     retrieved = Event.objects(_id=200).first()
@@ -112,7 +116,7 @@ def test_set_reactions(db):
     details = EventDetails(
         name="Event With Custom Reactions",
         datetime=datetime(2030, 6, 6, 12, 0),
-        reactions=reactions
+        reactions=reactions,
     )
     Event(_id=204, details=details).save()
 

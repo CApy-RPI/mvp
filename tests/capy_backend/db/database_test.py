@@ -14,6 +14,7 @@ def db():
         "mongoenginetest",
         host="mongodb://localhost",
         mongo_client_class=mongomock.MongoClient,
+        uuidRepresentation="standard",
     )
     db_instance = Database()
     yield db_instance
