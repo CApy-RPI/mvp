@@ -11,13 +11,13 @@ your operating system from the official Python documentation: https://www.python
 ## Project Setup:
 You'll need to clone the repository containing the project. Open your terminal and execute the following command:
 ```bash 
-    git clone https://github.com/CApy-RPI/mvp
+git clone https://github.com/CApy-RPI/mvp
 ``` 
 ## Managing Dependencies:
 Use a virtual environment to manage dependecies
 ```bash
-    python -m venv venv
-    source venv/bin/activate
+python -m venv venv
+source venv/bin/activate
 ```
 
 Use requirements.txt for production dependencies and requirements_dev.txt for development dependencies:
