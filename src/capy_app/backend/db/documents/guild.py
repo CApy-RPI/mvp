@@ -1,9 +1,9 @@
 import typing
 import datetime
-import mongoengine as me
+import mongoengine
 
 
-class GuildChannels(me.EmbeddedDocument):
+class GuildChannels(mongoengine.EmbeddedDocument):
     """Represents Discord channel configuration for a guild.
 
     Attributes:
@@ -12,12 +12,12 @@ class GuildChannels(me.EmbeddedDocument):
         moderator: Channel ID for moderator communications
     """
 
-    reports: typing.Optional[int] = me.IntField()
-    announcements: typing.Optional[int] = me.IntField()
-    moderator: typing.Optional[int] = me.IntField()
+    reports: typing.Optional[int] = mongoengine.IntField()
+    announcements: typing.Optional[int] = mongoengine.IntField()
+    moderator: typing.Optional[int] = mongoengine.IntField()
 
 
-class GuildRoles(me.EmbeddedDocument):
+class GuildRoles(mongoengine.EmbeddedDocument):
     """Represents role configuration for a guild.
 
     Attributes:
@@ -25,11 +25,11 @@ class GuildRoles(me.EmbeddedDocument):
         admin: Role identifier for administrators
     """
 
-    eboard: typing.Optional[str] = me.StringField()
-    admin: typing.Optional[str] = me.StringField()
+    eboard: typing.Optional[str] = mongoengine.StringField()
+    admin: typing.Optional[str] = mongoengine.StringField()
 
 
-class Guild(me.Document):
+class Guild(mongoengine.Document):
     """Main guild document representing a Discord server configuration.
 
     Attributes:
@@ -42,15 +42,21 @@ class Guild(me.Document):
         updated_at: Timestamp of last update
     """
 
-    _id: int = me.IntField(primary_key=True)
-    users: typing.List[int] = me.ListField(me.IntField())
-    events: typing.List[int] = me.ListField(me.IntField())
-    channels: GuildChannels = me.EmbeddedDocumentField(
+    _id: int = mongoengine.IntField(primary_key=True)
+    users: typing.List[int] = mongoengine.ListField(mongoengine.IntField())
+    events: typing.List[int] = mongoengine.ListField(mongoengine.IntField())
+    channels: GuildChannels = mongoengine.EmbeddedDocumentField(
         GuildChannels, default=GuildChannels
     )
-    roles: GuildRoles = me.EmbeddedDocumentField(GuildRoles, default=GuildRoles)
-    created_at: datetime.datetime = me.DateTimeField(default=datetime.datetime.utcnow)
-    updated_at: datetime.datetime = me.DateTimeField(default=datetime.datetime.utcnow)
+    roles: GuildRoles = mongoengine.EmbeddedDocumentField(
+        GuildRoles, default=GuildRoles
+    )
+    created_at: datetime.datetime = mongoengine.DateTimeField(
+        default=datetime.datetime.utcnow
+    )
+    updated_at: datetime.datetime = mongoengine.DateTimeField(
+        default=datetime.datetime.utcnow
+    )
 
     meta = {"collection": "guilds", "indexes": ["created_at", "updated_at"]}
 

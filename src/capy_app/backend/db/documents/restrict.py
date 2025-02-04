@@ -1,16 +1,16 @@
 import typing
-import mongoengine as me
-from datetime import datetime, timezone
+import datetime
+import mongoengine
 
 
-class RestrictedBase(me.Document):
+class RestrictedBase(mongoengine.Document):
     """Base class for restricted documents with proper type hints."""
 
-    _fields: typing.ClassVar[typing.Dict[str, me.BaseField]]
+    _fields: typing.ClassVar[typing.Dict[str, mongoengine.BaseField]]
     meta = {"abstract": True}
 
     @classmethod
-    def get_fields(cls) -> typing.Dict[str, me.BaseField]:
+    def get_fields(cls) -> typing.Dict[str, mongoengine.BaseField]:
         """Get document fields with proper type hints."""
         return cls._fields
 
@@ -27,14 +27,16 @@ class RestrictedBase(me.Document):
         )
 
 
-class RestrictedDocument(RestrictedBase, me.Document):
-    created_at = me.DateTimeField(default=lambda: datetime.now(timezone.utc))
-    updated_at = me.DateTimeField(
-        default=lambda: datetime.now(timezone.utc), auto_now=True
+class RestrictedDocument(RestrictedBase, mongoengine.Document):
+    created_at = mongoengine.DateTimeField(
+        default=lambda: datetime.datetime.now(datetime.timezone.utc)
+    )
+    updated_at = mongoengine.DateTimeField(
+        default=lambda: datetime.datetime.now(datetime.timezone.utc), auto_now=True
     )
 
     meta = {"abstract": True}
 
 
-class RestrictedEmbeddedDocument(RestrictedBase, me.EmbeddedDocument):
+class RestrictedEmbeddedDocument(RestrictedBase, mongoengine.EmbeddedDocument):
     pass

@@ -1,9 +1,9 @@
 import typing
 import datetime
-import mongoengine as me
+import mongoengine
 
 
-class EventReactions(me.EmbeddedDocument):
+class EventReactions(mongoengine.EmbeddedDocument):
     """Tracks reaction counts for an event.
 
     Attributes:
@@ -12,12 +12,12 @@ class EventReactions(me.EmbeddedDocument):
         no: Count of negative responses
     """
 
-    yes: int = me.IntField(default=0)
-    maybe: int = me.IntField(default=0)
-    no: int = me.IntField(default=0)
+    yes: int = mongoengine.IntField(default=0)
+    maybe: int = mongoengine.IntField(default=0)
+    no: int = mongoengine.IntField(default=0)
 
 
-class EventDetails(me.EmbeddedDocument):
+class EventDetails(mongoengine.EmbeddedDocument):
     """Stores detailed information about an event.
 
     Attributes:
@@ -28,16 +28,16 @@ class EventDetails(me.EmbeddedDocument):
         reactions: Tracking of user reactions
     """
 
-    name: str = me.StringField(required=True)
-    time: datetime.datetime = me.DateTimeField(required=True)
-    location: typing.Optional[str] = me.StringField()
-    description: typing.Optional[str] = me.StringField()
-    reactions: EventReactions = me.EmbeddedDocumentField(
+    name: str = mongoengine.StringField(required=True)
+    time: datetime.datetime = mongoengine.DateTimeField(required=True)
+    location: typing.Optional[str] = mongoengine.StringField()
+    description: typing.Optional[str] = mongoengine.StringField()
+    reactions: EventReactions = mongoengine.EmbeddedDocumentField(
         EventReactions, default=EventReactions
     )
 
 
-class Event(me.Document):
+class Event(mongoengine.Document):
     """Main event document storing event data and relationships.
 
     Attributes:
@@ -50,13 +50,19 @@ class Event(me.Document):
         updated_at: Timestamp of last update
     """
 
-    _id: int = me.IntField(primary_key=True)
-    users: typing.List[int] = me.ListField(me.IntField())
-    guild_id: int = me.IntField()
-    message_id: int = me.IntField()
-    details: EventDetails = me.EmbeddedDocumentField(EventDetails, required=True)
-    created_at: datetime.datetime = me.DateTimeField(default=datetime.datetime.utcnow)
-    updated_at: datetime.datetime = me.DateTimeField(default=datetime.datetime.utcnow)
+    _id: int = mongoengine.IntField(primary_key=True)
+    users: typing.List[int] = mongoengine.ListField(mongoengine.IntField())
+    guild_id: int = mongoengine.IntField()
+    message_id: int = mongoengine.IntField()
+    details: EventDetails = mongoengine.EmbeddedDocumentField(
+        EventDetails, required=True
+    )
+    created_at: datetime.datetime = mongoengine.DateTimeField(
+        default=datetime.datetime.utcnow
+    )
+    updated_at: datetime.datetime = mongoengine.DateTimeField(
+        default=datetime.datetime.utcnow
+    )
 
     meta = {"collection": "events", "indexes": ["created_at", "updated_at"]}
 

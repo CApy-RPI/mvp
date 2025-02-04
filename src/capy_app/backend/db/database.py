@@ -1,5 +1,6 @@
 import typing
 import mongoengine
+
 import config
 
 T = typing.TypeVar("T", bound=mongoengine.Document)
