@@ -1,29 +1,39 @@
-# stl imports
-import os
+"""Discord bot module for handling discord-related functionality."""
+
+# Standard library imports
 import logging
+import os
+import typing
 
-
-# third-party imports
+# Third-party imports
 import discord
 from discord.ext import commands
+from discord.ext.commands import Context
 
-# local imports
+# Local imports
 from backend.db.database import Database as db
-from config import COG_PATH, ENABLE_CHATBOT
-import backend.db as db
+from config import COG_PATH, ENABLE_CHATBOT, ALLOWED_CHANNEL_ID, CHANNEL_LOCK
 
 
-# Create the bot class, inheriting from commands.AutoShardedBot
 class Bot(commands.AutoShardedBot):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    """Main bot class handling Discord events and commands."""
+
+    def __init__(self, **options: typing.Any) -> None:
+        """Initialize the Bot instance."""
+        super().__init__(**options)
         self.logger = logging.getLogger("discord.main")
         self.logger.setLevel(logging.INFO)
 
-    # Event that runs when the bot joins a new server
-    async def on_guild_join(self, guild: discord.Guild):
-        # check if guild exists, else create
-        # TODO: refactor Database out of class so methods can be called directly
+        self.allowed_channel_id: typing.Optional[int] = (
+            ALLOWED_CHANNEL_ID if CHANNEL_LOCK else None
+        )
+
+    async def on_guild_join(self, guild: discord.Guild) -> None:
+        """Handle event when bot joins a new guild.
+
+        Args:
+            guild: Discord guild object representing the joined server
+        """
         guild_data = db.Database.get_document(db.Guild, guild.id)
         if not guild_data:
             guild_data = db.Guild(_id=guild.id)
@@ -37,30 +47,36 @@ class Bot(commands.AutoShardedBot):
                 f"Guild {guild.name} (ID: {guild.id}) already exists and synced"
             )
 
-    # Event that runs when a member joins a guild
-    async def on_member_join(self, member: discord.Member):
-        # check if guild exists, else create
+    async def on_member_join(self, member: discord.Member) -> None:
+        """Handle event when a new member joins a guild.
+
+        Args:
+            member: Discord member object representing the joined user
+        """
         guild_data = db.Database.get_document(db.Guild, member.guild.id)
         if not guild_data:
             guild_data = db.Guild(_id=member.guild.id)
             guild_data.save()
             self.logger.info(
-                f"Created new guild entry for {member.guild.name} (ID: {member.guild.id})"
+                f"Created new guild entry for {member.guild.name}"
+                f" (ID: {member.guild.id})"
             )
         else:
             db.sync_document_with_template(guild_data, db.Guild)
 
-        # add member id to server users list
         guild_data.users.append(member.id)
         guild_data.save()
         self.logger.info(
-            f"User {member.id} joined guild {member.guild.name} (ID: {member.guild.id})"
-        ) 
+            f"User {member.id} joined guild {member.guild.name}"
+            f" (ID: {member.guild.id})"
+        )
 
-    async def setup_hook(self):
+    async def setup_hook(self) -> None:
+        """Load all cog extensions during bot setup."""
         for filename in os.listdir(COG_PATH):
-            if "ollama" in filename and ENABLE_CHATBOT == False:
+            if "ollama" in filename and not ENABLE_CHATBOT:
                 continue
+
             if filename.endswith(".py"):
                 try:
                     await self.load_extension(
@@ -72,22 +88,45 @@ class Bot(commands.AutoShardedBot):
             else:
                 self.logger.warning(f"Skipping {filename}: Not a Python file")
 
-    async def on_ready(self):
-        # Notify when the bot is ready and print shard info
+    async def on_ready(self) -> None:
+        """Handle bot ready event and log connection details."""
+        if self.user is None:
+            return
+
         self.logger.info(f"Logged in as {self.user.name} - {self.user.id}")
         self.logger.info(
-            f"Connected to {len(self.guilds)} guilds across {self.shard_count} shards."
+            f"Connected to {len(self.guilds)} guilds "
+            f"across {self.shard_count} shards."
         )
 
-    async def on_message(self, message):
-        if self.allowed_channel_id is None:
-            await self.process_commands(message)
-        elif message.channel.id == self.allowed_channel_id:
+    async def on_message(self, message: discord.Message) -> None:
+        """Process incoming messages and commands.
+
+        Args:
+            message: Discord message object to process
+        """
+        if (
+            self.allowed_channel_id is None
+            or message.channel.id == self.allowed_channel_id
+        ):
             await self.process_commands(message)
 
-    async def on_command(self, ctx):
+    async def on_command(self, ctx: Context[typing.Any]) -> None:
+        """Log executed commands.
+
+        Args:
+            ctx: Command context object
+        """
         self.logger.info(f"Command executed: {ctx.command} by {ctx.author}")
 
-    async def on_command_error(self, ctx, error):
+    async def on_command_error(
+        self, ctx: Context[typing.Any], error: Exception
+    ) -> None:
+        """Handle command execution errors.
+
+        Args:
+            ctx: Command context object
+            error: Exception that occurred during command execution
+        """
         self.logger.error(f"{ctx.command}: {error}")
         await ctx.send(f"Failed to execute command: {error}")

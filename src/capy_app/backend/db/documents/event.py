@@ -1,56 +1,67 @@
+import typing
+import datetime
 import mongoengine as me
 
 
 class EventReactions(me.EmbeddedDocument):
-    """
-    A class to represent reactions to an event.
+    """Tracks reaction counts for an event.
 
     Attributes:
-        yes (int): The number of 'yes' reactions.
-        maybe (int): The number of 'maybe' reactions.
-        no (int): The number of 'no' reactions.
+        yes: Count of positive responses
+        maybe: Count of uncertain responses
+        no: Count of negative responses
     """
 
-    yes = me.IntField(default=0)
-    maybe = me.IntField(default=0)
-    no = me.IntField(default=0)
+    yes: int = me.IntField(default=0)
+    maybe: int = me.IntField(default=0)
+    no: int = me.IntField(default=0)
 
 
 class EventDetails(me.EmbeddedDocument):
-    """
-    A class to represent the details of an event.
+    """Stores detailed information about an event.
 
     Attributes:
-        name (str): The name of the event.
-        datetime (datetime): The date and time of the event.
-        location (str): The location of the event.
-        description (str): The description of the event.
-        reactions (EventReactions): The reactions to the event.
+        name: Title of the event
+        time: Date and time when the event occurs
+        location: Physical or virtual location
+        description: Detailed event description
+        reactions: Tracking of user reactions
     """
 
-    name = me.StringField(required=True)
-    datetime = me.DateTimeField(required=True)
-    location = me.StringField()
-    description = me.StringField()
-    reactions = me.EmbeddedDocumentField(EventReactions, default=EventReactions)
+    name: str = me.StringField(required=True)
+    time: datetime.datetime = me.DateTimeField(required=True)
+    location: typing.Optional[str] = me.StringField()
+    description: typing.Optional[str] = me.StringField()
+    reactions: EventReactions = me.EmbeddedDocumentField(
+        EventReactions, default=EventReactions
+    )
 
 
 class Event(me.Document):
-    """
-    A class to represent an event.
+    """Main event document storing event data and relationships.
 
     Attributes:
-        _id (int): The primary key of the event.
-        users (List[int]): The list of user IDs attending the event.
-        guild_id (int): The ID of the guild hosting the event.
-        message_id (int): The ID of the message associated with the event.
-        details (EventDetails): The details of the event.
+        _id: Unique identifier for the event
+        users: List of user IDs attending the event
+        guild_id: ID of the hosting guild
+        message_id: Discord message ID for the event
+        details: Detailed event information
+        created_at: Timestamp when the event was created
+        updated_at: Timestamp of last update
     """
 
-    _id = me.IntField(primary_key=True)
-    users = me.ListField(me.IntField())
-    guild_id = me.IntField()
-    message_id = me.IntField()
-    details = me.EmbeddedDocumentField(EventDetails, required=True)
+    _id: int = me.IntField(primary_key=True)
+    users: typing.List[int] = me.ListField(me.IntField())
+    guild_id: int = me.IntField()
+    message_id: int = me.IntField()
+    details: EventDetails = me.EmbeddedDocumentField(EventDetails, required=True)
+    created_at: datetime.datetime = me.DateTimeField(default=datetime.datetime.utcnow)
+    updated_at: datetime.datetime = me.DateTimeField(default=datetime.datetime.utcnow)
 
-    meta = {"collection": "event"}
+    meta = {"collection": "events", "indexes": ["created_at", "updated_at"]}
+
+    def save(self, *args: typing.Any, **kwargs: typing.Any) -> "Event":
+        """Override save to update the updated_at timestamp."""
+        self.updated_at = datetime.datetime.utcnow()
+        result = super().save(*args, **kwargs)
+        return typing.cast("Event", result)

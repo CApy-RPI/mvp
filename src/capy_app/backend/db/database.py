@@ -1,63 +1,68 @@
-import mongoengine as me
-from typing import Type, TypeVar, Optional, Dict, Any, List
+import typing
+import mongoengine
+import config
 
-from config import MONGO_URI, MONGO_DBNAME, MONGO_PASSWORD, MONGO_USERNAME
+T = typing.TypeVar("T", bound=mongoengine.Document)
 
-T = TypeVar("T", bound=me.Document)
-
-me.connect(
-    db=MONGO_DBNAME,
-    username=MONGO_USERNAME,
-    password=MONGO_PASSWORD,
-    host=MONGO_URI,
+mongoengine.connect(
+    db=config.MONGO_DBNAME,
+    username=config.MONGO_USERNAME,
+    password=config.MONGO_PASSWORD,
+    host=config.MONGO_URI,
     uuidRepresentation="standard",
 )
 
 
 class Database:
-    """
-    A class to handle basic database operations using MongoEngine.
-    """
+    """Provides high-level database operations using MongoEngine."""
 
     @staticmethod
     def add_document(document: T) -> T:
-        """
-        Add a new document to the database.
+        """Creates a new document in the database.
 
         Args:
-            document (T): The document to be added.
+            document: Document instance to be saved
 
         Returns:
-            T: The saved document.
+            The saved document with updated metadata
+
+        Raises:
+            ValidationError: If document validation fails
+            OperationError: If database operation fails
         """
         document.save()
         return document
 
     @staticmethod
-    def get_document(document_class: Type[T], document_id: Any) -> Optional[T]:
-        """
-        Retrieve a document from the database by its ID.
+    def get_document(
+        document_class: typing.Type[T], document_id: typing.Any
+    ) -> typing.Optional[T]:
+        """Retrieves a document by its ID.
 
         Args:
-            document_class (Type[T]): The class of the document.
-            document_id (Any): The ID of the document.
+            document_class: Class of the document to retrieve
+            document_id: Primary key value of the document
 
         Returns:
-            Optional[T]: The retrieved document or None if not found.
+            Retrieved document or None if not found
         """
-        return document_class.objects(pk=document_id).first()
+        result = document_class.objects(pk=document_id).first()
+        return typing.cast(typing.Optional[T], result)
 
     @staticmethod
-    def update_document(document: T, updates: Dict[str, Any]) -> T:
-        """
-        Update an existing document with the provided updates.
+    def update_document(document: T, updates: typing.Dict[str, typing.Any]) -> T:
+        """Updates an existing document with provided changes.
 
         Args:
-            document (T): The document to be updated.
-            updates (Dict[str, Any]): A dictionary of updates to apply.
+            document: Document instance to update
+            updates: Dictionary of field paths and their new values
 
         Returns:
-            T: The updated document.
+            Updated document instance
+
+        Raises:
+            AttributeError: If field path is invalid
+            ValidationError: If new values are invalid
         """
         for key, value in updates.items():
             keys = key.split("__")
@@ -70,58 +75,59 @@ class Database:
 
     @staticmethod
     def delete_document(document: T) -> None:
-        """
-        Delete a document from the database.
+        """Removes a document from the database.
 
         Args:
-            document (T): The document to be deleted.
+            document: Document instance to delete
+
+        Raises:
+            OperationError: If deletion fails
         """
         document.delete()
 
     @staticmethod
     def list_documents(
-        document_class: Type[T], filters: Dict[str, Any] = None
-    ) -> List[T]:
-        """
-        List documents from the database based on the provided filters.
+        document_class: typing.Type[T],
+        filters: typing.Optional[typing.Dict[str, typing.Any]] = None,
+    ) -> typing.List[T]:
+        """Retrieves documents matching specified filters.
 
         Args:
-            document_class (Type[T]): The class of the documents.
-            filters (Dict[str, Any], optional): A dictionary of filters to apply. Defaults to None.
+            document_class: Class of documents to query
+            filters: Query filters to apply
 
         Returns:
-            List[T]: A list of documents that match the filters.
+            List of matching documents
         """
-        if filters is None:
-            filters = {}
-        return document_class.objects(**filters)
+        return list(document_class.objects(**(filters or {})))
 
     @staticmethod
-    def sync_document_with_template(document: T, template: Type[T]) -> None:
-        """
-        Ensure a document has the same values as the current template.
+    def sync_document_with_template(document: T, template: typing.Type[T]) -> None:
+        """Synchronizes document fields with template structure.
 
         Args:
-            document (T): The document to be synced.
-            template (Type[T]): The template class to sync with.
+            document: Document instance to sync
+            template: Template class to sync against
+
+        Raises:
+            ValueError: If document has fields not in template
         """
 
-        def sync_fields(doc, tmpl):
+        def sync_fields(doc: typing.Any, tmpl: typing.Any) -> None:
+            """Recursively syncs fields between document and template."""
             for field in tmpl._fields:
                 if not hasattr(doc, field):
                     setattr(doc, field, getattr(tmpl, field))
                 else:
                     value = getattr(doc, field)
-                    if isinstance(value, me.EmbeddedDocument):
+                    if isinstance(value, mongoengine.EmbeddedDocument):
                         sync_fields(value, getattr(tmpl, field))
                     else:
                         setattr(tmpl, field, value)
 
-            for field in doc._fields:
-                if field not in tmpl._fields:
-                    raise ValueError(
-                        f"Warning: Field '{field}' in document is not in the template and will be ignored."
-                    )
+            extra_fields = set(doc._fields) - set(tmpl._fields)
+            if extra_fields:
+                raise ValueError(f"Fields not in template: {', '.join(extra_fields)}")
 
         template_instance = template()
         sync_fields(document, template_instance)
