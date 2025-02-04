@@ -7,7 +7,6 @@ import discord
 
 # local imports
 from frontend.bot import Bot
-from config import ALLOWED_CHANNEL_ID, CHANNEL_LOCK
 
 # Set the current working directory to the location of this file
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
