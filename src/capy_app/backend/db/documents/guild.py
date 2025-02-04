@@ -1,50 +1,61 @@
+import typing
+import datetime
 import mongoengine as me
 
 
 class GuildChannels(me.EmbeddedDocument):
-    """
-    A class to represent the channels of a guild.
+    """Represents Discord channel configuration for a guild.
 
     Attributes:
-        reports (int): The ID of the reports channel.
-        announcements (int): The ID of the announcements channel.
-        moderator (int): The ID of the moderator channel.
+        reports: Channel ID for report submissions
+        announcements: Channel ID for announcements
+        moderator: Channel ID for moderator communications
     """
 
-    reports = me.IntField()
-    announcements = me.IntField()
-    moderator = me.IntField()
+    reports: typing.Optional[int] = me.IntField()
+    announcements: typing.Optional[int] = me.IntField()
+    moderator: typing.Optional[int] = me.IntField()
 
 
 class GuildRoles(me.EmbeddedDocument):
-    """
-    A class to represent the roles of a guild.
+    """Represents role configuration for a guild.
 
     Attributes:
-        eboard (str): The role of the eboard.
-        admin (str): The role of the admin.
+        eboard: Role identifier for executive board members
+        admin: Role identifier for administrators
     """
 
-    eboard = me.StringField()
-    admin = me.StringField()
+    eboard: typing.Optional[str] = me.StringField()
+    admin: typing.Optional[str] = me.StringField()
 
 
 class Guild(me.Document):
-    """
-    A class to represent a guild.
+    """Main guild document representing a Discord server configuration.
 
     Attributes:
-        _id (int): The primary key of the guild.
-        users (List[int]): The list of user IDs in the guild.
-        events (List[int]): The list of event IDs associated with the guild.
-        channels (GuildChannels): The channels of the guild.
-        roles (GuildRoles): The roles of the guild.
+        _id: Unique identifier for the guild
+        users: List of user IDs belonging to the guild
+        events: List of event IDs associated with the guild
+        channels: Channel configuration for the guild
+        roles: Role configuration for the guild
+        created_at: Timestamp when the guild was created
+        updated_at: Timestamp of last update
     """
 
-    _id = me.IntField(primary_key=True)
-    users = me.ListField(me.IntField())
-    events = me.ListField(me.IntField())
-    channels = me.EmbeddedDocumentField(GuildChannels, default=GuildChannels)
-    roles = me.EmbeddedDocumentField(GuildRoles, default=GuildRoles)
+    _id: int = me.IntField(primary_key=True)
+    users: typing.List[int] = me.ListField(me.IntField())
+    events: typing.List[int] = me.ListField(me.IntField())
+    channels: GuildChannels = me.EmbeddedDocumentField(
+        GuildChannels, default=GuildChannels
+    )
+    roles: GuildRoles = me.EmbeddedDocumentField(GuildRoles, default=GuildRoles)
+    created_at: datetime.datetime = me.DateTimeField(default=datetime.datetime.utcnow)
+    updated_at: datetime.datetime = me.DateTimeField(default=datetime.datetime.utcnow)
 
-    meta = {"collection": "guilds"}
+    meta = {"collection": "guilds", "indexes": ["created_at", "updated_at"]}
+
+    def save(self, *args: typing.Any, **kwargs: typing.Any) -> "Guild":
+        """Override save to update the updated_at timestamp."""
+        self.updated_at = datetime.datetime.utcnow()
+        result = super().save(*args, **kwargs)
+        return typing.cast("Guild", result)

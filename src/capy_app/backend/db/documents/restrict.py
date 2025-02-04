@@ -1,9 +1,18 @@
+import typing
 import mongoengine as me
 from datetime import datetime, timezone
 
 
-class RestrictedBase:
-    meta = {"allow_inheritance": True}
+class RestrictedBase(me.Document):
+    """Base class for restricted documents with proper type hints."""
+
+    _fields: typing.ClassVar[typing.Dict[str, me.BaseField]]
+    meta = {"abstract": True}
+
+    @classmethod
+    def get_fields(cls) -> typing.Dict[str, me.BaseField]:
+        """Get document fields with proper type hints."""
+        return cls._fields
 
     def __setattr__(self, name, value):
         if not name.startswith("_") and name not in self._fields:
@@ -20,7 +29,9 @@ class RestrictedBase:
 
 class RestrictedDocument(RestrictedBase, me.Document):
     created_at = me.DateTimeField(default=lambda: datetime.now(timezone.utc))
-    updated_at = me.DateTimeField(default=lambda: datetime.now(timezone.utc), auto_now=True)
+    updated_at = me.DateTimeField(
+        default=lambda: datetime.now(timezone.utc), auto_now=True
+    )
 
     meta = {"abstract": True}
 

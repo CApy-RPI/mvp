@@ -1,56 +1,71 @@
-import mongoengine as me
+import typing
+import datetime
+import mongoengine
 
 
-class UserName(me.EmbeddedDocument):
-    """
-    A class to represent a user's name.
-
-    Attributes:
-        first (str): The first name of the user.
-        middle (str): The middle name of the user.
-        last (str): The last name of the user.
-    """
-
-    first = me.StringField(required=True)
-    middle = me.StringField()
-    last = me.StringField(required=True)
-
-
-class UserProfile(me.EmbeddedDocument):
-    """
-    A class to represent a user's profile.
+class UserName(mongoengine.EmbeddedDocument):
+    """Represents a user's name with first, middle, and last components.
 
     Attributes:
-        name (UserName): The name of the user.
-        school_email (str): The school email of the user.
-        student_id (int): The student ID of the user.
-        major (List[str]): The major(s) of the user.
-        graduation_year (int): The graduation year of the user.
-        phone (int): The phone number of the user.
+        first: User's first name
+        middle: User's middle name (optional)
+        last: User's last name
     """
 
-    name = me.EmbeddedDocumentField(UserName, required=True)
-    school_email = me.EmailField(required=True, unique=True)
-    student_id = me.IntField(required=True, unique=True)
-    major = me.ListField(me.StringField(), required=True)
-    graduation_year = me.IntField(required=True)
-    phone = me.IntField()
+    first: str = mongoengine.StringField(required=True)
+    middle: str = mongoengine.StringField()
+    last: str = mongoengine.StringField(required=True)
 
 
-class User(me.Document):
-    """
-    A class to represent a user.
+class UserProfile(mongoengine.EmbeddedDocument):
+    """Represents detailed user profile information.
 
     Attributes:
-        _id (int): The primary key of the user.
-        guilds (List[int]): The list of guild IDs the user is part of.
-        events (List[int]): The list of event IDs the user is part of.
-        profile (UserProfile): The profile of the user.
+        name: User's full name components
+        school_email: User's academic email address
+        student_id: Unique student identification number
+        major: List of user's declared majors
+        graduation_year: Expected graduation year
+        phone: Contact phone number (optional)
     """
 
-    _id = me.IntField(primary_key=True)
-    guilds = me.ListField(me.IntField())
-    events = me.ListField(me.IntField())
-    profile = me.EmbeddedDocumentField(UserProfile, required=True)
+    name: UserName = mongoengine.EmbeddedDocumentField(UserName, required=True)
+    school_email: str = mongoengine.EmailField(required=True, unique=True)
+    student_id: int = mongoengine.IntField(required=True, unique=True)
+    major: typing.List[str] = mongoengine.ListField(
+        mongoengine.StringField(), required=True
+    )
+    graduation_year: int = mongoengine.IntField(required=True)
+    phone: int = mongoengine.IntField()
 
-    meta = {"collection": "users"}
+
+class User(mongoengine.Document):
+    """Main user document storing core user data and relationships.
+
+    Attributes:
+        _id: Unique identifier for the user
+        guilds: List of guild IDs the user belongs to
+        events: List of event IDs the user is participating in
+        profile: Detailed user profile information
+        created_at: Timestamp when the user was created
+        updated_at: Timestamp of last update
+    """
+
+    _id: int = mongoengine.IntField(primary_key=True)
+    guilds: typing.List[int] = mongoengine.ListField(mongoengine.IntField())
+    events: typing.List[int] = mongoengine.ListField(mongoengine.IntField())
+    profile: UserProfile = mongoengine.EmbeddedDocumentField(UserProfile, required=True)
+    created_at: datetime.datetime = mongoengine.DateTimeField(
+        default=datetime.datetime.utcnow
+    )
+    updated_at: datetime.datetime = mongoengine.DateTimeField(
+        default=datetime.datetime.utcnow
+    )
+
+    meta = {"collection": "users", "indexes": ["created_at", "updated_at"]}
+
+    def save(self, *args: typing.Any, **kwargs: typing.Any) -> 'User':
+        """Override save to update the updated_at timestamp."""
+        self.updated_at = datetime.datetime.utcnow()
+        result = super().save(*args, **kwargs)
+        return typing.cast('User', result)
