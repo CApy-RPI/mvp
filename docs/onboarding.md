@@ -81,7 +81,7 @@ capy/
 │   │   │   ├── bot.py
 │   │   ├── config.py                  # Configuration constants
 │   │   └── main.py                    # Entry point of the bot
-├── tests/                         # Unit and integration tests
+├── tests/                             # Unit and integration tests
 │   ├── capy_app/  
 │   │   ├── backend/  
 │   │   │   ├── db/                   
