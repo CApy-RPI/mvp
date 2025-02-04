@@ -439,7 +439,21 @@ Before pushing your code to the repository, ensure the following steps are compl
    pytest
    ```
 
-5. **Pushing to the Repository**
+5. **Creating Branch**
+    - Ensure that you are checked out of the develop branch
+    - On Linear, select which issue you are working on and do:
+        - **Command/Ctrl + Shift + "."**
+   
+      This copies the branch name template that you have to use on your created branch
+        ```plaintext
+        feature/cap-[ISSUE_NUM]
+        ```
+    - Run this command, ensuring that you are using the specified branch name template. Make sure that you append an issue title at the end of the name as well:
+        ```bash
+        git checkout -b feature/cap-[ISSUE_NUM]-["Issue Title"]
+        ```
+      
+6. **Pushing to the Repository**
 
    - Ensure all tests pass and code is properly formatted and linted before pushing:
 
