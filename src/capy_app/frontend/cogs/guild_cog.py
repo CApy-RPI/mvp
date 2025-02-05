@@ -112,7 +112,7 @@ class GuildCog(commands.Cog):
             previous_value = getattr(getattr(guild, field_parts[0]), field_parts[1])
 
             # Update the value
-            db.update_document(Guild, {field_mapping[name]: value})
+            db.update_document(guild, {field_mapping[name]: value})
 
             valid_embed = discord.Embed(
                 title="Success!",

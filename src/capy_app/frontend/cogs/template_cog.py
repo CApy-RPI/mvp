@@ -1,4 +1,5 @@
 # THIS COG CONTAINS TEMPLATES FOR COMMANDS - NOT INTENDED FOR END USERS
+# REMOVE "HIDDEN = TRUE" FROM FUNCTIONS
 
 import discord
 import logging
@@ -13,7 +14,7 @@ class TemplateCog(commands.Cog):
         )
 
     #! Template code for a single command
-    @commands.command(name="single", help="Shows the bot's latency.")
+    @commands.command(name="single", help="Shows the bot's latency.", hidden = True)
     async def single(self, ctx):
         message = f"⏱ {round(self.bot.latency * 1000)} ms Latency!"
         embed = discord.Embed(
@@ -25,7 +26,7 @@ class TemplateCog(commands.Cog):
         await ctx.send(embed=embed)
 
     #! Template code for a command that cannot be run without admin permissions
-    @commands.command(name="admin_required", help="ADMIN - Shows the bot's latency.")
+    @commands.command(name="admin_required", help="ADMIN - Shows the bot's latency.", hidden = True)
     @commands.has_permissions(administrator=True)
     async def admin_ping(self, ctx):
         message = f"⏱ {round(self.bot.latency * 1000)} ms Latency!"
@@ -38,7 +39,7 @@ class TemplateCog(commands.Cog):
         await ctx.send(embed=embed)
 
     #! Template code for a command that cannot be run without the set eboard role
-    @commands.command(name="eboard_required", help="EBOARD - Shows the bot's latency.")
+    @commands.command(name="eboard_required", help="EBOARD - Shows the bot's latency.", hidden = True)
     async def eboard_ping(self, ctx):
         if self.bot.db.get_data("guild", ctx.guild.id).get_value("eboard_role") is None:
             embed = discord.Embed(
@@ -73,6 +74,7 @@ class TemplateCog(commands.Cog):
     @commands.command(
         name="admin_optional",
         help="Shows the bot's latency, use optional admin param to change to red",
+        hidden = True
     )
     async def admin_optional(self, ctx, admin=None):
         message = f"⏱ {round(self.bot.latency * 1000)} ms Latency!"
@@ -92,7 +94,7 @@ class TemplateCog(commands.Cog):
         await ctx.send(embed=embed)
 
     #! Template code for a command group
-    @commands.group(name="say", invoke_without_command=True, help="Says something.")
+    @commands.group(name="say", invoke_without_command=True, help="Says something.", hidden = True)
     async def say(self, ctx):
         embed = discord.Embed(
             title="Say",
@@ -102,7 +104,7 @@ class TemplateCog(commands.Cog):
         await ctx.send(embed=embed)
 
     # Here is one command in the group
-    @say.command(name="hello", help="Says hello.")
+    @say.command(name="hello", help="Says hello.", hidden = True)
     async def hello(self, ctx):
         embed = discord.Embed(
             title="Say",
@@ -112,7 +114,7 @@ class TemplateCog(commands.Cog):
         await ctx.send(embed=embed)
 
     # Here is another command in the group
-    @say.command(name="goodbye", help="Says goodbye.")
+    @say.command(name="goodbye", help="Says goodbye.", hidden = True)
     async def goodbye(self, ctx):
         embed = discord.Embed(
             title="Say",
