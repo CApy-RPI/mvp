@@ -12,7 +12,7 @@ from discord.ext.commands import Context
 
 # Local imports
 from backend.db.database import Database as db
-from config import COG_PATH, ENABLE_CHATBOT, ALLOWED_CHANNEL_ID, CHANNEL_LOCK
+from config import COG_PATH, ALLOWED_CHANNEL_ID, CHANNEL_LOCK
 
 
 class Bot(commands.AutoShardedBot):
@@ -74,19 +74,17 @@ class Bot(commands.AutoShardedBot):
     async def setup_hook(self) -> None:
         """Load all cog extensions during bot setup."""
         for filename in os.listdir(COG_PATH):
-            if "ollama" in filename and not ENABLE_CHATBOT:
+            if not filename.endswith(".py"):
+                self.logger.warning(f"Skipping {filename}: Not a Python file")
                 continue
 
-            if filename.endswith(".py"):
-                try:
-                    await self.load_extension(
-                        f"{COG_PATH.replace('/', '.')}.{filename[:-3]}"
-                    )
-                    self.logger.info(f"Loaded {filename}")
-                except Exception as e:
-                    self.logger.error(f"Failed to load {filename}: {e}")
-            else:
-                self.logger.warning(f"Skipping {filename}: Not a Python file")
+            try:
+                await self.load_extension(
+                    f"{COG_PATH.replace('/', '.')}.{filename[:-3]}"
+                )
+                self.logger.info(f"Loaded {filename}")
+            except Exception as e:
+                self.logger.error(f"Failed to load {filename}: {e}")
 
     async def on_ready(self) -> None:
         """Handle bot ready event and log connection details."""
