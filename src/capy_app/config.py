@@ -5,13 +5,13 @@ import typing
 
 class Settings(BaseSettings):
     # Bot settings
-    BOT_TOKEN: str
+    BOT_TOKEN: typing.Optional[str] = None
 
     # MongoDB settings
-    MONGO_URI: str
-    MONGO_DBNAME: str
-    MONGO_USERNAME: str
-    MONGO_PASSWORD: str
+    MONGO_URI: typing.Optional[str] = None
+    MONGO_DBNAME: typing.Optional[str] = None
+    MONGO_USERNAME: typing.Optional[str] = None
+    MONGO_PASSWORD: typing.Optional[str] = None
 
     # Email settings
     MAILJET_API_KEY: typing.Optional[str] = ""
@@ -25,17 +25,17 @@ class Settings(BaseSettings):
     # Error handling settings
     FAILED_COMMANDS_INVITE_EXPIRY: typing.Optional[int] = 300
     FAILED_COMMANDS_INVITE_USES: typing.Optional[int] = 1
-    FAILED_COMMANDS_GUILD_ID: int
-    FAILED_COMMANDS_CHANNEL_ID: int
-    FAILED_COMMANDS_ROLE_ID: int
+    FAILED_COMMANDS_GUILD_ID: typing.Optional[int] = None
+    FAILED_COMMANDS_CHANNEL_ID: typing.Optional[int] = None
+    FAILED_COMMANDS_ROLE_ID: typing.Optional[int] = None
 
     # Path settings
     COG_PATH: typing.Optional[str] = "frontend/cogs"
     MAJORS_PATH: typing.Optional[str] = "backend/res/majors.txt"
 
     # Chatbot settings
-    ENABLE_CHATBOT: bool
-    MODEL_NAME: str
+    ENABLE_CHATBOT: typing.Optional[bool] = None
+    MODEL_NAME: typing.Optional[str] = None
     MESSAGE_LIMIT: typing.Optional[int] = 500
 
     class Config:
