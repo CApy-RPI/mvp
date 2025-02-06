@@ -22,7 +22,7 @@ class OllamaCog(commands.Cog):
         self.logger = logging.getLogger(
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
-        
+
         ollama.pull(settings.MODEL_NAME)
         self.user_conversations: typing.Dict[
             int, typing.List[typing.Dict[str, str]]
