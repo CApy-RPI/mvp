@@ -12,7 +12,7 @@ from discord.ext.commands import Context
 
 # Local imports
 from backend.db.database import Database as db
-from config import COG_PATH, ALLOWED_CHANNEL_ID, CHANNEL_LOCK
+from config import settings
 
 
 class Bot(commands.AutoShardedBot):
@@ -20,13 +20,11 @@ class Bot(commands.AutoShardedBot):
 
     def __init__(self, **options: typing.Any) -> None:
         """Initialize the Bot instance."""
-        super().__init__(**options)
+        super().__init__(
+            **options,
+        )
         self.logger = logging.getLogger("discord.main")
         self.logger.setLevel(logging.INFO)
-
-        self.allowed_channel_id: typing.Optional[int] = (
-            ALLOWED_CHANNEL_ID if CHANNEL_LOCK else None
-        )
 
     async def on_guild_join(self, guild: discord.Guild) -> None:
         """Handle event when bot joins a new guild.
@@ -73,14 +71,14 @@ class Bot(commands.AutoShardedBot):
 
     async def setup_hook(self) -> None:
         """Load all cog extensions during bot setup."""
-        for filename in os.listdir(COG_PATH):
+        for filename in os.listdir(settings.COG_PATH):
             if not filename.endswith(".py"):
                 self.logger.warning(f"Skipping {filename}: Not a Python file")
                 continue
 
             try:
                 await self.load_extension(
-                    f"{COG_PATH.replace('/', '.')}.{filename[:-3]}"
+                    f"{settings.COG_PATH.replace('/', '.')}.{filename[:-3]}"
                 )
                 self.logger.info(f"Loaded {filename}")
             except Exception as e:
@@ -103,11 +101,33 @@ class Bot(commands.AutoShardedBot):
         Args:
             message: Discord message object to process
         """
+        if message.author.bot:
+            return
+
+        if settings.WHO_DUNNIT:
+            await message.channel.send(
+                f"This bot hosted by {settings.WHO_DUNNIT} is currently in development mode."
+            )
+
         if (
-            self.allowed_channel_id is None
-            or message.channel.id == self.allowed_channel_id
+            settings.DEV_LOCKED_CHANNEL_ID is None
+            or message.channel.id == settings.DEV_LOCKED_CHANNEL_ID
         ):
             await self.process_commands(message)
+        else:
+            await message.channel.send(f"This channel is not allowed to use commands. ")
+
+            dev_channel = self.get_channel(settings.DEV_LOCKED_CHANNEL_ID)
+            if not isinstance(dev_channel, (discord.TextChannel, discord.Thread)):
+                await message.channel.send(
+                    "Developer channel not found. Ensure it is set correctly."
+                )
+            else:
+                await message.channel.send(f"Please use {dev_channel.mention} instead.")
+
+            self.logger.info(
+                f"Message from {message.author} in disallowed channel {message.channel}"
+            )
 
     async def on_command(self, ctx: Context[typing.Any]) -> None:
         """Log executed commands.
@@ -128,3 +148,9 @@ class Bot(commands.AutoShardedBot):
         """
         self.logger.error(f"{ctx.command}: {error}")
         await ctx.send(f"Failed to execute command: {error}")
+
+        error_handler = self.get_cog("ErrorHandlerCog")
+        if error_handler:
+            await error_handler.log_error(ctx, error)
+        else:
+            self.logger.error("ErrorHandler cog not found")

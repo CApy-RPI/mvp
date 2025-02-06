@@ -6,7 +6,7 @@ import logging
 import ollama
 import typing
 
-from config import MESSAGE_LIMIT, MODEL_NAME, ENABLE_CHATBOT
+from config import settings
 
 
 class OllamaCog(commands.Cog):
@@ -18,11 +18,12 @@ class OllamaCog(commands.Cog):
         Args:
             bot: The Discord bot instance
         """
-        ollama.pull(MODEL_NAME)
         self.bot = bot
         self.logger = logging.getLogger(
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
+        
+        ollama.pull(settings.MODEL_NAME)
         self.user_conversations: typing.Dict[
             int, typing.List[typing.Dict[str, str]]
         ] = {}
@@ -52,7 +53,7 @@ class OllamaCog(commands.Cog):
                 continue
 
             # Handle length limits
-            if len(current_chunk) + len(line) + 1 > MESSAGE_LIMIT:
+            if len(current_chunk) + len(line) + 1 > settings.MESSAGE_LIMIT:
                 if current_chunk:
                     chunks.append(current_chunk.strip())
                 current_chunk = line + "\n"
@@ -111,7 +112,7 @@ class OllamaCog(commands.Cog):
         complete_response = ""
 
         async for part in await client.chat(
-            model=MODEL_NAME,
+            model=settings.MODEL_NAME,
             messages=messages,
             stream=True,
         ):
@@ -313,6 +314,5 @@ async def setup(bot: commands.Bot) -> None:
     Args:
         bot: The Discord bot instance
     """
-    if not ENABLE_CHATBOT:
-        return
-    await bot.add_cog(OllamaCog(bot))
+    if settings.ENABLE_CHATBOT:
+        await bot.add_cog(OllamaCog(bot))

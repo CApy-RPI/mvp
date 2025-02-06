@@ -1,15 +1,16 @@
-import typing
 import mongoengine
 
-import config
+import typing
+
+from config import settings
 
 T = typing.TypeVar("T", bound=mongoengine.Document)
 
 mongoengine.connect(
-    db=config.MONGO_DBNAME,
-    username=config.MONGO_USERNAME,
-    password=config.MONGO_PASSWORD,
-    host=config.MONGO_URI,
+    db=settings.MONGO_DBNAME,
+    username=settings.MONGO_USERNAME,
+    password=settings.MONGO_PASSWORD,
+    host=settings.MONGO_URI,
     uuidRepresentation="standard",
 )
 
