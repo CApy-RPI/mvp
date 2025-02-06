@@ -104,38 +104,41 @@ class Bot(commands.AutoShardedBot):
         if message.author.bot:
             return
 
-        if settings.WHO_DUNNIT:
-            await message.channel.send(
-                f"This bot hosted by {settings.WHO_DUNNIT} is currently in development mode."
-            )
-
-        if (
-            settings.DEV_LOCKED_CHANNEL_ID is None
-            or message.channel.id == settings.DEV_LOCKED_CHANNEL_ID
-        ):
-            await self.process_commands(message)
-        else:
-            await message.channel.send(f"This channel is not allowed to use commands. ")
-
-            dev_channel = self.get_channel(settings.DEV_LOCKED_CHANNEL_ID)
-            if not isinstance(dev_channel, (discord.TextChannel, discord.Thread)):
-                await message.channel.send(
-                    "Developer channel not found. Ensure it is set correctly."
-                )
-            else:
-                await message.channel.send(f"Please use {dev_channel.mention} instead.")
-
-            self.logger.info(
-                f"Message from {message.author} in disallowed channel {message.channel}"
-            )
+        await self.process_commands(message)
 
     async def on_command(self, ctx: Context[typing.Any]) -> None:
-        """Log executed commands.
+        """Handle command processing and restrictions.
 
         Args:
             ctx: Command context object
         """
-        self.logger.info(f"Command executed: {ctx.command} by {ctx.author}")
+        if settings.WHO_DUNNIT:
+            await ctx.send(
+                f"This bot hosted by {settings.WHO_DUNNIT} is currently in development mode."
+            )
+
+        if not settings.DEV_LOCKED_CHANNEL_ID:
+            self.logger.info(f"Command executed: {ctx.command} by {ctx.author}")
+            return
+
+        if ctx.channel.id == settings.DEV_LOCKED_CHANNEL_ID:
+            self.logger.info(f"Command executed: {ctx.command} by {ctx.author}")
+            return
+
+        dev_channel = self.get_channel(settings.DEV_LOCKED_CHANNEL_ID)
+        if not isinstance(dev_channel, (discord.TextChannel, discord.Thread)):
+            await ctx.send("Developer channel not found. Ensure it is set correctly.")
+            self.logger.error(
+                f"Developer channel {settings.DEV_LOCKED_CHANNEL_ID} not found"
+            )
+            return
+
+        await ctx.send(
+            f"Please use {dev_channel.mention} instead which this session is locked to."
+        )
+        self.logger.info(
+            f"Command from {ctx.author} in disallowed channel {ctx.channel}"
+        )
 
     async def on_command_error(
         self, ctx: Context[typing.Any], error: Exception
@@ -148,9 +151,3 @@ class Bot(commands.AutoShardedBot):
         """
         self.logger.error(f"{ctx.command}: {error}")
         await ctx.send(f"Failed to execute command: {error}")
-
-        error_handler = self.get_cog("ErrorHandlerCog")
-        if error_handler:
-            await error_handler.log_error(ctx, error)
-        else:
-            self.logger.error("ErrorHandler cog not found")

@@ -8,7 +8,7 @@ import discord
 from discord.ext import commands
 
 # local imports
-from config import MAJORS_PATH
+from config import settings
 from backend.db.database import Database as db
 from backend.db.documents.user import User, UserProfile, UserName
 from backend.mods.email import Email
@@ -24,7 +24,7 @@ class ProfileCog(commands.Cog):
 
     def load_major_list(self):
         try:
-            with open(MAJORS_PATH, "r") as f:
+            with open(settings.MAJORS_PATH, "r") as f:
                 return [line.strip() for line in f.readlines()]
         except FileNotFoundError:
             self.logger.error("majors.txt not found")
