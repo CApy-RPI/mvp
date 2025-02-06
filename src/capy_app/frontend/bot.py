@@ -12,7 +12,7 @@ from discord.ext.commands import Context
 
 # Local imports
 from backend.db.database import Database as db
-from config import COG_PATH, ENABLE_CHATBOT, ALLOWED_CHANNEL_ID, CHANNEL_LOCK
+from config import settings
 
 
 class Bot(commands.AutoShardedBot):
@@ -20,13 +20,11 @@ class Bot(commands.AutoShardedBot):
 
     def __init__(self, **options: typing.Any) -> None:
         """Initialize the Bot instance."""
-        super().__init__(**options)
+        super().__init__(
+            **options,
+        )
         self.logger = logging.getLogger("discord.main")
         self.logger.setLevel(logging.INFO)
-
-        self.allowed_channel_id: typing.Optional[int] = (
-            ALLOWED_CHANNEL_ID if CHANNEL_LOCK else None
-        )
 
     async def on_guild_join(self, guild: discord.Guild) -> None:
         """Handle event when bot joins a new guild.
@@ -73,20 +71,18 @@ class Bot(commands.AutoShardedBot):
 
     async def setup_hook(self) -> None:
         """Load all cog extensions during bot setup."""
-        for filename in os.listdir(COG_PATH):
-            if "ollama" in filename and not ENABLE_CHATBOT:
+        for filename in os.listdir(settings.COG_PATH):
+            if not filename.endswith(".py"):
+                self.logger.warning(f"Skipping {filename}: Not a Python file")
                 continue
 
-            if filename.endswith(".py"):
-                try:
-                    await self.load_extension(
-                        f"{COG_PATH.replace('/', '.')}.{filename[:-3]}"
-                    )
-                    self.logger.info(f"Loaded {filename}")
-                except Exception as e:
-                    self.logger.error(f"Failed to load {filename}: {e}")
-            else:
-                self.logger.warning(f"Skipping {filename}: Not a Python file")
+            try:
+                await self.load_extension(
+                    f"{settings.COG_PATH.replace('/', '.')}.{filename[:-3]}"
+                )
+                self.logger.info(f"Loaded {filename}")
+            except Exception as e:
+                self.logger.error(f"Failed to load {filename}: {e}")
 
     async def on_ready(self) -> None:
         """Handle bot ready event and log connection details."""
@@ -105,19 +101,44 @@ class Bot(commands.AutoShardedBot):
         Args:
             message: Discord message object to process
         """
-        if (
-            self.allowed_channel_id is None
-            or message.channel.id == self.allowed_channel_id
-        ):
-            await self.process_commands(message)
+        if message.author.bot:
+            return
+
+        await self.process_commands(message)
 
     async def on_command(self, ctx: Context[typing.Any]) -> None:
-        """Log executed commands.
+        """Handle command processing and restrictions.
 
         Args:
             ctx: Command context object
         """
-        self.logger.info(f"Command executed: {ctx.command} by {ctx.author}")
+        if settings.WHO_DUNNIT:
+            await ctx.send(
+                f"This bot hosted by {settings.WHO_DUNNIT} is currently in development mode."
+            )
+
+        if not settings.DEV_LOCKED_CHANNEL_ID:
+            self.logger.info(f"Command executed: {ctx.command} by {ctx.author}")
+            return
+
+        if ctx.channel.id == settings.DEV_LOCKED_CHANNEL_ID:
+            self.logger.info(f"Command executed: {ctx.command} by {ctx.author}")
+            return
+
+        dev_channel = self.get_channel(settings.DEV_LOCKED_CHANNEL_ID)
+        if not isinstance(dev_channel, (discord.TextChannel, discord.Thread)):
+            await ctx.send("Developer channel not found. Ensure it is set correctly.")
+            self.logger.error(
+                f"Developer channel {settings.DEV_LOCKED_CHANNEL_ID} not found"
+            )
+            return
+
+        await ctx.send(
+            f"Please use {dev_channel.mention} instead which this session is locked to."
+        )
+        self.logger.info(
+            f"Command from {ctx.author} in disallowed channel {ctx.channel}"
+        )
 
     async def on_command_error(
         self, ctx: Context[typing.Any], error: Exception

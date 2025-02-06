@@ -1,24 +1,53 @@
-import os
-from dotenv import load_dotenv
+from pydantic_settings import BaseSettings
+from functools import lru_cache
+import typing
 
-load_dotenv()
 
-BOT_TOKEN: str = os.getenv("BOT_TOKEN", "")
-DEV_BOT_TOKEN: str = os.getenv("DEV_BOT_TOKEN", "")
+class Settings(BaseSettings):
+    # Bot settings
+    BOT_TOKEN: typing.Optional[str] = None
 
-MONGO_URI: str = os.getenv("MONGO_URI", "")
-MONGO_DBNAME: str = os.getenv("MONGO_DBNAME", "")
-MONGO_USERNAME: str = os.getenv("MONGO_USERNAME", "")
-MONGO_PASSWORD: str = os.getenv("MONGO_PASSWORD", "")
+    # MongoDB settings
+    MONGO_URI: typing.Optional[str] = None
+    MONGO_DBNAME: typing.Optional[str] = None
+    MONGO_USERNAME: typing.Optional[str] = None
+    MONGO_PASSWORD: typing.Optional[str] = None
 
-MAILJET_API_KEY: str = os.getenv("MAILJET_API_KEY", "")
-MAILJET_API_SECRET: str = os.getenv("MAILJET_API_SECRET", "")
-EMAIL_ADDRESS: str = os.getenv("EMAIL_ADDRESS", "")
+    # Email settings
+    MAILJET_API_KEY: typing.Optional[str] = ""
+    MAILJET_API_SECRET: typing.Optional[str] = ""
+    EMAIL_ADDRESS: typing.Optional[str] = ""
 
-ALLOWED_CHANNEL_ID = os.getenv("ALLOWED_CHANNEL_ID")
-CHANNEL_LOCK = bool(os.getenv("CHANNEL_LOCK", False))
+    # Channel settings
+    WHO_DUNNIT: typing.Optional[str] = None
+    DEV_LOCKED_CHANNEL_ID: typing.Optional[int] = None
 
-COG_PATH = "frontend/cogs"
-MAJORS_PATH = "backend/res/majors.txt"
+    # Error handling settings
+    FAILED_COMMANDS_INVITE_EXPIRY: typing.Optional[int] = 300
+    FAILED_COMMANDS_INVITE_USES: typing.Optional[int] = 1
+    FAILED_COMMANDS_GUILD_ID: typing.Optional[int] = None
+    FAILED_COMMANDS_CHANNEL_ID: typing.Optional[int] = None
+    FAILED_COMMANDS_ROLE_ID: typing.Optional[int] = None
 
-ENABLE_CHATBOT = bool(os.getenv("ENABLE_CHATBOT", False))
+    # Path settings
+    COG_PATH: typing.Optional[str] = "frontend/cogs"
+    MAJORS_PATH: typing.Optional[str] = "backend/res/majors.txt"
+
+    # Chatbot settings
+    ENABLE_CHATBOT: typing.Optional[bool] = None
+    MODEL_NAME: typing.Optional[str] = None
+    MESSAGE_LIMIT: typing.Optional[int] = 500
+
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    """Get cached settings instance"""
+    return Settings()
+
+
+# Create a global settings instance
+settings = get_settings()
