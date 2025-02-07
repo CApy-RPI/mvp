@@ -12,7 +12,7 @@ class PingCog(commands.Cog):
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
 
-    @commands.command(name="ping", help="Shows the bot's latency.")
+    @commands.command(name="ping", help="Shows the bot's latency")
     async def ping(self, ctx):
         message = f"⏱ {round(self.bot.latency * 1000)} ms Latency!"
         embed = discord.Embed(

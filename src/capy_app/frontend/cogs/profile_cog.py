@@ -31,7 +31,7 @@ class ProfileCog(commands.Cog):
             return []
 
     @commands.group(
-        name="profile", invoke_without_command=True, help="Profile commands."
+        name="profile", invoke_without_command=True, help="Profile commands"
     )
     async def profile(self, ctx):
         embed = discord.Embed(

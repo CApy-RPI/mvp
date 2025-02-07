@@ -27,7 +27,7 @@ class GuildCog(commands.Cog):
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
 
-    @commands.group(name="settings", help="Manage server settings")
+    @commands.group(name="settings", help="Manage server settings", hidden = True)
     async def settings(self, ctx: commands.Context) -> None:
         """
         Group command for managing server settings.
