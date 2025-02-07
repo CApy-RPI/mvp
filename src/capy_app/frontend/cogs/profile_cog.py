@@ -143,9 +143,9 @@ class ProfileCog(commands.Cog):
             "profile__name__first": first_name,
             "profile__name__last": last_name,
             "profile__major": major,
-            "profile__graduation_year": grad_year,
-            "profile__school_email": rpi_email,
-            "profile__student_id": rpi_rin,
+            "profile__graduation__year": grad_year,
+            "profile__school__email": rpi_email,
+            "profile__student__id": rpi_rin,
         }
 
         if user:
