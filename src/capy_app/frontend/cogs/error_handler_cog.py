@@ -4,9 +4,9 @@ import re
 import time
 import typing
 import logging
+import datetime
 import discord
 from discord.ext import commands
-from discord.ext.commands import Context
 
 from config import settings
 
@@ -20,12 +20,16 @@ class ErrorHandlerCog(commands.Cog):
         self.logger = logging.getLogger(
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
+
         self.RESOLVED_EMOJI = "✅"
         self.IGNORED_EMOJI = "❌"
         self.INVITE_EMOJI = "❓"
-        self.status_map: dict[str, tuple[discord.Color, str]] = {
-            self.RESOLVED_EMOJI: (discord.Color.green(), "Resolved"),
-            self.IGNORED_EMOJI: (discord.Color.light_grey(), "Ignored"),
+        self.STATUS_UNMARKED = "Unresolved"
+        self.STATUS_RESOLVED = "Resolved"
+        self.STATUS_IGNORED = "Ignored"
+        self.STATUS_MAP: dict[str, tuple[discord.Color, str]] = {
+            self.RESOLVED_EMOJI: (discord.Color.green(), self.STATUS_RESOLVED),
+            self.IGNORED_EMOJI: (discord.Color.light_grey(), self.STATUS_IGNORED),
         }
 
     async def _get_error_channel(self) -> typing.Optional[discord.TextChannel]:
@@ -46,7 +50,7 @@ class ErrorHandlerCog(commands.Cog):
 
         return channel
 
-    def _create_urls(self, ctx: Context[typing.Any]) -> dict[str, str]:
+    def _create_urls(self, ctx: commands.Context[typing.Any]) -> dict[str, str]:
         """Create URLs for server, channel, and user."""
         if isinstance(ctx.channel, discord.DMChannel):
             return {
@@ -98,13 +102,13 @@ class ErrorHandlerCog(commands.Cog):
 
     def _create_error_embed(
         self,
-        ctx: Context[typing.Any],
+        ctx: commands.Context[typing.Any],
         error: Exception,
         urls: dict[str, str],
     ) -> discord.Embed:
         """Create error embed message."""
         embed = discord.Embed(
-            title="Command Error",
+            title=f"Command Error - {self.STATUS_UNMARKED}",
             description=f"Command: {ctx.command}\nError: {str(error)}",
             color=discord.Color.red(),
         )
@@ -295,7 +299,9 @@ class ErrorHandlerCog(commands.Cog):
 
         await message.edit(embed=embed)
 
-    async def _log_error(self, ctx: Context[typing.Any], error: Exception) -> None:
+    async def _log_error(
+        self, ctx: commands.Context[typing.Any], error: Exception
+    ) -> None:
         """Log error to designated channel with reaction controls."""
         error_channel = await self._get_error_channel()
         if not error_channel:
@@ -305,6 +311,149 @@ class ErrorHandlerCog(commands.Cog):
         urls = self._create_urls(ctx)
         embed = self._create_error_embed(ctx, error, urls)
         await self._send_error_message(error_channel, embed)
+
+    def _get_message_status(self, embed: discord.Embed) -> str:
+        """Get the status of an error message from its embed."""
+        if not embed.title:
+            return self.STATUS_UNMARKED
+
+        if self.STATUS_RESOLVED in embed.title:
+            return self.STATUS_RESOLVED
+        elif self.STATUS_IGNORED in embed.title:
+            return self.STATUS_IGNORED
+        return self.STATUS_UNMARKED
+
+    async def _confirm_deletion(
+        self, ctx: commands.Context[typing.Any], count: int, status: str
+    ) -> bool:
+        """Ask for confirmation before deleting messages."""
+        confirm_message = await ctx.send(
+            f"Are you sure you want to delete {count} error messages with status '{status}'?\n"
+            "React with ✅ to confirm or ❌ to cancel."
+        )
+        await confirm_message.add_reaction("✅")
+        await confirm_message.add_reaction("❌")
+
+        def check(reaction: discord.Reaction, user: discord.User) -> bool:
+            return (
+                user == ctx.author
+                and str(reaction.emoji) in ["✅", "❌"]
+                and reaction.message.id == confirm_message.id
+            )
+
+        try:
+            reaction, _ = await self.bot.wait_for(
+                "reaction_add", timeout=30.0, check=check
+            )
+            await confirm_message.delete()
+            return str(reaction.emoji) == "✅"
+        except TimeoutError:
+            await confirm_message.delete()
+            await ctx.send("Deletion cancelled - timeout reached.")
+            return False
+
+    @commands.command(name="ehc")
+    @commands.has_permissions(manage_messages=True)
+    async def error_handler_command(
+        self,
+        ctx: commands.Context[typing.Any],
+        operation: str = "list",
+        status: str = "all",
+        time_range: str = "all",
+    ) -> None:
+        """Manage error messages.
+
+        Args:
+            ctx: The command context
+            operation: Operation to perform (list/clear)
+            status: Status of messages to handle (resolved/ignored/unmarked/all)
+            time_range: Time range to look back (1h/1d/7d/30d/all)
+        """
+        operation = operation.lower()
+        status = status.lower()
+        time_range = time_range.lower()
+
+        if operation not in ["list", "clear"]:
+            await ctx.send("Invalid operation. Use: list or clear")
+            return
+
+        if status not in ["resolved", "ignored", "unmarked", "all"]:
+            await ctx.send("Invalid status. Use: resolved, ignored, unmarked, or all")
+            return
+
+        time_ranges = {
+            "1h": 3600,
+            "1d": 86400,
+            "7d": 604800,
+            "30d": 2592000,
+            "all": None,
+        }
+
+        if time_range not in time_ranges:
+            await ctx.send("Invalid time range. Use: 1h, 1d, 7d, 30d, or all")
+            return
+
+        error_channel = await self._get_error_channel()
+        if not error_channel:
+            await ctx.send("Error channel not found")
+            return
+
+        STATUS_MAP = {
+            "resolved": self.STATUS_RESOLVED,
+            "ignored": self.STATUS_IGNORED,
+            "unmarked": self.STATUS_UNMARKED,
+        }
+
+        # Calculate cutoff time if needed
+        cutoff_time = None
+        if time_ranges[time_range] is not None:
+            cutoff_time = discord.utils.utcnow() - datetime.timedelta(
+                seconds=time_ranges[time_range]
+            )
+
+        # Count matching messages
+        count = 0
+        matching_messages = []
+        async for message in error_channel.history(limit=None):
+            if cutoff_time and message.created_at < cutoff_time:
+                break
+
+            if not message.embeds:
+                continue
+
+            current_status = self._get_message_status(message.embeds[0])
+            if status == "all" or current_status == STATUS_MAP.get(status):
+                count += 1
+                matching_messages.append(message)
+
+        if count == 0:
+            await ctx.send(f"No messages found with status: {status}")
+            return
+
+        if operation == "list":
+            embed = discord.Embed(
+                title="Error Message Summary",
+                description=f"Found {count} messages matching criteria:\n"
+                f"Status: {status}\n"
+                f"Time range: {time_range}",
+                color=discord.Color.blue(),
+            )
+            await ctx.send(embed=embed)
+            return
+
+        # Handle clear operation
+        if not await self._confirm_deletion(ctx, count, status):
+            await ctx.send("Deletion cancelled.")
+            return
+
+        deleted = 0
+        for message in matching_messages:
+            await message.delete()
+            deleted += 1
+
+        await ctx.send(
+            f"Successfully deleted {deleted} error messages with status: {status}"
+        )
 
     @commands.Cog.listener()
     async def on_reaction_add(
@@ -335,7 +484,7 @@ class ErrorHandlerCog(commands.Cog):
             await self._handle_invite_reaction(message, embed)
             return
 
-        color, status = self.status_map[str(reaction.emoji)]
+        color, status = self.STATUS_MAP[str(reaction.emoji)]
         embed.colour = color
         embed.title = f"Command Error - {status}"
         embed.set_footer(
@@ -345,7 +494,7 @@ class ErrorHandlerCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_command_error(
-        self, ctx: Context[typing.Any], error: Exception
+        self, ctx: commands.Context[typing.Any], error: Exception
     ) -> None:
         """Handle command execution errors.
 
