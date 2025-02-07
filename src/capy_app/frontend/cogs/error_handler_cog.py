@@ -352,14 +352,60 @@ class ErrorHandlerCog(commands.Cog):
             await ctx.send("Deletion cancelled - timeout reached.")
             return False
 
+    async def _create_interactive_menu(
+        self, ctx: commands.Context[typing.Any]
+    ) -> typing.Tuple[str, str, str]:
+        """Create an interactive menu for selecting ehc options."""
+        operations = {"📋": "list", "🗑️": "clear"}
+        statuses = {"✅": "resolved", "❌": "ignored", "⚠️": "unmarked", "📎": "all"}
+        time_ranges = {"1️⃣": "1h", "2️⃣": "1d", "3️⃣": "7d", "4️⃣": "30d", "5️⃣": "all"}
+
+        async def get_selection(
+            message: discord.Message, options: dict[str, str], prompt: str
+        ) -> str:
+            for emoji in options.keys():
+                await message.add_reaction(emoji)
+
+            def check(reaction: discord.Reaction, user: discord.User) -> bool:
+                return user == ctx.author and str(reaction.emoji) in options
+
+            try:
+                reaction, _ = await self.bot.wait_for(
+                    "reaction_add", timeout=30.0, check=check
+                )
+                return options[str(reaction.emoji)]
+            except TimeoutError:
+                raise commands.CommandError("Selection timed out")
+
+        # Operation selection
+        op_msg = await ctx.send("Select operation:\n📋 List\n🗑️ Clear")
+        operation = await get_selection(op_msg, operations, "operation")
+        await op_msg.delete()
+
+        # Status selection
+        status_msg = await ctx.send(
+            "Select status:\n✅ Resolved\n❌ Ignored\n⚠️ Unmarked\n📎 All"
+        )
+        status = await get_selection(status_msg, statuses, "status")
+        await status_msg.delete()
+
+        # Time range selection
+        time_msg = await ctx.send(
+            "Select time range:\n1️⃣ 1 hour\n2️⃣ 1 day\n3️⃣ 7 days\n4️⃣ 30 days\n5️⃣ All time"
+        )
+        time_range = await get_selection(time_msg, time_ranges, "time range")
+        await time_msg.delete()
+
+        return operation, status, time_range
+
     @commands.command(name="ehc")
     @commands.has_permissions(manage_messages=True)
     async def error_handler_command(
         self,
         ctx: commands.Context[typing.Any],
-        operation: str = "list",
-        status: str = "all",
-        time_range: str = "all",
+        operation: str = None,
+        status: str = None,
+        time_range: str = None,
     ) -> None:
         """Manage error messages.
 
@@ -369,6 +415,14 @@ class ErrorHandlerCog(commands.Cog):
             status: Status of messages to handle (resolved/ignored/unmarked/all)
             time_range: Time range to look back (1h/1d/7d/30d/all)
         """
+        try:
+            if any(param is None for param in [operation, status, time_range]):
+                operation, status, time_range = await self._create_interactive_menu(ctx)
+        except commands.CommandError as e:
+            await ctx.send(f"Error: {str(e)}")
+            return
+
+        # Continue with existing operation handling
         operation = operation.lower()
         status = status.lower()
         time_range = time_range.lower()
