@@ -4,9 +4,9 @@ import re
 import time
 import typing
 import logging
+import datetime
 import discord
 from discord.ext import commands
-from discord.ext.commands import Context
 
 from config import settings
 
@@ -14,18 +14,24 @@ from config import settings
 class ErrorHandlerCog(commands.Cog):
     """Cog for handling error messages and their resolution status."""
 
+    STATUS_MAP: typing.Dict[str, typing.Tuple[discord.Color, str]]
+
     def __init__(self, bot: commands.Bot) -> None:
         """Initialize the error handler cog."""
         self.bot = bot
         self.logger = logging.getLogger(
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
+
         self.RESOLVED_EMOJI = "✅"
         self.IGNORED_EMOJI = "❌"
         self.INVITE_EMOJI = "❓"
-        self.status_map: dict[str, tuple[discord.Color, str]] = {
-            self.RESOLVED_EMOJI: (discord.Color.green(), "Resolved"),
-            self.IGNORED_EMOJI: (discord.Color.light_grey(), "Ignored"),
+        self.STATUS_UNMARKED = "Unresolved"
+        self.STATUS_RESOLVED = "Resolved"
+        self.STATUS_IGNORED = "Ignored"
+        self.STATUS_MAP: typing.Dict[str, typing.Tuple[discord.Color, str]] = {
+            self.RESOLVED_EMOJI: (discord.Color.green(), self.STATUS_RESOLVED),
+            self.IGNORED_EMOJI: (discord.Color.light_grey(), self.STATUS_IGNORED),
         }
 
     async def _get_error_channel(self) -> typing.Optional[discord.TextChannel]:
@@ -46,7 +52,7 @@ class ErrorHandlerCog(commands.Cog):
 
         return channel
 
-    def _create_urls(self, ctx: Context[typing.Any]) -> dict[str, str]:
+    def _create_urls(self, ctx: commands.Context[typing.Any]) -> typing.Dict[str, str]:
         """Create URLs for server, channel, and user."""
         if isinstance(ctx.channel, discord.DMChannel):
             return {
@@ -83,12 +89,15 @@ class ErrorHandlerCog(commands.Cog):
             discord.Thread,
             discord.PartialMessageable,
             discord.GroupChannel,
+            discord.DMChannel,
         ],
         url: typing.Optional[str] = None,
     ) -> str:
         """Get formatted channel information string."""
         if isinstance(channel, discord.PartialMessageable):
             return f"Channel ID: {channel.id}"
+        if isinstance(channel, discord.DMChannel):
+            return f"DM Channel ({channel.id})"
 
         try:
             channel_text = f"#{channel.name} ({channel.id})"
@@ -98,13 +107,13 @@ class ErrorHandlerCog(commands.Cog):
 
     def _create_error_embed(
         self,
-        ctx: Context[typing.Any],
+        ctx: commands.Context[typing.Any],
         error: Exception,
-        urls: dict[str, str],
+        urls: typing.Dict[str, str],
     ) -> discord.Embed:
         """Create error embed message."""
         embed = discord.Embed(
-            title="Command Error",
+            title=f"Command Error - {self.STATUS_UNMARKED}",
             description=f"Command: {ctx.command}\nError: {str(error)}",
             color=discord.Color.red(),
         )
@@ -295,7 +304,9 @@ class ErrorHandlerCog(commands.Cog):
 
         await message.edit(embed=embed)
 
-    async def _log_error(self, ctx: Context[typing.Any], error: Exception) -> None:
+    async def _log_error(
+        self, ctx: commands.Context[typing.Any], error: Exception
+    ) -> None:
         """Log error to designated channel with reaction controls."""
         error_channel = await self._get_error_channel()
         if not error_channel:
@@ -306,9 +317,238 @@ class ErrorHandlerCog(commands.Cog):
         embed = self._create_error_embed(ctx, error, urls)
         await self._send_error_message(error_channel, embed)
 
+    def _get_message_status(self, embed: discord.Embed) -> str:
+        """Get the status of an error message from its embed."""
+        if not embed.title:
+            return self.STATUS_UNMARKED
+
+        if self.STATUS_RESOLVED in embed.title:
+            return self.STATUS_RESOLVED
+        elif self.STATUS_IGNORED in embed.title:
+            return self.STATUS_IGNORED
+        return self.STATUS_UNMARKED
+
+    async def _confirm_deletion(
+        self, ctx: commands.Context[typing.Any], count: int, status: str
+    ) -> bool:
+        """Ask for confirmation before deleting messages."""
+        confirm_message = await ctx.send(
+            f"Are you sure you want to delete {count} error messages with status '{status}'?\n"
+            "React with ✅ to confirm or ❌ to cancel."
+        )
+        await confirm_message.add_reaction("✅")
+        await confirm_message.add_reaction("❌")
+
+        def check(reaction: discord.Reaction, user: discord.User) -> bool:
+            return (
+                user == ctx.author
+                and str(reaction.emoji) in ["✅", "❌"]
+                and reaction.message.id == confirm_message.id
+            )
+
+        try:
+            reaction, _ = await self.bot.wait_for(
+                "reaction_add", timeout=30.0, check=check
+            )
+            await confirm_message.delete()
+            return str(reaction.emoji) == "✅"
+        except TimeoutError:
+            await confirm_message.delete()
+            await ctx.send("Deletion cancelled - timeout reached.")
+            return False
+
+    async def _create_interactive_menu(
+        self, ctx: commands.Context[typing.Any]
+    ) -> typing.Tuple[str, str, str]:
+        """Create an interactive menu for selecting ehc options."""
+        operations: typing.Dict[str, str] = {"📋": "list", "🗑️": "clear"}
+        statuses: typing.Dict[str, str] = {
+            "✅": "resolved",
+            "❌": "ignored",
+            "⚠️": "unmarked",
+            "📎": "all",
+        }
+        time_ranges: typing.Dict[str, str] = {
+            "1️⃣": "1h",
+            "2️⃣": "1d",
+            "3️⃣": "7d",
+            "4️⃣": "30d",
+            "5️⃣": "all",
+        }
+
+        async def get_selection(
+            message: discord.Message, options: typing.Dict[str, str], prompt: str
+        ) -> str:
+            for emoji in options.keys():
+                await message.add_reaction(emoji)
+
+            def check(reaction: discord.Reaction, user: discord.User) -> bool:
+                return user == ctx.author and str(reaction.emoji) in options
+
+            try:
+                reaction, _ = await self.bot.wait_for(
+                    "reaction_add", timeout=30.0, check=check
+                )
+                return options[str(reaction.emoji)]
+            except TimeoutError:
+                raise commands.CommandError("Selection timed out")
+
+        # Operation selection
+        op_msg = await ctx.send("Select operation:\n📋 List\n🗑️ Clear")
+        operation = await get_selection(op_msg, operations, "operation")
+        await op_msg.delete()
+
+        # Status selection
+        status_msg = await ctx.send(
+            "Select status:\n✅ Resolved\n❌ Ignored\n⚠️ Unmarked\n📎 All"
+        )
+        status = await get_selection(status_msg, statuses, "status")
+        await status_msg.delete()
+
+        # Time range selection
+        time_msg = await ctx.send(
+            "Select time range:\n1️⃣ 1 hour\n2️⃣ 1 day\n3️⃣ 7 days\n4️⃣ 30 days\n5️⃣ All time"
+        )
+        time_range = await get_selection(time_msg, time_ranges, "time range")
+        await time_msg.delete()
+
+        return operation, status, time_range
+
+    @commands.command(name="ehc")
+    @commands.has_permissions(manage_messages=True)
+    async def error_handler_command(
+        self,
+        ctx: commands.Context[typing.Any],
+        operation: typing.Optional[str] = None,
+        status: typing.Optional[str] = None,
+        time_range: typing.Optional[str] = None,
+    ) -> None:
+        """Manage error messages.
+
+        Args:
+            ctx: The command context
+            operation: Operation to perform (list/clear)
+            status: Status of messages to handle (resolved/ignored/unmarked/all)
+            time_range: Time range to look back (1h/1d/7d/30d/all)
+        """
+        # Check if command is used in the correct guild and channel
+        if not ctx.guild or ctx.guild.id != settings.FAILED_COMMANDS_GUILD_ID:
+            await ctx.send(
+                "This command can only be used in the designated error handling server."
+            )
+            return
+
+        if ctx.channel.id != settings.FAILED_COMMANDS_CHANNEL_ID:
+            await ctx.send(
+                "This command can only be used in the designated error handling channel."
+            )
+            return
+
+        try:
+            if any(param is None for param in [operation, status, time_range]):
+                operation, status, time_range = await self._create_interactive_menu(ctx)
+        except commands.CommandError as e:
+            await ctx.send(f"Error: {str(e)}")
+            return
+
+        # These are now guaranteed to be strings after _create_interactive_menu
+        operation_str = str(operation)
+        status_str = str(status)
+        time_range_str = str(time_range)
+
+        # Continue with existing operation handling
+        operation_str = operation_str.lower()
+        status_str = status_str.lower()
+        time_range_str = time_range_str.lower()
+
+        if operation_str not in ["list", "clear"]:
+            await ctx.send("Invalid operation. Use: list or clear")
+            return
+
+        if status_str not in ["resolved", "ignored", "unmarked", "all"]:
+            await ctx.send("Invalid status. Use: resolved, ignored, unmarked, or all")
+            return
+
+        time_ranges: typing.Dict[str, typing.Optional[int]] = {
+            "1h": 3600,
+            "1d": 86400,
+            "7d": 604800,
+            "30d": 2592000,
+            "all": None,
+        }
+
+        if time_range_str not in time_ranges:
+            await ctx.send("Invalid time range. Use: 1h, 1d, 7d, 30d, or all")
+            return
+
+        error_channel = await self._get_error_channel()
+        if not error_channel:
+            await ctx.send("Error channel not found")
+            return
+
+        STATUS_MAP: typing.Dict[str, str] = {
+            "resolved": self.STATUS_RESOLVED,
+            "ignored": self.STATUS_IGNORED,
+            "unmarked": self.STATUS_UNMARKED,
+        }
+
+        # Calculate cutoff time if needed
+        cutoff_time: typing.Optional[datetime.datetime] = None
+        seconds = time_ranges[time_range_str]
+        if seconds is not None:
+            cutoff_time = discord.utils.utcnow() - datetime.timedelta(
+                seconds=float(seconds)
+            )
+
+        # Count matching messages
+        count = 0
+        matching_messages: typing.List[discord.Message] = []
+        async for message in error_channel.history(limit=None):
+            if cutoff_time and message.created_at < cutoff_time:
+                break
+
+            if not message.embeds:
+                continue
+
+            current_status = self._get_message_status(message.embeds[0])
+            if status_str == "all" or current_status == STATUS_MAP.get(status_str):
+                count += 1
+                matching_messages.append(message)
+
+        if count == 0:
+            await ctx.send(f"No messages found with status: {status_str}")
+            return
+
+        if operation == "list":
+            embed = discord.Embed(
+                title="Error Message Summary",
+                description=f"Found {count} messages matching criteria:\n"
+                f"Status: {status_str}\n"
+                f"Time range: {time_range}",
+                color=discord.Color.blue(),
+            )
+            await ctx.send(embed=embed)
+            return
+
+        # Handle clear operation
+        if not await self._confirm_deletion(ctx, count, status_str):
+            await ctx.send("Deletion cancelled.")
+            return
+
+        deleted = 0
+        for message in matching_messages:
+            await message.delete()
+            deleted += 1
+
+        await ctx.send(
+            f"Successfully deleted {deleted} error messages with status: {status_str}"
+        )
+
     @commands.Cog.listener()
     async def on_reaction_add(
-        self, reaction: discord.Reaction, user: discord.User
+        self,
+        reaction: discord.Reaction,
+        user: typing.Union[discord.User, discord.Member],
     ) -> None:
         """Handle reactions on error messages."""
         if user.bot:
@@ -321,7 +561,14 @@ class ErrorHandlerCog(commands.Cog):
         if message.channel.id != settings.FAILED_COMMANDS_CHANNEL_ID:
             return
 
-        if not message.embeds or str(reaction.emoji) not in [
+        if not message.embeds:
+            return
+
+        embed = message.embeds[0]
+        if not embed.title or "Command Error" not in embed.title:
+            return
+
+        if str(reaction.emoji) not in [
             self.RESOLVED_EMOJI,
             self.IGNORED_EMOJI,
             self.INVITE_EMOJI,
@@ -329,13 +576,11 @@ class ErrorHandlerCog(commands.Cog):
             self.logger.error("Unknown reaction emoji")
             return
 
-        embed = message.embeds[0]
-
         if str(reaction.emoji) == self.INVITE_EMOJI:
             await self._handle_invite_reaction(message, embed)
             return
 
-        color, status = self.status_map[str(reaction.emoji)]
+        color, status = self.STATUS_MAP[str(reaction.emoji)]
         embed.colour = color
         embed.title = f"Command Error - {status}"
         embed.set_footer(
@@ -345,7 +590,7 @@ class ErrorHandlerCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_command_error(
-        self, ctx: Context[typing.Any], error: Exception
+        self, ctx: commands.Context[typing.Any], error: Exception
     ) -> None:
         """Handle command execution errors.
 
