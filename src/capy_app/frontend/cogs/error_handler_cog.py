@@ -524,15 +524,20 @@ class ErrorHandlerCog(commands.Cog):
         if message.channel.id != settings.FAILED_COMMANDS_CHANNEL_ID:
             return
 
-        if not message.embeds or str(reaction.emoji) not in [
+        if not message.embeds:
+            return
+
+        embed = message.embeds[0]
+        if not embed.title or "Command Error" not in embed.title:
+            return
+
+        if str(reaction.emoji) not in [
             self.RESOLVED_EMOJI,
             self.IGNORED_EMOJI,
             self.INVITE_EMOJI,
         ]:
             self.logger.error("Unknown reaction emoji")
             return
-
-        embed = message.embeds[0]
 
         if str(reaction.emoji) == self.INVITE_EMOJI:
             await self._handle_invite_reaction(message, embed)
