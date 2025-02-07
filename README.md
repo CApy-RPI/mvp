@@ -75,7 +75,7 @@ python src/capy_app/main.py
 
 ## **Contributing**
 
-We welcome contributions to CApy! Here's how you can help:
+We welcome contributions to CAPY! Here's how you can help:
 
 1. Fork the repository
 2. Create a new branch (`git checkout -b feature/amazing-feature`)
