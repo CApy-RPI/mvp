@@ -9,11 +9,11 @@ import typing
 import discord
 from discord.ext import commands
 from discord.ext.commands import Context
+from backend.db.documents.guild import Guild
 
 # Local imports
 from backend.db.database import Database as db
 from config import settings
-
 
 class Bot(commands.AutoShardedBot):
     """Main bot class handling Discord events and commands."""
@@ -30,17 +30,18 @@ class Bot(commands.AutoShardedBot):
         """Handle event when bot joins a new guild.
 
         Args:
-            guild: Discord guild object representing the joined server
+            guild: Discord guild object representing the joined server.
         """
-        guild_data = db.Database.get_document(db.Guild, guild.id)
+        guild_data = db.get_document(Guild, guild.id)
+
         if not guild_data:
-            guild_data = db.Guild(_id=guild.id)
+            guild_data = Guild(_id=guild.id)
             guild_data.save()
             self.logger.info(
                 f"Created new guild entry for {guild.name} (ID: {guild.id})"
             )
         else:
-            db.Database.sync_document_with_template(guild_data, db.Guild)
+            db.sync_document_with_template(guild_data, Guild)
             self.logger.info(
                 f"Guild {guild.name} (ID: {guild.id}) already exists and synced"
             )

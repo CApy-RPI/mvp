@@ -414,14 +414,14 @@ class ErrorHandlerCog(commands.Cog):
 
         return operation, status, time_range
 
-    @commands.command(name="ehc")
+    @commands.command(name="ehc", hidden = True)
     @commands.has_permissions(manage_messages=True)
     async def error_handler_command(
         self,
         ctx: commands.Context[typing.Any],
         operation: typing.Optional[str] = None,
         status: typing.Optional[str] = None,
-        time_range: typing.Optional[str] = None,
+        time_range: typing.Optional[str] = None
     ) -> None:
         """Manage error messages.
 
