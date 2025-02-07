@@ -51,11 +51,11 @@ cd mvp
 1. Create and activate a virtual environment (recommended):
 
 ```bash
-python -m venv venv
+python -m venv .venv
 # On Windows
 .venv\Scripts\activate
 # On Unix/MacOS
-source venv/bin/activate
+source .venv/bin/activate
 ```
 
 1. Install dependencies:
