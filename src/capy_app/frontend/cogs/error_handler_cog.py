@@ -14,6 +14,8 @@ from config import settings
 class ErrorHandlerCog(commands.Cog):
     """Cog for handling error messages and their resolution status."""
 
+    STATUS_MAP: typing.Dict[str, typing.Tuple[discord.Color, str]]
+
     def __init__(self, bot: commands.Bot) -> None:
         """Initialize the error handler cog."""
         self.bot = bot
@@ -27,7 +29,7 @@ class ErrorHandlerCog(commands.Cog):
         self.STATUS_UNMARKED = "Unresolved"
         self.STATUS_RESOLVED = "Resolved"
         self.STATUS_IGNORED = "Ignored"
-        self.STATUS_MAP: dict[str, tuple[discord.Color, str]] = {
+        self.STATUS_MAP: typing.Dict[str, typing.Tuple[discord.Color, str]] = {
             self.RESOLVED_EMOJI: (discord.Color.green(), self.STATUS_RESOLVED),
             self.IGNORED_EMOJI: (discord.Color.light_grey(), self.STATUS_IGNORED),
         }
@@ -50,7 +52,7 @@ class ErrorHandlerCog(commands.Cog):
 
         return channel
 
-    def _create_urls(self, ctx: commands.Context[typing.Any]) -> dict[str, str]:
+    def _create_urls(self, ctx: commands.Context[typing.Any]) -> typing.Dict[str, str]:
         """Create URLs for server, channel, and user."""
         if isinstance(ctx.channel, discord.DMChannel):
             return {
@@ -87,6 +89,7 @@ class ErrorHandlerCog(commands.Cog):
             discord.Thread,
             discord.PartialMessageable,
             discord.GroupChannel,
+            discord.DMChannel,
         ],
         url: typing.Optional[str] = None,
     ) -> str:
@@ -104,7 +107,7 @@ class ErrorHandlerCog(commands.Cog):
         self,
         ctx: commands.Context[typing.Any],
         error: Exception,
-        urls: dict[str, str],
+        urls: typing.Dict[str, str],
     ) -> discord.Embed:
         """Create error embed message."""
         embed = discord.Embed(
@@ -356,12 +359,23 @@ class ErrorHandlerCog(commands.Cog):
         self, ctx: commands.Context[typing.Any]
     ) -> typing.Tuple[str, str, str]:
         """Create an interactive menu for selecting ehc options."""
-        operations = {"📋": "list", "🗑️": "clear"}
-        statuses = {"✅": "resolved", "❌": "ignored", "⚠️": "unmarked", "📎": "all"}
-        time_ranges = {"1️⃣": "1h", "2️⃣": "1d", "3️⃣": "7d", "4️⃣": "30d", "5️⃣": "all"}
+        operations: typing.Dict[str, str] = {"📋": "list", "🗑️": "clear"}
+        statuses: typing.Dict[str, str] = {
+            "✅": "resolved",
+            "❌": "ignored",
+            "⚠️": "unmarked",
+            "📎": "all",
+        }
+        time_ranges: typing.Dict[str, str] = {
+            "1️⃣": "1h",
+            "2️⃣": "1d",
+            "3️⃣": "7d",
+            "4️⃣": "30d",
+            "5️⃣": "all",
+        }
 
         async def get_selection(
-            message: discord.Message, options: dict[str, str], prompt: str
+            message: discord.Message, options: typing.Dict[str, str], prompt: str
         ) -> str:
             for emoji in options.keys():
                 await message.add_reaction(emoji)
@@ -403,9 +417,9 @@ class ErrorHandlerCog(commands.Cog):
     async def error_handler_command(
         self,
         ctx: commands.Context[typing.Any],
-        operation: str = None,
-        status: str = None,
-        time_range: str = None,
+        operation: typing.Optional[str] = None,
+        status: typing.Optional[str] = None,
+        time_range: typing.Optional[str] = None,
     ) -> None:
         """Manage error messages.
 
@@ -415,6 +429,19 @@ class ErrorHandlerCog(commands.Cog):
             status: Status of messages to handle (resolved/ignored/unmarked/all)
             time_range: Time range to look back (1h/1d/7d/30d/all)
         """
+        # Check if command is used in the correct guild and channel
+        if not ctx.guild or ctx.guild.id != settings.FAILED_COMMANDS_GUILD_ID:
+            await ctx.send(
+                "This command can only be used in the designated error handling server."
+            )
+            return
+
+        if ctx.channel.id != settings.FAILED_COMMANDS_CHANNEL_ID:
+            await ctx.send(
+                "This command can only be used in the designated error handling channel."
+            )
+            return
+
         try:
             if any(param is None for param in [operation, status, time_range]):
                 operation, status, time_range = await self._create_interactive_menu(ctx)
@@ -435,7 +462,7 @@ class ErrorHandlerCog(commands.Cog):
             await ctx.send("Invalid status. Use: resolved, ignored, unmarked, or all")
             return
 
-        time_ranges = {
+        time_ranges: typing.Dict[str, typing.Optional[int]] = {
             "1h": 3600,
             "1d": 86400,
             "7d": 604800,
@@ -452,14 +479,14 @@ class ErrorHandlerCog(commands.Cog):
             await ctx.send("Error channel not found")
             return
 
-        STATUS_MAP = {
+        STATUS_MAP: typing.Dict[str, str] = {
             "resolved": self.STATUS_RESOLVED,
             "ignored": self.STATUS_IGNORED,
             "unmarked": self.STATUS_UNMARKED,
         }
 
         # Calculate cutoff time if needed
-        cutoff_time = None
+        cutoff_time: typing.Optional[datetime.datetime] = None
         if time_ranges[time_range] is not None:
             cutoff_time = discord.utils.utcnow() - datetime.timedelta(
                 seconds=time_ranges[time_range]
@@ -467,7 +494,7 @@ class ErrorHandlerCog(commands.Cog):
 
         # Count matching messages
         count = 0
-        matching_messages = []
+        matching_messages: typing.List[discord.Message] = []
         async for message in error_channel.history(limit=None):
             if cutoff_time and message.created_at < cutoff_time:
                 break
@@ -511,7 +538,9 @@ class ErrorHandlerCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_reaction_add(
-        self, reaction: discord.Reaction, user: discord.User
+        self,
+        reaction: discord.Reaction,
+        user: typing.Union[discord.User, discord.Member],
     ) -> None:
         """Handle reactions on error messages."""
         if user.bot:
