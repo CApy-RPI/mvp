@@ -96,6 +96,8 @@ class ErrorHandlerCog(commands.Cog):
         """Get formatted channel information string."""
         if isinstance(channel, discord.PartialMessageable):
             return f"Channel ID: {channel.id}"
+        if isinstance(channel, discord.DMChannel):
+            return f"DM Channel ({channel.id})"
 
         try:
             channel_text = f"#{channel.name} ({channel.id})"
@@ -449,16 +451,21 @@ class ErrorHandlerCog(commands.Cog):
             await ctx.send(f"Error: {str(e)}")
             return
 
-        # Continue with existing operation handling
-        operation = operation.lower()
-        status = status.lower()
-        time_range = time_range.lower()
+        # These are now guaranteed to be strings after _create_interactive_menu
+        operation_str = str(operation)
+        status_str = str(status)
+        time_range_str = str(time_range)
 
-        if operation not in ["list", "clear"]:
+        # Continue with existing operation handling
+        operation_str = operation_str.lower()
+        status_str = status_str.lower()
+        time_range_str = time_range_str.lower()
+
+        if operation_str not in ["list", "clear"]:
             await ctx.send("Invalid operation. Use: list or clear")
             return
 
-        if status not in ["resolved", "ignored", "unmarked", "all"]:
+        if status_str not in ["resolved", "ignored", "unmarked", "all"]:
             await ctx.send("Invalid status. Use: resolved, ignored, unmarked, or all")
             return
 
@@ -470,7 +477,7 @@ class ErrorHandlerCog(commands.Cog):
             "all": None,
         }
 
-        if time_range not in time_ranges:
+        if time_range_str not in time_ranges:
             await ctx.send("Invalid time range. Use: 1h, 1d, 7d, 30d, or all")
             return
 
@@ -487,9 +494,10 @@ class ErrorHandlerCog(commands.Cog):
 
         # Calculate cutoff time if needed
         cutoff_time: typing.Optional[datetime.datetime] = None
-        if time_ranges[time_range] is not None:
+        seconds = time_ranges[time_range_str]
+        if seconds is not None:
             cutoff_time = discord.utils.utcnow() - datetime.timedelta(
-                seconds=time_ranges[time_range]
+                seconds=float(seconds)
             )
 
         # Count matching messages
@@ -503,19 +511,19 @@ class ErrorHandlerCog(commands.Cog):
                 continue
 
             current_status = self._get_message_status(message.embeds[0])
-            if status == "all" or current_status == STATUS_MAP.get(status):
+            if status_str == "all" or current_status == STATUS_MAP.get(status_str):
                 count += 1
                 matching_messages.append(message)
 
         if count == 0:
-            await ctx.send(f"No messages found with status: {status}")
+            await ctx.send(f"No messages found with status: {status_str}")
             return
 
         if operation == "list":
             embed = discord.Embed(
                 title="Error Message Summary",
                 description=f"Found {count} messages matching criteria:\n"
-                f"Status: {status}\n"
+                f"Status: {status_str}\n"
                 f"Time range: {time_range}",
                 color=discord.Color.blue(),
             )
@@ -523,7 +531,7 @@ class ErrorHandlerCog(commands.Cog):
             return
 
         # Handle clear operation
-        if not await self._confirm_deletion(ctx, count, status):
+        if not await self._confirm_deletion(ctx, count, status_str):
             await ctx.send("Deletion cancelled.")
             return
 
@@ -533,7 +541,7 @@ class ErrorHandlerCog(commands.Cog):
             deleted += 1
 
         await ctx.send(
-            f"Successfully deleted {deleted} error messages with status: {status}"
+            f"Successfully deleted {deleted} error messages with status: {status_str}"
         )
 
     @commands.Cog.listener()
