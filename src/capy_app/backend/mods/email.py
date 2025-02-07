@@ -1,7 +1,7 @@
 import typing
 from mailjet_rest import Client
 
-from config import MAILJET_API_KEY, MAILJET_API_SECRET, EMAIL_ADDRESS
+from config import settings
 
 
 class EmailError(Exception):
@@ -22,7 +22,7 @@ class Email:
     def __init__(self) -> None:
         """Initialize the Mailer with Mailjet client."""
         self.mailjet = Client(
-            auth=(MAILJET_API_KEY, MAILJET_API_SECRET), version="v3.1"
+            auth=(settings.MAILJET_API_KEY, settings.MAILJET_API_SECRET), version="v3.1"
         )
 
     def send_mail(self, to_email: str, verification_code: str) -> typing.Any:
@@ -43,7 +43,7 @@ class Email:
             "Messages": [
                 {
                     "From": {
-                        "Email": EMAIL_ADDRESS,
+                        "Email": settings.EMAIL_ADDRESS,
                         "Name": "CApy Verification",
                     },
                     "To": [
