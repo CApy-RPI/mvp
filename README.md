@@ -1,10 +1,10 @@
-# CApy - Club Assistant in Python  
+# CAPY - Club Assistant in Python  
 
 [![Tests](https://github.com/CApy-RPI/mvp/actions/workflows/tests.yml/badge.svg)](https://github.com/CApy-RPI/mvp/actions/workflows/tests.yml)
 
 ## **Overview**  
 
-Welcome to **CApy** — an all-in-one club managerial software built for efficiency and ease of use. Using **Discord** as the primary communication platform, this bot automates administrative tasks like attendance tracking, student verification, meeting reminders, and more. Whether you're starting a new club or managing an established one, CApy helps you focus on what matters most.
+Welcome to **CAPY** — an all-in-one club managerial software built for efficiency and ease of use. Using **Discord** as the primary communication platform, this bot automates administrative tasks like attendance tracking, student verification, meeting reminders, and more. Whether you're starting a new club or managing an established one, CApy helps you focus on what matters most.
 
 ## **Features**  
 
@@ -33,7 +33,7 @@ Welcome to **CApy** — an all-in-one club managerial software built for efficie
 - **Gabriel Conner** ([conneg2@rpi.edu](mailto:conneg2@rpi.edu))
 - **Gianluca Zhang** ([zhangg6@rpi.edu](mailto:zhangg6@rpi.edu))
 - **Tag Ciccone** ([ciccot@rpi.edu](mailto:ciccot@rpi.edu))
-- **Caleb Alemu** ([cdsalemu78@gmail.com](mailto:cdsalemu78@gmail.com))
+- **Caleb Alemu** ([cdsalemu78@gmail.com](mailto:cda1943@rit.edu))
 
 ---
 
