@@ -1,13 +1,4 @@
-<table width="100%">
-  <tr>
-    <td align="left"><h1>CApy - Club Assistant in Python</h1></td>
-    <td align="right">
-      <a href="https://github.com/CApy-RPI/mvp/actions/workflows/tests.yml">
-        <img src="https://github.com/CApy-RPI/mvp/actions/workflows/tests.yml/badge.svg" alt="Tests">
-      </a>
-    </td>
-  </tr>
-</table>
+# CApy - Club Assistant in python [![Tests](https://github.com/CApy-RPI/mvp/actions/workflows/tests.yml/badge.svg)](https://github.com/CApy-RPI/mvp/actions/workflows/tests.yml)
 
 + Project Leads: **Shamik Karkhanis (karkhs@rpi.edu), Jason Zhang (zhangy96@rpi.edu)**
 + Project contributors: **Gabriel Conner (conneg2@rpi.edu), Gianluca Zhang (zhangg6@rpi.edu), Pradeep Giri (girip@rpi.edu), Tag Ciccone (ciccot@rpi.edu), Vincent Shi (shiv@rpi.edu), Zane Brotherton (brothz@rpi.edu), Caleb Alemu (cdsalemu78@gmail.com)**
