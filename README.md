@@ -53,7 +53,7 @@ cd mvp
 ```bash
 python -m venv venv
 # On Windows
-venv\Scripts\activate
+.venv\Scripts\activate
 # On Unix/MacOS
 source venv/bin/activate
 ```
@@ -69,6 +69,7 @@ pip install -r requirements.txt
 ### **2. Running the Bot**
 
 ```bash
+.venv\Scripts\activate
 python src/capy_app/main.py
 ```
 
