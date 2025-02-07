@@ -14,7 +14,7 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 def main():
     bot = Bot(command_prefix="!", intents=discord.Intents.all())
-    bot.run(os.getenv(settings.BOT_TOKEN), reconnect=True)
+    bot.run(settings.BOT_TOKEN, reconnect=True)
 
 
 if __name__ == "__main__":
