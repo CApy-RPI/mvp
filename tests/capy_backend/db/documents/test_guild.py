@@ -30,11 +30,7 @@ def clean_db():
 
 
 def test_create_guild_defaults(db):
-    guild = Guild(
-        _id=1,
-        users=[101, 102],
-        events=[201, 202]
-    )
+    guild = Guild(_id=1, users=[101, 102], events=[201, 202])
     guild.save()
 
     saved_guild = Guild.objects.get(_id=1)
@@ -44,6 +40,44 @@ def test_create_guild_defaults(db):
     assert isinstance(saved_guild.channels, GuildChannels)
     assert isinstance(saved_guild.roles, GuildRoles)
 
+def test_guild_invalid_user_ids(db):
+    # Test with string instead of integer user IDs
+    with pytest.raises(mongoengine.ValidationError):
+        guild = Guild(_id=1, users=["invalid", "user_ids"])
+        guild.save()
+
+    # Test with negative user IDs
+    with pytest.raises(mongoengine.ValidationError):
+        guild = Guild(_id=1, users=[-1, -2])
+        guild.save()
+
+
+def test_guild_invalid_event_ids(db):
+    # Test with string instead of integer event IDs
+    with pytest.raises(mongoengine.ValidationError):
+        guild = Guild(_id=1, events=["invalid", "event_ids"])
+        guild.save()
+
+    # Test with negative event IDs
+    with pytest.raises(mongoengine.ValidationError):
+        guild = Guild(_id=1, events=[-1, -2])
+        guild.save()
+
+
+def test_guild_invalid_channels(db):
+    # Test with invalid channel data
+    with pytest.raises(mongoengine.ValidationError):
+        guild = Guild(_id=1)
+        guild.channels = {"invalid": "channel_data"}  # Should be GuildChannels instance
+        guild.save()
+
+
+def test_guild_invalid_roles(db):
+    # Test with invalid role data
+    with pytest.raises(mongoengine.ValidationError):
+        guild = Guild(_id=1)
+        guild.roles = ["invalid_roles"]  # Should be GuildRoles instance
+        guild.save()
 
 def test_create_guild_custom_channels(db):
     custom_channels = GuildChannels(reports=123, announcements=456, moderator=789)
