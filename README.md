@@ -7,6 +7,4 @@ We are implementing an all-in-one club managerial software which utilizes Discor
 
 ---
 
-**Test Status:** ❌ (2 errors)
-
----
+[![Tests](https://github.com/CApy-RPI/mvp/actions/workflows/tests.yml/badge.svg)](https://github.com/CApy-RPI/mvp/actions/workflows/tests.yml)
