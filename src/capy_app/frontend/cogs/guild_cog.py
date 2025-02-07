@@ -10,7 +10,6 @@ from backend.db.database import Database as db
 from backend.db.documents.guild import Guild, GuildChannels, GuildRoles
 from backend.db.documents.user import User
 
-
 class GuildCog(commands.Cog):
     """
     A class that represents a Discord Cog for managing server settings.
@@ -36,8 +35,14 @@ class GuildCog(commands.Cog):
         Args:
             ctx (commands.Context): The context of the command.
         """
+        
         if ctx.invoked_subcommand is None:
-            await ctx.send("Invalid settings command. Use !settings [list, set]")
+            embed = discord.Embed(
+                title="Invalid settings command",
+                description="Type \"!settings [list, set]\" \nList: Displays all CApy server settings\nSet: (Admin Required), change",
+                color=discord.Color.red(),
+            )
+            await ctx.send(embed=embed)
 
     @settings.command(name="list", help="List server settings")
     async def list_settings(self, ctx: commands.Context) -> None:
@@ -112,7 +117,7 @@ class GuildCog(commands.Cog):
             previous_value = getattr(getattr(guild, field_parts[0]), field_parts[1])
 
             # Update the value
-            db.update_document(Guild, {field_mapping[name]: value})
+            db.update_document(guild, {field_mapping[name]: value})
 
             valid_embed = discord.Embed(
                 title="Success!",
