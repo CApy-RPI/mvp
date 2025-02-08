@@ -1,0 +1,7 @@
+# CODEOWNERS file
+
+# Require Founders to approve changes to the `mvp/main` branch
+/mvp/main @CApy-RPI/founders
+
+# Require Leads to approve changes to the `mvp/develop` branch
+/mvp/develop @CApy-RPI/leads
