@@ -11,7 +11,7 @@ This module provides the UI components for profile management:
 
 import asyncio
 import datetime
-from typing import Optional, List, Any, cast
+from typing import Optional, List, Any
 import discord
 from discord import ui
 from discord.interactions import Interaction

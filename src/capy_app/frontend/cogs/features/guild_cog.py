@@ -19,6 +19,7 @@ from frontend.utils.interactions.guild.guild_handlers import (
 )
 from frontend.cogs.handlers.guild_handler_cog import GuildHandlerCog
 from frontend.utils import embed_colors as colors
+from frontend.utils.interactions.checks.scopes import is_guild
 from config import settings
 
 
@@ -56,7 +57,7 @@ class GuildCog(commands.Cog):
             )
             await channel_view.wait()
 
-            if channel_view.value == False:
+            if channel_view.value is False:
                 await interaction.edit_original_response(
                     content="Cancelled channel settings update.", embed=None, view=None
                 )
@@ -77,7 +78,7 @@ class GuildCog(commands.Cog):
             )
             await role_view.wait()
 
-            if role_view.value == False:
+            if role_view.value is False:
                 await interaction.edit_original_response(
                     content="Cancelled role settings update.", embed=None, view=None
                 )
@@ -93,6 +94,7 @@ class GuildCog(commands.Cog):
 
         await self.show_settings(interaction)
 
+    @is_guild()
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="server", description="Manage server settings")
     @app_commands.describe(action="The action to perform with server settings")
@@ -119,6 +121,12 @@ class GuildCog(commands.Cog):
             return
 
         try:
+            if not isinstance(interaction.guild, discord.Guild):
+                await interaction.edit_original_response(
+                    content="This command can only be used in a server."
+                )
+                return
+
             guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
             if not guild_data:
                 await interaction.edit_original_response(
