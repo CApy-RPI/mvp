@@ -143,11 +143,13 @@ class ProfileCog(commands.Cog):
 
         # Wait for major selection
         await major_view.wait()
-        selected_majors = (
-            major_view.selected_majors
-            if major_view.value
-            else (user.profile.major if user else ["Undeclared"])
-        )
+        selected_majors = []
+        if major_view.value and major_view.selected_majors:
+            selected_majors = list(major_view.selected_majors)
+        elif user and user.profile.major:
+            selected_majors = list(user.profile.major)
+        else:
+            selected_majors = ["Undeclared"]
 
         # Handle email verification if needed
         new_email = modal.children[4].value
@@ -189,7 +191,7 @@ class ProfileCog(commands.Cog):
             "name": UserName(
                 first=modal.children[0].value, last=modal.children[1].value
             ),
-            "major": selected_majors,
+            "major": selected_majors,  # Now guaranteed to be a list
             "graduation_year": modal.children[2].value,
             "school_email": modal.children[4].value,
             "student_id": modal.children[3].value,
@@ -203,6 +205,8 @@ class ProfileCog(commands.Cog):
             user = new_user
         else:
             updates = {f"profile__{k}": v for k, v in profile_data.items()}
+            if isinstance(updates["profile__major"], tuple):  # Additional safety check
+                updates["profile__major"] = list(updates["profile__major"])
             db.update_document(user, updates)
             user = db.get_document(User, interaction.user.id)
 
@@ -233,9 +237,13 @@ class ProfileCog(commands.Cog):
         )
 
         # Get the avatar URL differently based on the type
-        if is_message:
+        avatar_url: str
+        if isinstance(message_or_interaction, discord.Message):
+            meta = message_or_interaction.interaction
             avatar_url = (
-                message_or_interaction.interaction_metadata.user.display_avatar.url
+                meta.user.display_avatar.url
+                if meta
+                else message_or_interaction.author.display_avatar.url
             )
         else:
             avatar_url = message_or_interaction.user.display_avatar.url

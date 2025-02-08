@@ -8,6 +8,7 @@ This module provides commands for bulk message deletion with various modes.
 """
 
 import logging
+import typing
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -43,10 +44,10 @@ class DateTimeModal(discord.ui.Modal, title="Enter Date and Time"):
 class PurgeModeView(discord.ui.View):
     def __init__(self):
         super().__init__()
-        self.mode = None
-        self.value = None
+        self.mode: typing.Optional[str] = None
+        self.value: typing.Union[int, str, datetime, None] = None
 
-        mode_select = discord.ui.Select(
+        self.mode_select: discord.ui.Select = discord.ui.Select(
             placeholder="Choose purge mode",
             options=[
                 discord.SelectOption(
@@ -67,16 +68,17 @@ class PurgeModeView(discord.ui.View):
             ],
         )
 
-        async def mode_callback(interaction: discord.Interaction):
-            self.mode = mode_select.values[0]
+        async def mode_callback(interaction: discord.Interaction) -> None:
+            self.mode = self.mode_select.values[0]
             if self.mode == "count":
                 modal = discord.ui.Modal(title="Enter Count")
-                modal.add_item(
-                    discord.ui.TextInput(label="Number of messages", placeholder="10")
+                text_input = discord.ui.TextInput(
+                    label="Number of messages", placeholder="10"
                 )
+                modal.add_item(text_input)
 
-                async def count_callback(interaction: discord.Interaction):
-                    self.value = int(modal.children[0].value)
+                async def count_callback(interaction: discord.Interaction) -> None:
+                    self.value = int(text_input.value)
                     await interaction.response.defer()
                     self.stop()
 
@@ -85,15 +87,14 @@ class PurgeModeView(discord.ui.View):
 
             elif self.mode == "duration":
                 modal = discord.ui.Modal(title="Enter Duration")
-                modal.add_item(
-                    discord.ui.TextInput(
-                        label="Duration (1d2h3m)",
-                        placeholder="1d = 1 day, 2h = 2 hours, 3m = 3 minutes",
-                    )
+                text_input = discord.ui.TextInput(
+                    label="Duration (1d2h3m)",
+                    placeholder="1d = 1 day, 2h = 2 hours, 3m = 3 minutes",
                 )
+                modal.add_item(text_input)
 
-                async def duration_callback(interaction: discord.Interaction):
-                    self.value = modal.children[0].value
+                async def duration_callback(interaction: discord.Interaction) -> None:
+                    self.value = text_input.value
                     await interaction.response.defer()
                     self.stop()
 
@@ -103,13 +104,17 @@ class PurgeModeView(discord.ui.View):
             elif self.mode == "date":
                 modal = DateTimeModal()
 
-                async def date_callback(interaction: discord.Interaction):
+                async def date_callback(interaction: discord.Interaction) -> None:
                     try:
-                        date_str = modal.children[0].value
-                        time_str = modal.children[1].value
-                        self.value = datetime.strptime(
-                            f"{date_str} {time_str}", "%Y-%m-%d %H:%M"
-                        )
+                        date_input = modal.children[0]
+                        time_input = modal.children[1]
+                        if isinstance(date_input, discord.ui.TextInput) and isinstance(
+                            time_input, discord.ui.TextInput
+                        ):
+                            self.value = datetime.strptime(
+                                f"{date_input.value} {time_input.value}",
+                                "%Y-%m-%d %H:%M",
+                            )
                         await interaction.response.defer()
                         self.stop()
                     except ValueError:
@@ -120,8 +125,8 @@ class PurgeModeView(discord.ui.View):
                 modal.on_submit = date_callback
                 await interaction.response.send_modal(modal)
 
-        mode_select.callback = mode_callback
-        self.add_item(mode_select)
+        self.mode_select.callback = mode_callback
+        self.add_item(self.mode_select)
 
 
 class PurgeCog(commands.Cog):
@@ -180,7 +185,7 @@ class PurgeCog(commands.Cog):
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="purge", description="Delete messages")
     @app_commands.checks.has_permissions(manage_messages=True)
-    async def purge(self, interaction: discord.Interaction):
+    async def purge(self, interaction: discord.Interaction) -> None:
         view = PurgeModeView()
         await interaction.response.send_message(
             "Select purge mode:", view=view, ephemeral=True
@@ -194,18 +199,19 @@ class PurgeCog(commands.Cog):
             return
 
         try:
-            if view.mode == "count":
-                success, message = await self._handle_purge_count(
-                    view.value, interaction.channel
-                )
-            elif view.mode == "duration":
-                success, message = await self._handle_purge_duration(
-                    view.value, interaction.channel
-                )
-            elif view.mode == "date":
-                success, message = await self._handle_purge_date(
-                    view.value, interaction.channel
-                )
+            if isinstance(interaction.channel, discord.TextChannel):
+                if view.mode == "count" and isinstance(view.value, int):
+                    success, message = await self._handle_purge_count(
+                        view.value, interaction.channel
+                    )
+                elif view.mode == "duration" and isinstance(view.value, str):
+                    success, message = await self._handle_purge_duration(
+                        view.value, interaction.channel
+                    )
+                elif view.mode == "date" and isinstance(view.value, datetime):
+                    success, message = await self._handle_purge_date(
+                        view.value, interaction.channel
+                    )
 
             embed = (
                 success_embed("Purge", message)

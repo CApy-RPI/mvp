@@ -57,7 +57,7 @@ class EmailVerifier:
 
     def send_verification_email(
         self, user_id: int, email: str
-    ) -> typing.Dict[str, typing.Any]:
+    ) -> typing.Dict[str, typing.Union[bool, str]]:
         """Send verification email to user.
 
         Args:
@@ -65,7 +65,7 @@ class EmailVerifier:
             email: The email address to send to
 
         Returns:
-            bool: True if email sent successfully, False otherwise
+            Dict containing status and message information
         """
         code = self.generate_code(user_id, email)
         return self._email_client.send_mail(email, code)
