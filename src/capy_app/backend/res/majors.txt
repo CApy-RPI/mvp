@@ -1,7 +1,7 @@
 Aeronautical Engineering
 Aerospace Engineering
 Applied Physics 
-Architecture (ARCH)
+Architecture
 Biological Neuroscience
 Biology
 Biomedical Engineering
@@ -38,3 +38,5 @@ Physics
 Psychology
 Science Technology and Society
 Sustainability Studies
+Undeclared
+Other
