@@ -21,6 +21,8 @@ class GuildRoles(mongoengine.EmbeddedDocument):
     """Represents role configuration for a guild.
 
     Attributes:
+        visitor: Role identifier for visitors
+        member: Role identifier for verified members
         eboard: Role identifier for executive board members
         admin: Role identifier for administrators
     """
