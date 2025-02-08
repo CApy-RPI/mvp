@@ -67,6 +67,7 @@ class MajorView(BaseDropdownView):
                 discord.SelectOption(label=major, value=major)
                 for major in (major_list or ["Undeclared"])[:25]
             ],
+            row=0,
         )
 
         async def select_callback(interaction: discord.Interaction):

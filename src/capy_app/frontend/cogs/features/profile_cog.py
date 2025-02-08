@@ -19,6 +19,7 @@ from frontend.utils.interactions.view_bases import BaseDropdownView, ConfirmDele
 class ProfileModal(discord.ui.Modal):
     def __init__(self, user=None):
         super().__init__(title="Create Profile")
+        self.interaction = None
         self.add_item(
             discord.ui.TextInput(label="First Name", placeholder="John", required=True)
         )
@@ -57,6 +58,7 @@ class ProfileModal(discord.ui.Modal):
             self.children[4].default = user.profile.school_email
 
     async def on_submit(self, interaction: discord.Interaction):
+        self.interaction = interaction
         await interaction.response.defer(ephemeral=True)
 
 
@@ -221,25 +223,28 @@ class ProfileCog(commands.Cog):
         await interaction.response.send_modal(modal)
         await modal.wait()
 
-        # Now we can use edit_original_response for subsequent messages
+        if not modal.interaction:
+            return
+
         # Validate inputs
         if not modal.children[2].value.isdigit():
-            await interaction.edit_original_response(content="Invalid graduation year!")
+            await modal.interaction.followup.send(content="Invalid graduation year!")
             return
 
         if not modal.children[3].value.isdigit():
-            await interaction.edit_original_response(content="Invalid student ID!")
+            await modal.interaction.followup.send(content="Invalid student ID!")
             return
 
         if not modal.children[4].value.endswith("edu"):
-            await interaction.edit_original_response(content="Invalid School email!")
+            await modal.interaction.followup.send(content="Invalid School email!")
             return
 
-        # Show major selection first
+        # Show major selection
         major_view = MajorView(self.major_list)
-        await interaction.edit_original_response(
+        await modal.interaction.followup.send(
             content="Select your major(s):", view=major_view
         )
+
         await major_view.wait()
 
         if not major_view.value:  # Cancelled
@@ -247,8 +252,7 @@ class ProfileCog(commands.Cog):
         else:
             selected_majors = major_view.selected_majors
 
-        # Now handle email verification
-        # Send verification code while user is selecting major
+        # Handle email verification
         verification_code = self.email_verifier.generate_code(
             interaction.user.id, modal.children[4].value
         )
@@ -257,27 +261,27 @@ class ProfileCog(commands.Cog):
         )
 
         if not email_result:
-            await interaction.edit_original_response(
+            await modal.interaction.followup.send(
                 content="Failed to send verification email. Please try again."
             )
             return
 
         # Show verification button
         verify_view = EmailVerificationView()
-        await interaction.edit_original_response(
+        await modal.interaction.followup.send(
             content="Please check your email and spam for a verification code, then click the button below to verify:",
             view=verify_view,
         )
 
         submitted_code = await verify_view.wait_for_verification(timeout=300.0)
         if not submitted_code:
-            await interaction.edit_original_response(
+            await modal.interaction.followup.send(
                 content="Verification timed out. Please try again."
             )
             return
 
         if not self.email_verifier.verify_code(interaction.user.id, submitted_code):
-            await interaction.edit_original_response(
+            await modal.interaction.followup.send(
                 content="Invalid verification code. Please try again."
             )
             return
@@ -297,11 +301,9 @@ class ProfileCog(commands.Cog):
         )
         db.add_document(new_user)
 
-        await interaction.edit_original_response(
-            content="Profile created successfully!"
-        )
+        await modal.interaction.followup.send(content="Profile created successfully!")
         # Show the new profile
-        await self.show_profile_embed(interaction, new_user)
+        await self.show_profile_embed(modal.interaction, new_user)
 
     async def update_profile(self, interaction: discord.Interaction):
         """Update existing user profile."""
@@ -317,13 +319,13 @@ class ProfileCog(commands.Cog):
         await interaction.response.send_modal(modal)
         await modal.wait()
 
-        # Now we can use edit_original_response for subsequent messages
+        if not modal.interaction:
+            return
+
         # Verify email if changed
         if modal.children[4].value != user.profile.school_email:
             if not modal.children[4].value.endswith("edu"):
-                await interaction.edit_original_response(
-                    content="Invalid School email!"
-                )
+                await modal.interaction.followup.send(content="Invalid School email!")
                 return
 
             verification_code = self.email_verifier.generate_code(
@@ -334,33 +336,33 @@ class ProfileCog(commands.Cog):
             )
 
             if not email_result:
-                await interaction.edit_original_response(
+                await modal.interaction.followup.send(
                     content="Failed to send verification email. Please try again."
                 )
                 return
 
             view = EmailVerificationView()
-            await interaction.edit_original_response(
+            await modal.interaction.followup.send(
                 content="Please check your email for a verification code, then click the button below to verify:",
                 view=view,
             )
 
             submitted_code = await view.wait_for_verification(timeout=300.0)
             if not submitted_code:
-                await interaction.edit_original_response(
+                await modal.interaction.followup.send(
                     content="Verification timed out. Please try again."
                 )
                 return
 
             if not self.email_verifier.verify_code(interaction.user.id, submitted_code):
-                await interaction.edit_original_response(
+                await modal.interaction.followup.send(
                     content="Invalid verification code. Please try again."
                 )
                 return
 
         # Update major selection
         major_view = MajorView(self.major_list, current_majors=user.profile.major)
-        await interaction.edit_original_response(
+        await modal.interaction.followup.send(
             content="Update your major(s):",
             view=major_view,
         )
@@ -381,13 +383,11 @@ class ProfileCog(commands.Cog):
         }
 
         db.update_document(user, updates)
-        await interaction.edit_original_response(
-            content="Profile updated successfully!"
-        )
+        await modal.interaction.followup.send(content="Profile updated successfully!")
 
         # Show the updated profile
         updated_user = db.get_document(User, interaction.user.id)
-        await self.show_profile_embed(interaction, updated_user)
+        await self.show_profile_embed(modal.interaction, updated_user)
 
     async def show_profile_embed(self, interaction: discord.Interaction, user: User):
         """Helper method to show profile embed."""
@@ -407,7 +407,7 @@ class ProfileCog(commands.Cog):
         )
         embed.add_field(name="Student ID", value=user.profile.student_id, inline=True)
 
-        await interaction.edit_original_response(embed=embed, content=None, view=None)
+        await interaction.followup.send(embed=embed)
 
     async def show_profile(self, interaction: discord.Interaction):
         """Display user profile."""

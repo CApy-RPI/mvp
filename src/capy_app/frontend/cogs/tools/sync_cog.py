@@ -37,7 +37,6 @@ class SyncCog(commands.Cog):
                 )
             )
 
-    @app_commands.is_owner()
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="sync", description="Sync application commands")
     async def sync_slash(self, interaction: discord.Interaction):
