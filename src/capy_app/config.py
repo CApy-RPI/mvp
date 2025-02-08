@@ -42,7 +42,10 @@ class Settings(BaseSettings):
     # Debug guild setting
     DEBUG_GUILD_ID: typing.Optional[int] = None
 
-    model_config = ConfigDict(env_file=".env", case_sensitive=True)
+    model_config = {
+        "env_file": ".env",
+        "case_sensitive": True,
+    }
 
 
 @lru_cache()

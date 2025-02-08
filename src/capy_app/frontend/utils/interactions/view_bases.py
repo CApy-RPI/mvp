@@ -18,7 +18,11 @@ class BaseDropdownView(discord.ui.View):
             await self.message.delete()
 
     @discord.ui.button(label="Accept", style=discord.ButtonStyle.green, row=4)
-    async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def accept(
+        self,
+        interaction: discord.Interaction[discord.Client],
+        button: discord.ui.Button[discord.ui.View],
+    ) -> None:
         await interaction.response.defer()
         self.value = True
         self.interaction_done = True
@@ -27,7 +31,11 @@ class BaseDropdownView(discord.ui.View):
             await self.message.delete()
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, row=4)
-    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def cancel(
+        self,
+        interaction: discord.Interaction[discord.Client],
+        button: discord.ui.Button[discord.ui.View],
+    ) -> None:
         await interaction.response.defer()
         self.value = False
         self.interaction_done = True
@@ -45,14 +53,20 @@ class ConfirmDeleteView(discord.ui.View):
 
     @discord.ui.button(label="Confirm Delete", style=discord.ButtonStyle.danger)
     async def confirm(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ):
+        self,
+        interaction: discord.Interaction[discord.Client],
+        button: discord.ui.Button[discord.ui.View],
+    ) -> None:
         await interaction.response.defer()
         self.value = True
         self.stop()
 
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
-    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def cancel(
+        self,
+        interaction: discord.Interaction[discord.Client],
+        button: discord.ui.Button[discord.ui.View],
+    ) -> None:
         await interaction.response.defer()
         self.value = False
         self.stop()

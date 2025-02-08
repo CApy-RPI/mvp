@@ -23,9 +23,7 @@ class Email:
             auth=(settings.MAILJET_API_KEY, settings.MAILJET_API_SECRET), version="v3.1"
         )
 
-    def send_mail(
-        self, to_email: str, verification_code: str
-    ) -> typing.Dict[str, typing.Any]:
+    def send_mail(self, to_email: str, verification_code: str) -> typing.Any:
         """
         Send a verification email.
 
@@ -34,7 +32,7 @@ class Email:
             verification_code: The verification code to be sent.
 
         Returns:
-            typing.Dict[str, typing.Any]: The response from Mailjet API if successful.
+            typing.Any: The response from Mailjet API if successful.
 
         Raises:
             EmailSendError: If email sending fails.

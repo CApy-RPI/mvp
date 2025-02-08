@@ -9,8 +9,10 @@ This module provides UI components for guild settings management:
 #TODO: Add validation for selected channels/roles
 """
 
-from typing import Any, Callable, Coroutine, Optional, Dict
+from typing import Any, Optional, Dict, cast, Callable, Coroutine
 import discord
+from discord import ui
+from discord.interactions import Interaction
 from frontend.utils.interactions.view_bases import BaseDropdownView
 
 
@@ -27,29 +29,22 @@ class ChannelSelectView(BaseDropdownView):
         self.selected_channels: Dict[str, int] = {}
 
         for channel_name, description in channels.items():
-            select = discord.ui.ChannelSelect(
+            select = ui.ChannelSelect[ui.View](
                 placeholder=f"Select {channel_name.title()} channel",
                 channel_types=[discord.ChannelType.text],
                 custom_id=f"channel_{channel_name}",
             )
-            select.callback = self.create_callback(channel_name)
+            
+            select.callback = self._create_channel_callback(channel_name)
             self.add_item(select)
 
-    def create_callback(
+    def _create_channel_callback(
         self, channel_name: str
-    ) -> Callable[[discord.Interaction], Coroutine[Any, Any, None]]:
-        """Create callback for channel selection.
-
-        Args:
-            channel_name: Name of the channel being selected
-
-        Returns:
-            Callback function for the channel select
-        """
-
-        async def callback(interaction: discord.Interaction) -> None:
+    ) -> Callable[[Interaction[discord.Client]], Coroutine[Any, Any, None]]:
+        async def callback(interaction: Interaction[discord.Client]) -> None:
             try:
-                values = interaction.data.get("values", [])  # type: ignore
+                interaction_data = cast(Dict[str, Any], interaction.data)
+                values = interaction_data.get("values", [])
                 if values:
                     self.selected_channels[channel_name] = int(values[0])
                 else:
@@ -59,7 +54,6 @@ class ChannelSelectView(BaseDropdownView):
                 await interaction.response.send_message(
                     "Failed to process channel selection.", ephemeral=True
                 )
-
         return callback
 
 
@@ -76,28 +70,21 @@ class RoleSelectView(BaseDropdownView):
         self.selected_roles: Dict[str, int] = {}
 
         for role_name, description in roles.items():
-            select = discord.ui.RoleSelect(
+            select = ui.RoleSelect[ui.View](
                 placeholder=f"Select {role_name.title()} role",
                 custom_id=f"role_{role_name}",
             )
-            select.callback = self.create_callback(role_name)
+            
+            select.callback = self._create_role_callback(role_name)
             self.add_item(select)
 
-    def create_callback(
+    def _create_role_callback(
         self, role_name: str
-    ) -> Callable[[discord.Interaction], Coroutine[Any, Any, None]]:
-        """Create callback for role selection.
-
-        Args:
-            role_name: Name of the role being selected
-
-        Returns:
-            Callback function for the role select
-        """
-
-        async def callback(interaction: discord.Interaction) -> None:
+    ) -> Callable[[Interaction[discord.Client]], Coroutine[Any, Any, None]]:
+        async def callback(interaction: Interaction[discord.Client]) -> None:
             try:
-                values = interaction.data.get("values", [])  # type: ignore
+                interaction_data = cast(Dict[str, Any], interaction.data)
+                values = interaction_data.get("values", [])
                 if values:
                     self.selected_roles[role_name] = int(values[0])
                 else:
@@ -107,7 +94,6 @@ class RoleSelectView(BaseDropdownView):
                 await interaction.response.send_message(
                     "Failed to process role selection.", ephemeral=True
                 )
-
         return callback
 
 

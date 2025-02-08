@@ -98,7 +98,6 @@ class Database:
             OperationError: If deletion fails
         """
         document.objects(pk=document_id).delete()
-        return document
 
     @staticmethod
     def list_documents(

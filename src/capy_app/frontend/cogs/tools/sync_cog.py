@@ -51,7 +51,7 @@ class SyncCog(commands.Cog):
 
     @commands.command(name="sync", hidden=True)
     @commands.is_owner()
-    async def sync(self, ctx: commands.Context) -> None:
+    async def sync(self, ctx: commands.Context[commands.Bot]) -> None:
         """Sync commands manually (owner only)."""
         try:
             debug_guild = self.bot.get_guild(settings.DEBUG_GUILD_ID)

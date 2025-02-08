@@ -76,6 +76,12 @@ class GuildCog(commands.Cog):
         """
         await interaction.response.defer(ephemeral=True)
 
+        if not isinstance(interaction.user, discord.Member):
+            await interaction.edit_original_response(
+                content="This command can only be used in a server."
+            )
+            return
+
         # Check permissions for edit/clear actions
         if (
             action in ["edit", "clear"]
@@ -146,7 +152,7 @@ class GuildCog(commands.Cog):
         #TODO: Add audit logging
         """
         view = SettingsSelectView(self)
-        select = discord.ui.Select(
+        self.settings_select: discord.ui.Select = discord.ui.Select(
             placeholder="Choose what to edit",
             options=[
                 discord.SelectOption(
@@ -181,7 +187,7 @@ class GuildCog(commands.Cog):
                     )
                     return
 
-                if select.values[0] == "channels":
+                if self.settings_select.values[0] == "channels":
                     channel_view = ChannelSelectView(self.channels)
                     await interaction.edit_original_response(
                         content="Select channels for each category:",
@@ -210,7 +216,7 @@ class GuildCog(commands.Cog):
                     except discord.NotFound:
                         pass  # Message already handled
 
-                elif select.values[0] == "roles":
+                elif self.settings_select.values[0] == "roles":
                     role_view = RoleSelectView(self.roles)
                     await interaction.edit_original_response(
                         content="Select roles for each category:",
@@ -237,7 +243,7 @@ class GuildCog(commands.Cog):
                     except discord.NotFound:
                         pass  # Message already handled
 
-                elif select.values[0] == "all":
+                elif self.settings_select.values[0] == "all":
                     # Handle channels first
                     channel_view = ChannelSelectView(self.channels)
                     await interaction.edit_original_response(
@@ -301,8 +307,8 @@ class GuildCog(commands.Cog):
                 except discord.NotFound:
                     pass  # Message already handled
 
-        select.callback = select_callback
-        view.add_item(select)
+        self.settings_select.callback = select_callback
+        view.add_item(self.settings_select)
         await interaction.edit_original_response(
             content="Select what you'd like to edit:", view=view
         )
@@ -335,11 +341,11 @@ class GuildCog(commands.Cog):
             ),
         ]
 
-        select = discord.ui.Select(
+        self.clear_select: discord.ui.Select = discord.ui.Select(
             placeholder="Choose what to clear",
             options=options,
         )
-        view = discord.ui.View().add_item(select)
+        view = discord.ui.View().add_item(self.clear_select)
 
         async def select_callback(interaction: discord.Interaction) -> None:
             await interaction.response.defer()
@@ -352,17 +358,17 @@ class GuildCog(commands.Cog):
                 return
 
             updates: dict[str, None] = {}
-            if select.values[0] in ["channels", "all"]:
+            if self.clear_select.values[0] in ["channels", "all"]:
                 updates.update(
                     {f"channels__{channel}": None for channel in self.channels}
                 )
-            if select.values[0] in ["roles", "all"]:
+            if self.clear_select.values[0] in ["roles", "all"]:
                 updates.update({f"roles__{role}": None for role in self.roles})
 
             try:
                 db.update_document(guild_data, updates)
                 await interaction.edit_original_response(
-                    content=f"Successfully cleared {select.values[0]} settings!",
+                    content=f"Successfully cleared {self.clear_select.values[0]} settings!",
                     embed=None,
                     view=None,
                 )
@@ -372,7 +378,7 @@ class GuildCog(commands.Cog):
                     content="Failed to clear settings.", embed=None, view=None
                 )
 
-        select.callback = select_callback
+        self.clear_select.callback = select_callback
         await interaction.edit_original_response(
             content="Select what you'd like to clear:", view=view
         )
