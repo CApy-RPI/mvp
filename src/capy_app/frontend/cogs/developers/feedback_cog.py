@@ -10,8 +10,28 @@ from discord import app_commands
 from discord.ext import commands
 
 from config import settings
-from .request_modal import RequestModal
-from frontend.config_colors import TICKET_FEATURE, TICKET_FEEDBACK
+from frontend.config_colors import TICKET_FEEDBACK
+
+
+class FeedbackModal(discord.ui.Modal, title="Submit Feedback"):
+    title = discord.ui.TextInput(
+        label="Feedback Title",
+        placeholder="Brief summary of your feedback",
+        required=True,
+        max_length=100,
+    )
+    description = discord.ui.TextInput(
+        label="Feedback Description",
+        placeholder="Please provide your detailed feedback...",
+        required=True,
+        style=discord.TextStyle.paragraph,
+        max_length=1000,
+    )
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+
+        self.interaction = interaction
 
 
 class FeedbackCog(commands.Cog):
@@ -37,7 +57,7 @@ class FeedbackCog(commands.Cog):
             interaction: The Discord interaction instance
         """
         try:
-            modal = RequestModal("Feedback", "Please provide your feedback...")
+            modal = FeedbackModal()
             await interaction.response.send_modal(modal)
 
             try:

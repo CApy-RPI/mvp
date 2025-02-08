@@ -10,8 +10,28 @@ from discord import app_commands
 from discord.ext import commands
 
 from config import settings
-from .request_modal import RequestModal
 from frontend.config_colors import TICKET_BUG
+
+
+class BugReportModal(discord.ui.Modal, title="Report a Bug"):
+    title = discord.ui.TextInput(
+        label="Bug Title",
+        placeholder="Brief description of the bug",
+        required=True,
+        max_length=100,
+    )
+    description = discord.ui.TextInput(
+        label="Bug Description",
+        placeholder="Please provide detailed steps to reproduce the bug...",
+        required=True,
+        style=discord.TextStyle.paragraph,
+        max_length=1000,
+    )
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(ephemeral=True)
+
+        self.interaction = interaction
 
 
 class BugReportCog(commands.Cog):
@@ -37,7 +57,7 @@ class BugReportCog(commands.Cog):
             interaction: The Discord interaction instance
         """
         try:
-            modal = RequestModal("Bug Report", "Please describe the bug in detail...")
+            modal = BugReportModal()
             await interaction.response.send_modal(modal)
 
             try:
