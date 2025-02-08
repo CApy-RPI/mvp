@@ -26,7 +26,6 @@ class HelpCog(commands.HelpCommand):
         """Handles the default help command output."""
         try:
             ctx = self.context
-            bot = ctx.bot
             embed = discord.Embed(
                 title="Help",
                 description="Available commands",
@@ -34,13 +33,20 @@ class HelpCog(commands.HelpCommand):
             )
             await ctx.send("Custom Help Command Active!")
 
-            for cog, commands in mapping.items():
+            for cog, cmds in mapping.items():
                 # Filter visible commands and gather name and help description
-                command_list = [
-                    f"**{command.name}** - {command.help or 'No description provided'}"
-                    for command in commands
-                    if not command.hidden
-                ]
+                command_list = []
+                for cmd in cmds:
+                    if cmd.hidden:
+                        continue
+
+                    aliases = (
+                        f" (aliases: {', '.join(cmd.aliases)})" if cmd.aliases else ""
+                    )
+                    command_list.append(
+                        f"**{cmd.name}**{aliases} - {cmd.help or 'No description provided'}"
+                    )
+
                 if command_list:
                     cog_name = cog.qualified_name if cog else "No Category"
                     embed.add_field(
@@ -49,7 +55,7 @@ class HelpCog(commands.HelpCommand):
 
             await ctx.send(embed=embed)
         except Exception as e:
-            self.logger.error("Error occured in send_bot_help " + e)
+            self.logger.error(f"Error occured in send_bot_help {e}")
             await self.send_error_message(
                 "There was an error sending the help message."
             )
@@ -110,9 +116,15 @@ class HelpCog(commands.HelpCommand):
         try:
             ctx = self.context
             await ctx.send("Custom Help Command Active!")
+
+            # Add aliases to the description if they exist
+            description = command.help or "No description"
+            if command.aliases:
+                description = f"{description}\n\nAliases: {', '.join(command.aliases)}"
+
             embed = discord.Embed(
                 title=command.name,
-                description=command.help or "No description",
+                description=description,
                 color=discord.Color.purple(),
             )
             await self.context.send(embed=embed)

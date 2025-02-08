@@ -64,8 +64,8 @@ class User(mongoengine.Document):
 
     meta = {"collection": "users", "indexes": ["created_at", "updated_at"]}
 
-    def save(self, *args: typing.Any, **kwargs: typing.Any) -> 'User':
+    def save(self, *args: typing.Any, **kwargs: typing.Any) -> "User":
         """Override save to update the updated_at timestamp."""
         self.updated_at = datetime.datetime.utcnow()
         result = super().save(*args, **kwargs)
-        return typing.cast('User', result)
+        return typing.cast("User", result)

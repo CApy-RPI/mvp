@@ -10,6 +10,7 @@ from backend.db.database import Database as db
 from backend.db.documents.guild import Guild, GuildChannels, GuildRoles
 from backend.db.documents.user import User
 
+
 class GuildCog(commands.Cog):
     """
     A class that represents a Discord Cog for managing server settings.
@@ -27,7 +28,7 @@ class GuildCog(commands.Cog):
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
 
-    @commands.group(name="settings", help="Manage server settings", hidden = True)
+    @commands.group(name="settings", help="Manage server settings", hidden=True)
     async def settings(self, ctx: commands.Context) -> None:
         """
         Group command for managing server settings.
@@ -35,11 +36,11 @@ class GuildCog(commands.Cog):
         Args:
             ctx (commands.Context): The context of the command.
         """
-        
+
         if ctx.invoked_subcommand is None:
             embed = discord.Embed(
                 title="Invalid settings command",
-                description="Type \"!settings [list, set]\" \nList: Displays all CApy server settings\nSet: (Admin Required), change",
+                description='Type "!settings [list, set]" \nList: Displays all CApy server settings\nSet: (Admin Required), change',
                 color=discord.Color.red(),
             )
             await ctx.send(embed=embed)

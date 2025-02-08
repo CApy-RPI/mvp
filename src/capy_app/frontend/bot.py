@@ -15,6 +15,7 @@ from backend.db.documents.guild import Guild
 from backend.db.database import Database as db
 from config import settings
 
+
 class Bot(commands.AutoShardedBot):
     """Main bot class handling Discord events and commands."""
 

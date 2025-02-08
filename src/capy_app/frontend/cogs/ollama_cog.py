@@ -168,7 +168,7 @@ class OllamaCog(commands.Cog):
         else:
             self.user_conversations[ctx.author.id] = conversation
 
-    @commands.command(name="prompt", aliases=["p"], help="Prompt chatbot with context.")
+    @commands.command(name="prompt", aliases=["p"], help="Prompt chatbot with context")
     async def prompt(
         self, ctx: commands.Context[typing.Any], n: int = 0, *, message: str
     ) -> None:
@@ -190,7 +190,7 @@ class OllamaCog(commands.Cog):
 
         await self.handle_chat_response(ctx, [{"role": "user", "content": context}])
 
-    @commands.command(name="ask", aliases=["a"], help="Ask chatbot without context.")
+    @commands.command(name="ask", aliases=["a"], help="Ask chatbot without context")
     async def ask(self, ctx: commands.Context[typing.Any], *, message: str) -> None:
         """Ask the chatbot a one-off question.
 
@@ -201,7 +201,7 @@ class OllamaCog(commands.Cog):
         await self.prompt(ctx, 0, message=message)
 
     @commands.command(
-        name="delete", aliases=["d"], help="Delete the last chatbot response."
+        name="delete", aliases=["d"], help="Delete the last chatbot response"
     )
     async def delete_last_message(self, ctx: commands.Context[typing.Any]) -> None:
         async for message in ctx.channel.history(limit=100):
@@ -212,7 +212,7 @@ class OllamaCog(commands.Cog):
                 break
         await ctx.message.delete()
 
-    @commands.command(name="converse", aliases=["c"], help="Start a conversation.")
+    @commands.command(name="converse", aliases=["c"], help="Start a conversation")
     async def converse(
         self, ctx: commands.Context[typing.Any], *, message: str
     ) -> None:
@@ -224,7 +224,7 @@ class OllamaCog(commands.Cog):
         """
         await self.handle_conversation(ctx, message)
 
-    @commands.command(name="stop", aliases=["s"], help="Stop the current conversation.")
+    @commands.command(name="stop", aliases=["s"], help="Stop the current conversation")
     async def stop_conversation(self, ctx: commands.Context[typing.Any]) -> None:
         """Stop the current conversation and clear context.
 
