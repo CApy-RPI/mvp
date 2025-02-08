@@ -25,6 +25,8 @@ class GuildRoles(mongoengine.EmbeddedDocument):
         admin: Role identifier for administrators
     """
 
+    visitor: typing.Optional[str] = mongoengine.StringField()
+    member: typing.Optional[str] = mongoengine.StringField()
     eboard: typing.Optional[str] = mongoengine.StringField()
     admin: typing.Optional[str] = mongoengine.StringField()
 
