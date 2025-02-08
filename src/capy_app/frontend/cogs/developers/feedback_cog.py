@@ -51,7 +51,11 @@ class FeedbackCog(commands.Cog):
         self.logger = logging.getLogger(
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
-        self.status_emojis = {"✅": "Acknowledged", "❌": "Ignored"}
+        self.status_emojis = {
+            "✅": "Acknowledged",
+            "❌": "Ignored",
+            "🔄": "Unmarked",
+        }
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="feedback", description="Provide general feedback")
@@ -94,7 +98,9 @@ class FeedbackCog(commands.Cog):
                 color=STATUS_INFO,
             )
             embed.add_field(name="Submitted by", value=interaction.user.mention)
-            embed.set_footer(text="Status: Unmarked | ✅ Acknowledged • ❌ Ignored")
+            embed.set_footer(
+                text="Status: Unmarked | ✅ Acknowledge • ❌ Ignore • 🔄 Reset"
+            )
 
             message = await channel.send(embed=embed)
             for emoji in self.status_emojis.keys():
@@ -144,12 +150,17 @@ class FeedbackCog(commands.Cog):
         embed = message.embeds[0]
         status = self.status_emojis[emoji]
 
-        embed.color = {
-            "Acknowledged": STATUS_RESOLVED,
-            "Ignored": STATUS_IGNORED,
-        }[status]
+        if status == "Unmarked":
+            embed.color = STATUS_INFO
+        else:
+            embed.color = {
+                "Acknowledged": STATUS_RESOLVED,
+                "Ignored": STATUS_IGNORED,
+            }[status]
 
-        embed.set_footer(text=f"Status: {status} | ✅ Acknowledged • ❌ Ignored")
+        embed.set_footer(
+            text=f"Status: {status} | ✅ Acknowledge • ❌ Ignore • 🔄 Reset"
+        )
         await message.edit(embed=embed)
 
 

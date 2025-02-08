@@ -15,7 +15,7 @@ from discord import app_commands
 from datetime import datetime, timedelta
 import re
 
-from frontend.utils.embed_helpers import success_embed, error_embed
+from frontend.utils.embed_statuses import success_embed, error_embed
 from config import settings
 
 

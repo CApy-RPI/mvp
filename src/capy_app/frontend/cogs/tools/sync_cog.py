@@ -13,7 +13,7 @@ from typing import List, Optional
 import discord
 from discord.ext import commands
 from discord import app_commands
-from frontend.utils.embed_helpers import success_embed, error_embed
+from frontend.utils.embed_statuses import success_embed, error_embed
 from config import settings
 from frontend.interactions.checks.owners import is_owner
 

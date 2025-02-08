@@ -52,7 +52,12 @@ class BugReportCog(commands.Cog):
         self.logger = logging.getLogger(
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
-        self.status_emojis = {"⭐": "Important", "✅": "Resolved", "❌": "Ignored"}
+        self.status_emojis = {
+            "⭐": "Important",
+            "✅": "Resolved",
+            "❌": "Ignored",
+            "🔄": "Unmarked",
+        }
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="bug", description="Report a bug in the bot")
@@ -98,7 +103,7 @@ class BugReportCog(commands.Cog):
             )
             embed.add_field(name="Submitted by", value=interaction.user.mention)
             embed.set_footer(
-                text="Status: Unmarked | ⭐ Important • ✅ Resolved • ❌ Ignored"
+                text="Status: Unmarked | ⭐ Important • ✅ Resolve • ❌ Ignore • 🔄 Reset"
             )
 
             message = await channel.send(embed=embed)
@@ -151,15 +156,17 @@ class BugReportCog(commands.Cog):
         embed = message.embeds[0]
         status = self.status_emojis[emoji]
 
-        # Update embed with new status
-        embed.color = {
-            "Important": STATUS_IMPORTANT,
-            "Resolved": STATUS_RESOLVED,
-            "Ignored": STATUS_IGNORED,
-        }[status]
+        if status == "Unmarked":
+            embed.color = STATUS_ERROR
+        else:
+            embed.color = {
+                "Important": STATUS_IMPORTANT,
+                "Resolved": STATUS_RESOLVED,
+                "Ignored": STATUS_IGNORED,
+            }[status]
 
         embed.set_footer(
-            text=f"Status: {status} | ⭐ Important • ✅ Resolved • ❌ Ignored"
+            text=f"Status: {status} | ⭐ Important • ✅ Resolve • ❌ Ignore • 🔄 Reset"
         )
         await message.edit(embed=embed)
 
