@@ -55,6 +55,7 @@ class ProfileModal(ui.Modal, title="Create Profile"):
     async def on_submit(self, interaction: Interaction[discord.Client]) -> None:
         await interaction.response.defer(ephemeral=True)
         self.interaction = interaction
+        self.success = False
 
         try:
             grad_year = int(self.graduation_year.value)
@@ -85,6 +86,8 @@ class ProfileModal(ui.Modal, title="Create Profile"):
                 "Invalid input. Please check your entries.", ephemeral=True
             )
             return
+
+        self.success = True
 
 
 class MajorView(ui.View):

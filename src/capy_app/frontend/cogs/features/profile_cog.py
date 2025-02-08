@@ -111,7 +111,7 @@ class ProfileCog(commands.Cog):
         await interaction.response.send_modal(modal)
         await modal.wait()
 
-        if not modal.interaction:
+        if not modal.interaction or not modal.success:
             return None
 
         return modal
