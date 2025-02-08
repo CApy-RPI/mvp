@@ -34,3 +34,25 @@ class BaseDropdownView(discord.ui.View):
         self.stop()
         if self.message:
             await self.message.delete()
+
+
+class ConfirmDeleteView(discord.ui.View):
+    """Confirmation view for profile deletion."""
+
+    def __init__(self):
+        super().__init__()
+        self.value = None
+
+    @discord.ui.button(label="Confirm Delete", style=discord.ButtonStyle.danger)
+    async def confirm(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        await interaction.response.defer()
+        self.value = True
+        self.stop()
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        self.value = False
+        self.stop()

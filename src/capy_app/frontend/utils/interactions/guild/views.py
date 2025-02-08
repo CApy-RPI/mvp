@@ -1,7 +1,7 @@
 """Guild-specific view classes."""
 
 import discord
-from frontend.utils.view_bases import BaseDropdownView
+from frontend.utils.interactions.view_bases import BaseDropdownView
 
 
 class ChannelSelectView(BaseDropdownView):

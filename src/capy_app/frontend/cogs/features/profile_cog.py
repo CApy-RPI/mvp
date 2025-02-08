@@ -13,6 +13,7 @@ from config import settings
 from backend.db.database import Database as db
 from backend.db.documents.user import User, UserProfile, UserName
 from backend.modules.email import Email
+from frontend.utils.interactions.view_bases import BaseDropdownView, ConfirmDeleteView
 
 
 class ProfileModal(discord.ui.Modal):
@@ -59,55 +60,41 @@ class ProfileModal(discord.ui.Modal):
         await interaction.response.defer(ephemeral=True)
 
 
-class MajorView(discord.ui.View):
-    def __init__(self, major_list):
-        super().__init__(timeout=180.0)
-        if not major_list:
-            major_list = ["Undeclared"]
+class MajorView(BaseDropdownView):
+    """Major selection view with dropdown and accept/cancel buttons."""
 
-        major_list = major_list[:25]
-        self.selected_majors = None
-        self.skipped = False
+    def __init__(self, major_list: list[str], current_majors: list[str] | None = None):
+        super().__init__()
+        self.selected_majors = current_majors or ["Undeclared"]
 
+        # Add major selection dropdown
         select = discord.ui.Select(
             placeholder="Select your major(s)...",
             min_values=1,
-            max_values=min(3, len(major_list)),
+            max_values=min(3, len(major_list or ["Undeclared"])),
             options=[
-                discord.SelectOption(label=major, value=major) for major in major_list
+                discord.SelectOption(label=major, value=major)
+                for major in (major_list or ["Undeclared"])[:25]
             ],
         )
 
         async def select_callback(interaction: discord.Interaction):
             self.selected_majors = select.values
             await interaction.response.defer()
-            if not self.skipped:  # Only stop if not skipped
-                self.stop()
 
         select.callback = select_callback
         self.add_item(select)
 
-        # Add skip button
-        skip_button = discord.ui.Button(
-            label="Skip", style=discord.ButtonStyle.secondary
-        )
+    # Override accept/cancel from BaseDropdownView to handle majors
+    async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Accept button updates the selected majors."""
+        await super().accept(interaction, button)
+        # selected_majors already contains the latest selection
 
-        async def skip_callback(interaction: discord.Interaction):
-            await interaction.response.defer()
-            self.skipped = True
-            self.stop()
-
-        skip_button.callback = skip_callback
-        self.add_item(skip_button)
-
-    async def wait_for_majors(self, timeout=180.0):
-        try:
-            await self.wait()
-            if self.skipped:
-                return "skip"
-            return self.selected_majors or None
-        except TimeoutError:
-            return None
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Cancel button restores original majors or sets to Undeclared."""
+        await super().cancel(interaction, button)
+        # Keep original majors by not changing selected_majors
 
 
 class EmailVerificationView(discord.ui.View):
@@ -173,26 +160,6 @@ class EmailVerifier:
         return is_valid
 
 
-class DeleteConfirmView(discord.ui.View):
-    def __init__(self):
-        super().__init__()
-        self.value = None
-
-    @discord.ui.button(label="Confirm Delete", style=discord.ButtonStyle.danger)
-    async def confirm(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ):
-        await interaction.response.defer()
-        self.value = True
-        self.stop()
-
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
-    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer()
-        self.value = False
-        self.stop()
-
-
 class ProfileCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -226,17 +193,21 @@ class ProfileCog(commands.Cog):
         ]
     )
     async def profile(self, interaction: discord.Interaction, action: str):
-        if action == "delete":
-            await self.delete_profile(interaction)
-        else:
+        """Handle profile actions."""
+        if action in ["create", "update"]:  # These use modals, don't defer
             if action == "create":
                 await self.create_profile(interaction)
-            elif action == "update":
+            else:
                 await self.update_profile(interaction)
+        else:  # Show and delete can defer
+            await interaction.response.defer(ephemeral=True)
+            if action == "delete":
+                await self.delete_profile(interaction)
             elif action == "show":
                 await self.show_profile(interaction)
 
     async def create_profile(self, interaction: discord.Interaction):
+        """Create a new user profile."""
         user = db.get_document(User, interaction.user.id)
         if user:
             await interaction.response.send_message(
@@ -245,35 +216,36 @@ class ProfileCog(commands.Cog):
             )
             return
 
+        # Show modal first
         modal = ProfileModal()
         await interaction.response.send_modal(modal)
         await modal.wait()
 
+        # Now we can use edit_original_response for subsequent messages
         # Validate inputs
         if not modal.children[2].value.isdigit():
-            await interaction.followup.send("Invalid graduation year!", ephemeral=True)
+            await interaction.edit_original_response(content="Invalid graduation year!")
             return
 
         if not modal.children[3].value.isdigit():
-            await interaction.followup.send("Invalid student ID!", ephemeral=True)
+            await interaction.edit_original_response(content="Invalid student ID!")
             return
 
         if not modal.children[4].value.endswith("edu"):
-            await interaction.followup.send("Invalid School email!", ephemeral=True)
+            await interaction.edit_original_response(content="Invalid School email!")
             return
 
         # Show major selection first
         major_view = MajorView(self.major_list)
-        await interaction.followup.send(
-            "Select your major(s):", view=major_view, ephemeral=True
+        await interaction.edit_original_response(
+            content="Select your major(s):", view=major_view
         )
+        await major_view.wait()
 
-        selected_majors = await major_view.wait_for_majors(timeout=180.0)
-        if selected_majors is None:  # Timed out
-            await interaction.followup.send(
-                "Major selection timed out. Please try again.", ephemeral=True
-            )
-            return
+        if not major_view.value:  # Cancelled
+            selected_majors = ["Undeclared"]
+        else:
+            selected_majors = major_view.selected_majors
 
         # Now handle email verification
         # Send verification code while user is selecting major
@@ -285,29 +257,28 @@ class ProfileCog(commands.Cog):
         )
 
         if not email_result:
-            await interaction.followup.send(
-                "Failed to send verification email. Please try again.", ephemeral=True
+            await interaction.edit_original_response(
+                content="Failed to send verification email. Please try again."
             )
             return
 
         # Show verification button
         verify_view = EmailVerificationView()
-        await interaction.followup.send(
-            "Please check your email and spam for a verification code, then click the button below to verify:",
+        await interaction.edit_original_response(
+            content="Please check your email and spam for a verification code, then click the button below to verify:",
             view=verify_view,
-            ephemeral=True,
         )
 
         submitted_code = await verify_view.wait_for_verification(timeout=300.0)
         if not submitted_code:
-            await interaction.followup.send(
-                "Verification timed out. Please try again.", ephemeral=True
+            await interaction.edit_original_response(
+                content="Verification timed out. Please try again."
             )
             return
 
         if not self.email_verifier.verify_code(interaction.user.id, submitted_code):
-            await interaction.followup.send(
-                "Invalid verification code. Please try again.", ephemeral=True
+            await interaction.edit_original_response(
+                content="Invalid verification code. Please try again."
             )
             return
 
@@ -326,11 +297,14 @@ class ProfileCog(commands.Cog):
         )
         db.add_document(new_user)
 
-        await interaction.followup.send("Profile created successfully!", ephemeral=True)
+        await interaction.edit_original_response(
+            content="Profile created successfully!"
+        )
         # Show the new profile
         await self.show_profile_embed(interaction, new_user)
 
     async def update_profile(self, interaction: discord.Interaction):
+        """Update existing user profile."""
         user = db.get_document(User, interaction.user.id)
         if not user:
             await interaction.response.send_message(
@@ -343,10 +317,13 @@ class ProfileCog(commands.Cog):
         await interaction.response.send_modal(modal)
         await modal.wait()
 
+        # Now we can use edit_original_response for subsequent messages
         # Verify email if changed
         if modal.children[4].value != user.profile.school_email:
             if not modal.children[4].value.endswith("edu"):
-                await interaction.followup.send("Invalid School email!", ephemeral=True)
+                await interaction.edit_original_response(
+                    content="Invalid School email!"
+                )
                 return
 
             verification_code = self.email_verifier.generate_code(
@@ -357,49 +334,42 @@ class ProfileCog(commands.Cog):
             )
 
             if not email_result:
-                await interaction.followup.send(
-                    "Failed to send verification email. Please try again.",
-                    ephemeral=True,
+                await interaction.edit_original_response(
+                    content="Failed to send verification email. Please try again."
                 )
                 return
 
             view = EmailVerificationView()
-            await interaction.followup.send(
-                "Please check your email for a verification code, then click the button below to verify:",
+            await interaction.edit_original_response(
+                content="Please check your email for a verification code, then click the button below to verify:",
                 view=view,
-                ephemeral=True,
             )
 
             submitted_code = await view.wait_for_verification(timeout=300.0)
             if not submitted_code:
-                await interaction.followup.send(
-                    "Verification timed out. Please try again.", ephemeral=True
+                await interaction.edit_original_response(
+                    content="Verification timed out. Please try again."
                 )
                 return
 
             if not self.email_verifier.verify_code(interaction.user.id, submitted_code):
-                await interaction.followup.send(
-                    "Invalid verification code. Please try again.", ephemeral=True
+                await interaction.edit_original_response(
+                    content="Invalid verification code. Please try again."
                 )
                 return
 
         # Update major selection
-        major_view = MajorView(self.major_list)
-        await interaction.followup.send(
-            "Update your major(s) or click Skip to keep current majors:",
+        major_view = MajorView(self.major_list, current_majors=user.profile.major)
+        await interaction.edit_original_response(
+            content="Update your major(s):",
             view=major_view,
-            ephemeral=True,
         )
 
-        selected_majors = await major_view.wait_for_majors(timeout=180.0)
-        if selected_majors is None:  # Timed out
-            await interaction.followup.send(
-                "Major selection timed out. Please try again.", ephemeral=True
-            )
-            return
-        elif selected_majors == "skip":
-            # Keep existing majors
-            selected_majors = user.profile.major
+        await major_view.wait()
+        if not major_view.value:  # Cancelled
+            selected_majors = user.profile.major  # Keep current majors
+        else:
+            selected_majors = major_view.selected_majors
 
         updates = {
             "profile__name__first": modal.children[0].value,
@@ -411,14 +381,16 @@ class ProfileCog(commands.Cog):
         }
 
         db.update_document(user, updates)
-        await interaction.followup.send("Profile updated successfully!", ephemeral=True)
+        await interaction.edit_original_response(
+            content="Profile updated successfully!"
+        )
 
         # Show the updated profile
         updated_user = db.get_document(User, interaction.user.id)
         await self.show_profile_embed(interaction, updated_user)
 
     async def show_profile_embed(self, interaction: discord.Interaction, user: User):
-        """Helper method to show profile embed"""
+        """Helper method to show profile embed."""
         embed = discord.Embed(
             title=f"{interaction.user.display_name}'s Profile",
             color=discord.Color.purple(),
@@ -435,45 +407,43 @@ class ProfileCog(commands.Cog):
         )
         embed.add_field(name="Student ID", value=user.profile.student_id, inline=True)
 
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.edit_original_response(embed=embed, content=None, view=None)
 
     async def show_profile(self, interaction: discord.Interaction):
+        """Display user profile."""
         user = db.get_document(User, interaction.user.id)
         if not user:
-            await interaction.response.send_message(
-                "You don't have a profile yet! Use /profile create first.",
-                ephemeral=True,
+            await interaction.edit_original_response(
+                content="You don't have a profile yet! Use /profile create first."
             )
             return
 
-        await interaction.response.defer(ephemeral=True)
         await self.show_profile_embed(interaction, user)
 
     async def delete_profile(self, interaction: discord.Interaction):
         """Delete user profile with confirmation."""
         user = db.get_document(User, interaction.user.id)
         if not user:
-            await interaction.response.send_message(
-                "You don't have a profile to delete.", ephemeral=True
+            await interaction.edit_original_response(
+                content="You don't have a profile to delete."
             )
             return
 
-        view = DeleteConfirmView()
-        await interaction.response.send_message(
-            "⚠️ Are you sure you want to delete your profile? This action cannot be undone.",
+        view = ConfirmDeleteView()
+        await interaction.edit_original_response(
+            content="⚠️ Are you sure you want to delete your profile? This action cannot be undone.",
             view=view,
-            ephemeral=True,
         )
 
         await view.wait()
         if view.value:
             db.delete_document(user)
-            await interaction.followup.send(
-                "Your profile has been deleted.", ephemeral=True
+            await interaction.edit_original_response(
+                content="Your profile has been deleted.", view=None
             )
         else:
-            await interaction.followup.send(
-                "Profile deletion cancelled.", ephemeral=True
+            await interaction.edit_original_response(
+                content="Profile deletion cancelled.", view=None
             )
 
 

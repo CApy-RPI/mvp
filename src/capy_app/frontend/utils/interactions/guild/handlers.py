@@ -26,15 +26,11 @@ async def handle_channel_update(
     Returns:
         bool: True if update was successful, False otherwise
     """
-    if not view.selected_channels:
-        await interaction.edit_original_response(
-            content="No channels were selected. Select channels to update:",
-            view=ChannelSelectView(channels),
-            embed=None,
-        )
-        return False
-
     try:
+        if not view.selected_channels:
+            # If empty selection, keep existing channels
+            return True
+
         updates = {
             f"channels__{name}": id for name, id in view.selected_channels.items()
         }
@@ -67,15 +63,11 @@ async def handle_role_update(
     Returns:
         bool: True if update was successful, False otherwise
     """
-    if not view.selected_roles:
-        await interaction.edit_original_response(
-            content="No roles were selected. Select roles to update:",
-            view=RoleSelectView(roles),
-            embed=None,
-        )
-        return False
-
     try:
+        if not view.selected_roles:
+            # If empty selection, keep existing roles
+            return True
+
         updates = {f"roles__{name}": id for name, id in view.selected_roles.items()}
         db.update_document(guild_data, updates)
         return True
