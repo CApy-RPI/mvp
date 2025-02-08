@@ -94,108 +94,6 @@ class ProfileCog(commands.Cog):
             elif action == "show":
                 await self.show_profile(interaction)
 
-    async def get_profile_data(
-        self, interaction: discord.Interaction, action: str, user: User | None
-    ) -> tuple[ProfileModal, discord.Message] | None:
-        """Get profile data from modal.
-
-        Args:
-            interaction: The Discord interaction
-            action: The action being performed
-            user: The existing user if updating
-
-        Returns:
-            Tuple of (modal, message) if successful, None otherwise
-        """
-        modal = ProfileModal(user=user if action == "update" else None)
-        await interaction.response.send_modal(modal)
-        await modal.wait()
-
-        if not modal.interaction:
-            return None
-
-        return modal
-
-    async def get_majors(
-        self, interaction: discord.Interaction, user: User | None
-    ) -> list[str]:
-        """Get selected majors from major view.
-
-        Args:
-            msg: The message to update
-            user: The existing user if updating
-
-        Returns:
-            List of selected majors
-        """
-
-        major_view = MajorView(
-            self.major_list, current_majors=user.profile.major if user else None
-        )
-
-        msg = await interaction.followup.send(
-            content="Select your major(s):",
-            view=major_view,
-            ephemeral=True,
-            wait=True,
-        )
-
-        await major_view.wait()
-
-        print(major_view.selected_majors)
-
-        return major_view.selected_majors, msg
-
-    async def verify_email(
-        self, msg: discord.Message, new_email: str, user: User | None
-    ) -> bool:
-        """Verify user's email if needed.
-
-        Args:
-            msg: The message to update
-            new_email: The email to verify
-            user: The existing user if updating
-
-        Returns:
-            True if verification successful or not needed, False otherwise
-        """
-        if user and new_email == user.profile.school_email:
-            return True
-
-        if not new_email.endswith("edu"):
-            await msg.edit(content="Invalid School email!", view=None)
-            return False
-
-        if not self.email_verifier.send_verification_email(
-            msg.interaction.user.id, new_email
-        ):
-            await msg.edit(
-                content="Failed to send verification email. Please try again.",
-                view=None,
-            )
-            return False
-
-        verify_view = EmailVerificationView()
-        await msg.edit(
-            content="Please check your email for a verification code, then click the button below to verify:",
-            view=verify_view,
-        )
-
-        submitted_code = await verify_view.wait_for_verification(timeout=300.0)
-        if not submitted_code:
-            await msg.edit(
-                content="Verification timed out. Please try again.", view=None
-            )
-            return False
-
-        if not self.email_verifier.verify_code(msg.interaction.user.id, submitted_code):
-            await msg.edit(
-                content="Invalid verification code. Please try again.", view=None
-            )
-            return False
-
-        return True
-
     async def handle_profile(
         self, interaction: discord.Interaction, action: str
     ) -> None:
@@ -221,25 +119,79 @@ class ProfileCog(commands.Cog):
             )
             return
 
-        # Get profile data from modal
-        modal = await self.get_profile_data(interaction, action, user)
-        if not modal:
+        # Show modal
+        modal = ProfileModal(user=user if action == "update" else None)
+        await interaction.response.send_modal(modal)
+        await modal.wait()
+
+        if not modal.interaction:
             return
 
-        # Get major selection
-        selected_majors, msg = await self.get_majors(modal.interaction, user)
+        # Create and show major view
+        major_view = MajorView(
+            self.major_list, current_majors=user.profile.major if user else None
+        )
+        # Store the message reference from the major selection
+        # ! This creates a follow up and thus a message instead of an interaction is carried throughout
+        # ! Ideally, create one menu for everything to be handled in one interaction as it's cleaner
+        msg = await modal.interaction.followup.send(
+            content="Select your major(s):",
+            view=major_view,
+            ephemeral=True,
+            wait=True,  # Important: This makes it return the message object
+        )
 
-        # Verify email if needed
+        # Wait for major selection
+        await major_view.wait()
+        selected_majors = []
+        if major_view.value and major_view.selected_majors:
+            selected_majors = list(major_view.selected_majors)
+        elif user and user.profile.major:
+            selected_majors = list(user.profile.major)
+        else:
+            selected_majors = ["Undeclared"]
+
+        # Handle email verification if needed
         new_email = modal.children[4].value
-        if not await self.verify_email(msg, new_email, user):
-            return
+        if not user or (user and new_email != user.profile.school_email):
+            if not new_email.endswith("edu"):
+                await msg.edit(content="Invalid School email!", view=None)
+                return
+
+            if not self.email_verifier.send_verification_email(
+                interaction.user.id, new_email
+            ):
+                await msg.edit(
+                    content="Failed to send verification email. Please try again.",
+                    view=None,
+                )
+                return
+
+            verify_view = EmailVerificationView()
+            await msg.edit(
+                content="Please check your email for a verification code, then click the button below to verify:",
+                view=verify_view,
+            )
+
+            submitted_code = await verify_view.wait_for_verification(timeout=300.0)
+            if not submitted_code:
+                await msg.edit(
+                    content="Verification timed out. Please try again.", view=None
+                )
+                return
+
+            if not self.email_verifier.verify_code(interaction.user.id, submitted_code):
+                await msg.edit(
+                    content="Invalid verification code. Please try again.", view=None
+                )
+                return
 
         # Create or update user profile
         profile_data = {
             "name": UserName(
                 first=modal.children[0].value, last=modal.children[1].value
             ),
-            "major": selected_majors,
+            "major": selected_majors,  # Now guaranteed to be a list
             "graduation_year": modal.children[2].value,
             "school_email": modal.children[4].value,
             "student_id": modal.children[3].value,
@@ -253,6 +205,8 @@ class ProfileCog(commands.Cog):
             user = new_user
         else:
             updates = {f"profile__{k}": v for k, v in profile_data.items()}
+            if isinstance(updates["profile__major"], tuple):  # Additional safety check
+                updates["profile__major"] = list(updates["profile__major"])
             db.update_document(user, updates)
             user = db.get_document(User, interaction.user.id)
 
@@ -285,7 +239,7 @@ class ProfileCog(commands.Cog):
         # Get the avatar URL differently based on the type
         avatar_url: str
         if isinstance(message_or_interaction, discord.Message):
-            meta = message_or_interaction.interaction_metadata
+            meta = message_or_interaction.interaction
             avatar_url = (
                 meta.user.display_avatar.url
                 if meta

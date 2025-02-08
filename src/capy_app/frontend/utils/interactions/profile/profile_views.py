@@ -11,11 +11,10 @@ This module provides the UI components for profile management:
 
 import asyncio
 import datetime
-from typing import Optional, List, Any, cast, Union
+from typing import Optional, List, Any, cast
 import discord
 from discord import ui
 from discord.interactions import Interaction
-from frontend.utils.interactions.view_bases import BaseDropdownView
 from backend.db.documents.user import User
 
 
@@ -88,7 +87,7 @@ class ProfileModal(ui.Modal, title="Create Profile"):
             return
 
 
-class MajorView(BaseDropdownView):
+class MajorView(ui.View):
     def __init__(
         self, major_list: List[str], current_majors: Optional[List[str]] = None
     ) -> None:
@@ -105,13 +104,13 @@ class MajorView(BaseDropdownView):
             ],
             row=0,
         )
-        select.callback = self._on_select
-        self.add_item(select)
 
-    async def _on_select(self, interaction: Interaction[discord.Client]) -> None:
-        select = cast(ui.Select[ui.View], interaction.data)
-        self.selected_majors = select.values
-        await interaction.response.defer()
+        async def select_callback(interaction: Interaction[discord.Client]) -> None:
+            self.selected_majors = select.values
+            self.stop()
+
+        select.callback = select_callback
+        self.add_item(select)
 
 
 class EmailVerificationView(ui.View):
@@ -138,7 +137,9 @@ class EmailVerificationView(ui.View):
         )
         modal.add_item(code_input)
 
-        async def on_modal_submit(modal_interaction: Interaction[discord.Client]) -> None:
+        async def on_modal_submit(
+            modal_interaction: Interaction[discord.Client],
+        ) -> None:
             await modal_interaction.response.defer(ephemeral=True)
             if isinstance(code_input, ui.TextInput):
                 self.verification_code = code_input.value
