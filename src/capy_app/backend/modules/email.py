@@ -1,7 +1,7 @@
 import typing
 from mailjet_rest import Client
 
-from src.capy_app.config import settings
+from config import settings
 
 
 class EmailError(Exception):

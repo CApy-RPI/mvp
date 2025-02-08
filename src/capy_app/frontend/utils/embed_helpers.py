@@ -1,5 +1,6 @@
 import discord
-from frontend.utils import embed_colors as colors
+
+from . import embed_colors as colors
 
 
 def error_embed(title: str, description: str) -> discord.Embed:

@@ -1,5 +1,7 @@
 """Error handling cog for managing error messages and their resolution status."""
 
+# TODO: Replace colors with embed_colors.py
+
 # Standard library imports
 import datetime
 import logging
