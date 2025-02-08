@@ -62,7 +62,6 @@ class ProfileModal(discord.ui.Modal):
 class MajorView(discord.ui.View):
     def __init__(self, major_list):
         super().__init__(timeout=180.0)
-        self.message = None
         if not major_list:
             major_list = ["Undeclared"]
 
@@ -100,10 +99,6 @@ class MajorView(discord.ui.View):
 
         skip_button.callback = skip_callback
         self.add_item(skip_button)
-
-    async def on_timeout(self) -> None:
-        if self.message:
-            await self.message.delete()
 
     async def wait_for_majors(self, timeout=180.0):
         try:
@@ -269,14 +264,11 @@ class ProfileCog(commands.Cog):
 
         # Show major selection first
         major_view = MajorView(self.major_list)
-        major_view.message = await interaction.followup.send(
+        await interaction.followup.send(
             "Select your major(s):", view=major_view, ephemeral=True
         )
 
         selected_majors = await major_view.wait_for_majors(timeout=180.0)
-        if major_view.message:
-            await major_view.message.delete()
-        
         if selected_majors is None:  # Timed out
             await interaction.followup.send(
                 "Major selection timed out. Please try again.", ephemeral=True
@@ -393,16 +385,13 @@ class ProfileCog(commands.Cog):
 
         # Update major selection
         major_view = MajorView(self.major_list)
-        major_view.message = await interaction.followup.send(
+        await interaction.followup.send(
             "Update your major(s) or click Skip to keep current majors:",
             view=major_view,
             ephemeral=True,
         )
 
         selected_majors = await major_view.wait_for_majors(timeout=180.0)
-        if major_view.message:
-            await major_view.message.delete()
-
         if selected_majors is None:  # Timed out
             await interaction.followup.send(
                 "Major selection timed out. Please try again.", ephemeral=True
@@ -490,4 +479,3 @@ class ProfileCog(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(ProfileCog(bot))
-`

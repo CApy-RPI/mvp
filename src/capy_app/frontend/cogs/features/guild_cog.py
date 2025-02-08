@@ -1,6 +1,5 @@
 """Guild settings management cog."""
 
-import typing
 import logging
 import discord
 from discord import app_commands
@@ -9,69 +8,13 @@ from discord.ext import commands
 from backend.db.database import Database as db
 from frontend.utils import embed_colors as colors
 from frontend.cogs.handlers.guild_handler_cog import GuildHandlerCog
+from frontend.utils.guild.views import (
+    ChannelSelectView,
+    RoleSelectView,
+    SettingsSelectView,
+)
+from frontend.utils.guild.handlers import handle_channel_update, handle_role_update
 from config import settings
-from frontend.utils.view_bases import BaseDropdownView
-
-
-class ChannelSelectView(BaseDropdownView):
-    def __init__(self, channels: dict[str, str]):
-        super().__init__()
-        self.selected_channels = {}
-
-        for channel_name, description in channels.items():
-            select = discord.ui.ChannelSelect(
-                placeholder=f"Select {channel_name.title()} channel",
-                channel_types=[discord.ChannelType.text],
-                custom_id=f"channel_{channel_name}",
-            )
-            select.callback = self.create_callback(channel_name)
-            self.add_item(select)
-
-    def create_callback(self, channel_name: str):
-        async def callback(interaction: discord.Interaction):
-            try:
-                values = interaction.data.get("values", [])
-                if values:
-                    self.selected_channels[channel_name] = int(values[0])
-                else:  # Handle skip
-                    self.selected_channels.pop(channel_name, None)
-                await interaction.response.defer()
-            except Exception as e:
-                await interaction.response.send_message(
-                    "Failed to process channel selection.", ephemeral=True
-                )
-
-        return callback
-
-
-class RoleSelectView(BaseDropdownView):
-    def __init__(self, roles: dict[str, str]):
-        super().__init__()
-        self.selected_roles = {}
-
-        for role_name, description in roles.items():
-            select = discord.ui.RoleSelect(
-                placeholder=f"Select {role_name.title()} role",
-                custom_id=f"role_{role_name}",
-            )
-            select.callback = self.create_callback(role_name)
-            self.add_item(select)
-
-    def create_callback(self, role_name: str):
-        async def callback(interaction: discord.Interaction):
-            try:
-                values = interaction.data.get("values", [])
-                if values:
-                    self.selected_roles[role_name] = values[0]
-                else:  # Handle skip
-                    self.selected_roles.pop(role_name, None)
-                await interaction.response.defer()
-            except Exception as e:
-                await interaction.response.send_message(
-                    "Failed to process role selection.", ephemeral=True
-                )
-
-        return callback
 
 
 @app_commands.guild_only()
@@ -107,6 +50,7 @@ class GuildCog(commands.Cog):
         ]
     )
     async def server(self, interaction: discord.Interaction, action: str):
+        await interaction.response.defer(ephemeral=True)
         if action == "show":
             await self.show_settings(interaction)
         elif action == "edit":
@@ -114,13 +58,17 @@ class GuildCog(commands.Cog):
         elif action == "clear":
             await self.clear_settings(interaction)
 
-    async def show_settings(self, interaction: discord.Interaction):
-        """Display current server settings."""
-        await interaction.response.defer(ephemeral=True)
+    async def show_settings(self, interaction: discord.Interaction) -> None:
+        """Display current server settings.
 
+        Args:
+            interaction: The Discord interaction
+        """
         guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
         if not guild_data:
-            await interaction.followup.send("No settings configured.", ephemeral=True)
+            await interaction.edit_original_response(
+                content="No settings configured.", embed=None, view=None
+            )
             return
 
         embed = discord.Embed(title="Server Settings", color=colors.GUILD)
@@ -145,16 +93,14 @@ class GuildCog(commands.Cog):
             name="Roles", value=role_text or "No roles configured", inline=False
         )
 
-        await interaction.followup.send(embed=embed, ephemeral=True)
+        await interaction.edit_original_response(content=None, embed=embed, view=None)
 
-    async def edit_settings(self, interaction: discord.Interaction):
-        """Edit server settings using views."""
+    async def edit_settings(self, interaction: discord.Interaction) -> None:
+        """Edit server settings using views.
 
-        class SettingsSelectView(discord.ui.View):
-            def __init__(self, parent_cog):
-                super().__init__(timeout=180.0)
-                self.parent_cog = parent_cog
-
+        Args:
+            interaction: The Discord interaction
+        """
         view = SettingsSelectView(self)
         select = discord.ui.Select(
             placeholder="Choose what to edit",
@@ -173,119 +119,89 @@ class GuildCog(commands.Cog):
             ],
         )
 
-        async def select_callback(interaction: discord.Interaction):
-            await interaction.response.defer(ephemeral=True)
+        async def select_callback(interaction: discord.Interaction) -> None:
+            await interaction.response.defer()
+
+            guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
+            if not guild_data:
+                await interaction.edit_original_response(
+                    content="Failed to access guild settings.", embed=None, view=None
+                )
+                return
+
             if select.values[0] == "channels":
-                await self.edit_channels(interaction)
+                channel_view = ChannelSelectView(self.channels)
+                await interaction.edit_original_response(
+                    content="Select channels for each category:",
+                    embed=None,
+                    view=channel_view,
+                )
+                view.current_view = channel_view
+                await view.current_view.wait()
+
+                if not view.current_view.value:  # Cancelled or timeout
+                    await interaction.edit_original_response(
+                        content="Channel editing cancelled.", embed=None, view=None
+                    )
+                    return
+
+                if await handle_channel_update(
+                    interaction, view.current_view, guild_data, self.channels
+                ):
+                    await self.show_settings(interaction)
+
             elif select.values[0] == "roles":
-                await self.edit_roles(interaction)
+                role_view = RoleSelectView(self.roles)
+                await interaction.edit_original_response(
+                    content="Select roles for each category:",
+                    embed=None,
+                    view=role_view,
+                )
+                view.current_view = role_view
+                await view.current_view.wait()
+                if view.current_view.value:
+                    if await handle_role_update(
+                        interaction, view.current_view, guild_data, self.roles
+                    ):
+                        await self.show_settings(interaction)
+
             elif select.values[0] == "all":
-                await self.edit_all(interaction)
+                # Handle channels first
+                channel_view = ChannelSelectView(self.channels)
+                await interaction.edit_original_response(
+                    content="First, select channels for each category:",
+                    view=channel_view,
+                )
+                await channel_view.wait()
+                if channel_view.value:
+                    if await handle_channel_update(
+                        interaction, channel_view, guild_data, self.channels
+                    ):
+                        # Then handle roles
+                        role_view = RoleSelectView(self.roles)
+                        await interaction.edit_original_response(
+                            content="Now, select roles for each category:",
+                            view=role_view,
+                        )
+                        await role_view.wait()
+                        if role_view.value:
+                            if await handle_role_update(
+                                interaction, role_view, guild_data, self.roles
+                            ):
+                                await self.show_settings(interaction)
 
         select.callback = select_callback
         view.add_item(select)
-        await interaction.response.send_message(
-            "Select what you'd like to edit:", view=view, ephemeral=True
+        await interaction.edit_original_response(
+            content="Select what you'd like to edit:", view=view
         )
 
-    async def edit_all(self, interaction: discord.Interaction) -> None:
-        """Edit all settings simultaneously."""
-        # First handle channels
-        await self.edit_channels(interaction)
-        # Then handle roles
-        await self.edit_roles(interaction)
+    async def clear_settings(self, interaction: discord.Interaction) -> None:
+        """Clear server settings.
 
-    async def edit_channels(self, interaction: discord.Interaction) -> None:
-        """Edit channel settings."""
-        view = ChannelSelectView(self.channels)
-        await interaction.followup.send(
-            "Select channels for each category:",
-            view=view,
-            ephemeral=True,
-        )
-
-        await view.wait()
-        if not view.value:  # Cancelled
-            await interaction.followup.send(
-                "Cancelled channel editing.", ephemeral=True
-            )
-            return
-
-        if not view.selected_channels:
-            await interaction.followup.send(
-                "No channels were selected.", ephemeral=True
-            )
-            return
-
-        guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
-        if not guild_data:
-            await interaction.followup.send(
-                "Failed to access guild settings.", ephemeral=True
-            )
-            return
-
-        updates: dict[str, typing.Any] = {
-            f"channels__{name}": channel_id
-            for name, channel_id in view.selected_channels.items()
-        }
-
-        try:
-            db.update_document(guild_data, updates)
-            await interaction.followup.send(
-                "Channel settings updated successfully!", ephemeral=True
-            )
-            # Show updated settings
-            await self.show_settings(interaction)
-        except Exception as e:
-            self.logger.error(f"Failed to update channels: {e}")
-            await interaction.followup.send(
-                "Failed to update channel settings.", ephemeral=True
-            )
-
-    async def edit_roles(self, interaction: discord.Interaction) -> None:
-        """Edit role settings."""
-        view = RoleSelectView(self.roles)
-        await interaction.followup.send(
-            "Select roles for each category:",
-            view=view,
-            ephemeral=True,
-        )
-
-        await view.wait()
-        if not view.value:  # Cancelled
-            await interaction.followup.send("Cancelled role editing.", ephemeral=True)
-            return
-
-        if not view.selected_roles:
-            await interaction.followup.send("No roles were selected.", ephemeral=True)
-            return
-
-        guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
-        if not guild_data:
-            await interaction.followup.send(
-                "Failed to access guild settings.", ephemeral=True
-            )
-            return
-
-        updates: dict[str, typing.Any] = {
-            f"roles__{name}": role_id for name, role_id in view.selected_roles.items()
-        }
-
-        try:
-            db.update_document(guild_data, updates)
-            await interaction.followup.send(
-                "Role settings updated successfully!", ephemeral=True
-            )
-            # Show updated settings
-            await self.show_settings(interaction)
-        except Exception as e:
-            self.logger.error(f"Failed to update roles: {e}")
-            await interaction.followup.send(
-                "Failed to update role settings.", ephemeral=True
-            )
-
-    async def clear_settings(self, interaction: discord.Interaction):
-        """Clear server settings."""
+        Args:
+            interaction: The Discord interaction
+        """
         options = [
             discord.SelectOption(
                 label="Channels",
@@ -310,39 +226,40 @@ class GuildCog(commands.Cog):
         )
         view = discord.ui.View().add_item(select)
 
-        async def select_callback(interaction: discord.Interaction):
-            await interaction.response.defer(ephemeral=True)
-            guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
+        async def select_callback(interaction: discord.Interaction) -> None:
+            await interaction.response.defer()
 
+            guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
             if not guild_data:
-                await interaction.followup.send(
-                    "Failed to access guild settings.", ephemeral=True
+                await interaction.edit_original_response(
+                    content="Failed to access guild settings.", embed=None, view=None
                 )
                 return
 
-            updates = {}
+            updates: dict[str, None] = {}
             if select.values[0] in ["channels", "all"]:
-                for channel in self.channels:
-                    updates[f"channels__{channel}"] = None
-
+                updates.update(
+                    {f"channels__{channel}": None for channel in self.channels}
+                )
             if select.values[0] in ["roles", "all"]:
-                for role in self.roles:
-                    updates[f"roles__{role}"] = None
+                updates.update({f"roles__{role}": None for role in self.roles})
 
             try:
                 db.update_document(guild_data, updates)
-                await interaction.followup.send(
-                    f"Successfully cleared {select.values[0]} settings!", ephemeral=True
+                await interaction.edit_original_response(
+                    content=f"Successfully cleared {select.values[0]} settings!",
+                    embed=None,
+                    view=None,
                 )
             except Exception as e:
                 self.logger.error(f"Failed to clear settings: {e}")
-                await interaction.followup.send(
-                    "Failed to clear settings.", ephemeral=True
+                await interaction.edit_original_response(
+                    content="Failed to clear settings.", embed=None, view=None
                 )
 
         select.callback = select_callback
-        await interaction.response.send_message(
-            "Select what you'd like to clear:", view=view, ephemeral=True
+        await interaction.edit_original_response(
+            content="Select what you'd like to clear:", view=view
         )
 
 
