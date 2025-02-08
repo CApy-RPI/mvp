@@ -13,7 +13,7 @@ from config import settings
 from frontend.config_colors import (
     STATUS_UNMARKED,
     STATUS_RESOLVED,
-    STATUS_INFO,
+    STATUS_IMPORTANT,
     STATUS_IGNORED,
 )
 
@@ -95,7 +95,7 @@ class FeatureRequestCog(commands.Cog):
                 return
 
             embed = discord.Embed(
-                title=f"💡 Feature Request: {modal.title}",
+                title=f"💡 Feature Request:",
                 description=modal.description,
                 color=STATUS_UNMARKED,
             )
@@ -159,7 +159,7 @@ class FeatureRequestCog(commands.Cog):
         else:
             embed.color = {
                 "Completed": STATUS_RESOLVED,
-                "Approved": STATUS_INFO,
+                "Approved": STATUS_IMPORTANT,
                 "Ignored": STATUS_IGNORED,
             }[status]
 
