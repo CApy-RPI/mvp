@@ -9,7 +9,6 @@ class BaseDropdownView(discord.ui.View):
     def __init__(self, timeout=180.0):
         super().__init__(timeout=timeout)
         self.value = None  # True for accept, False for cancel, None for timeout
-        self.skipped = False  # True if skip was pressed
         self.interaction_done = False
         self.message = None
 

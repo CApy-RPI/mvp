@@ -42,7 +42,7 @@ async def handle_channel_update(
             return True  # No changes needed
 
         updates = {
-            f"channels__{name}": channel_id
+            f"channels__{name}": str(channel_id)  # Convert to string
             for name, channel_id in view.selected_channels.items()
         }
         db.update_document(guild_data, updates)
@@ -50,7 +50,7 @@ async def handle_channel_update(
     except Exception as e:
         logger.error(f"Failed to update channels: {e}")
         await interaction.edit_original_response(
-            content="Failed to update channel settings. Please try again:",
+            content="Failed to update channel settings. Please try again.",
             view=ChannelSelectView(channels),
             embed=None,
         )
@@ -82,14 +82,15 @@ async def handle_role_update(
             return True  # No changes needed
 
         updates = {
-            f"roles__{name}": role_id for name, role_id in view.selected_roles.items()
+            f"roles__{name}": str(role_id)
+            for name, role_id in view.selected_roles.items()
         }
         db.update_document(guild_data, updates)
         return True
     except Exception as e:
         logger.error(f"Failed to update roles: {e}")
         await interaction.edit_original_response(
-            content="Failed to update role settings. Please try again:",
+            content="Failed to update role settings. Please try again.",
             view=RoleSelectView(roles),
             embed=None,
         )
