@@ -12,7 +12,7 @@ from discord.ext import commands
 from config import settings
 from backend.db.database import Database as db
 from backend.db.documents.user import User, UserProfile, UserName
-from backend.mods.email import Email
+from backend.modules.email import Email
 
 
 class ProfileModal(discord.ui.Modal):

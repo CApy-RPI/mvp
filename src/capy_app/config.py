@@ -31,7 +31,7 @@ class Settings(BaseSettings):
 
     # Path settings
     COG_PATH: typing.Optional[str] = "frontend/cogs"
-    MAJORS_PATH: typing.Optional[str] = "backend/res/majors.txt"
+    MAJORS_PATH: typing.Optional[str] = "frontend/resources/majors.txt"
 
     # Chatbot settings
     ENABLE_CHATBOT: typing.Optional[bool] = None
