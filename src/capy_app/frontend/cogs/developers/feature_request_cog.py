@@ -10,7 +10,12 @@ from discord import app_commands
 from discord.ext import commands
 
 from config import settings
-from frontend.config_colors import TICKET_FEATURE
+from frontend.config_colors import (
+    STATUS_UNMARKED,
+    STATUS_RESOLVED,
+    STATUS_INFO,
+    STATUS_IGNORED,
+)
 
 
 class FeatureRequestModal(discord.ui.Modal, title="Request a Feature"):
@@ -47,6 +52,7 @@ class FeatureRequestCog(commands.Cog):
         self.logger = logging.getLogger(
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
+        self.status_emojis = {"✅": "Completed", "👍": "Approved", "❌": "Ignored"}
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="feature", description="Request a new feature")
@@ -86,12 +92,17 @@ class FeatureRequestCog(commands.Cog):
             embed = discord.Embed(
                 title=f"💡 Feature Request: {modal.title}",
                 description=modal.description,
-                color=TICKET_FEATURE,
+                color=STATUS_UNMARKED,
             )
             embed.add_field(name="Submitted by", value=interaction.user.mention)
-            embed.set_footer(text=f"User ID: {interaction.user.id}")
+            embed.set_footer(
+                text="Status: Unmarked | ✅ Completed • 👍 Approved • ❌ Ignored"
+            )
 
-            await channel.send(embed=embed)
+            message = await channel.send(embed=embed)
+            for emoji in self.status_emojis.keys():
+                await message.add_reaction(emoji)
+
             await interaction.followup.send(
                 "Feature request submitted successfully!", ephemeral=True
             )
@@ -114,6 +125,40 @@ class FeatureRequestCog(commands.Cog):
                     "❌ An unexpected error occurred. Please try again later.",
                     ephemeral=True,
                 )
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+        if payload.channel_id != settings.TICKET_FEATURE_REQUEST_CHANNEL_ID:
+            return
+
+        if payload.user_id == self.bot.user.id:  # Ignore bot's own reactions
+            return
+
+        channel = self.bot.get_channel(payload.channel_id)
+        message = await channel.fetch_message(payload.message_id)
+
+        if not message.embeds or not message.embeds[0].title.startswith(
+            "💡 Feature Request:"
+        ):
+            return
+
+        emoji = str(payload.emoji)
+        if emoji not in self.status_emojis:
+            return
+
+        embed = message.embeds[0]
+        status = self.status_emojis[emoji]
+
+        embed.color = {
+            "Completed": STATUS_RESOLVED,
+            "Approved": STATUS_INFO,
+            "Ignored": STATUS_IGNORED,
+        }[status]
+
+        embed.set_footer(
+            text=f"Status: {status} | ✅ Completed • 👍 Approved • ❌ Ignored"
+        )
+        await message.edit(embed=embed)
 
 
 async def setup(bot: commands.Bot) -> None:

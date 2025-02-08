@@ -10,7 +10,12 @@ from discord import app_commands
 from discord.ext import commands
 
 from config import settings
-from frontend.config_colors import TICKET_BUG
+from frontend.config_colors import (
+    STATUS_ERROR,
+    STATUS_IMPORTANT,
+    STATUS_RESOLVED,
+    STATUS_IGNORED,
+)
 
 
 class BugReportModal(discord.ui.Modal, title="Report a Bug"):
@@ -47,6 +52,7 @@ class BugReportCog(commands.Cog):
         self.logger = logging.getLogger(
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
+        self.status_emojis = {"⭐": "Important", "✅": "Resolved", "❌": "Ignored"}
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="bug", description="Report a bug in the bot")
@@ -88,12 +94,17 @@ class BugReportCog(commands.Cog):
             embed = discord.Embed(
                 title=f"🐛 Bug Report: {modal.title}",
                 description=modal.description,
-                color=TICKET_BUG,
+                color=STATUS_ERROR,
             )
             embed.add_field(name="Submitted by", value=interaction.user.mention)
-            embed.set_footer(text=f"User ID: {interaction.user.id}")
+            embed.set_footer(
+                text="Status: Unmarked | ⭐ Important • ✅ Resolved • ❌ Ignored"
+            )
 
-            await channel.send(embed=embed)
+            message = await channel.send(embed=embed)
+            for emoji in self.status_emojis.keys():
+                await message.add_reaction(emoji)
+
             await interaction.followup.send(
                 "Bug report submitted successfully!", ephemeral=True
             )
@@ -116,6 +127,41 @@ class BugReportCog(commands.Cog):
                     "❌ An unexpected error occurred. Please try again later.",
                     ephemeral=True,
                 )
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+        if payload.channel_id != settings.TICKET_BUG_REPORT_CHANNEL_ID:
+            return
+
+        if payload.user_id == self.bot.user.id:  # Ignore bot's own reactions
+            return
+
+        channel = self.bot.get_channel(payload.channel_id)
+        message = await channel.fetch_message(payload.message_id)
+
+        if not message.embeds or not message.embeds[0].title.startswith(
+            "🐛 Bug Report:"
+        ):
+            return
+
+        emoji = str(payload.emoji)
+        if emoji not in self.status_emojis:
+            return
+
+        embed = message.embeds[0]
+        status = self.status_emojis[emoji]
+
+        # Update embed with new status
+        embed.color = {
+            "Important": STATUS_IMPORTANT,
+            "Resolved": STATUS_RESOLVED,
+            "Ignored": STATUS_IGNORED,
+        }[status]
+
+        embed.set_footer(
+            text=f"Status: {status} | ⭐ Important • ✅ Resolved • ❌ Ignored"
+        )
+        await message.edit(embed=embed)
 
 
 async def setup(bot: commands.Bot) -> None:

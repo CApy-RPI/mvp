@@ -10,7 +10,11 @@ from discord import app_commands
 from discord.ext import commands
 
 from config import settings
-from frontend.config_colors import TICKET_FEEDBACK
+from frontend.config_colors import (
+    STATUS_INFO,
+    STATUS_RESOLVED,
+    STATUS_IGNORED,
+)
 
 
 class FeedbackModal(discord.ui.Modal, title="Submit Feedback"):
@@ -47,6 +51,7 @@ class FeedbackCog(commands.Cog):
         self.logger = logging.getLogger(
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
+        self.status_emojis = {"✅": "Acknowledged", "❌": "Ignored"}
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="feedback", description="Provide general feedback")
@@ -86,12 +91,15 @@ class FeedbackCog(commands.Cog):
             embed = discord.Embed(
                 title=f"📝 Feedback: {modal.title}",
                 description=modal.description,
-                color=TICKET_FEEDBACK,
+                color=STATUS_INFO,
             )
             embed.add_field(name="Submitted by", value=interaction.user.mention)
-            embed.set_footer(text=f"User ID: {interaction.user.id}")
+            embed.set_footer(text="Status: Unmarked | ✅ Acknowledged • ❌ Ignored")
 
-            await channel.send(embed=embed)
+            message = await channel.send(embed=embed)
+            for emoji in self.status_emojis.keys():
+                await message.add_reaction(emoji)
+
             await interaction.followup.send(
                 "Feedback submitted successfully!", ephemeral=True
             )
@@ -114,6 +122,35 @@ class FeedbackCog(commands.Cog):
                     "❌ An unexpected error occurred. Please try again later.",
                     ephemeral=True,
                 )
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+        if payload.channel_id != settings.TICKET_FEEDBACK_CHANNEL_ID:
+            return
+
+        if payload.user_id == self.bot.user.id:  # Ignore bot's own reactions
+            return
+
+        channel = self.bot.get_channel(payload.channel_id)
+        message = await channel.fetch_message(payload.message_id)
+
+        if not message.embeds or not message.embeds[0].title.startswith("📝 Feedback:"):
+            return
+
+        emoji = str(payload.emoji)
+        if emoji not in self.status_emojis:
+            return
+
+        embed = message.embeds[0]
+        status = self.status_emojis[emoji]
+
+        embed.color = {
+            "Acknowledged": STATUS_RESOLVED,
+            "Ignored": STATUS_IGNORED,
+        }[status]
+
+        embed.set_footer(text=f"Status: {status} | ✅ Acknowledged • ❌ Ignored")
+        await message.edit(embed=embed)
 
 
 async def setup(bot: commands.Bot) -> None:
