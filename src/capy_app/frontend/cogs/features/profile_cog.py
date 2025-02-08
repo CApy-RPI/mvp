@@ -48,25 +48,19 @@ class ProfileCog(commands.Cog):
         self.email_verifier = EmailVerifier()
 
     def _load_major_list(self) -> list[str]:
-        """Load the list of available majors from file.
-
-        Returns:
-            List of major names
-
-        #TODO: Move major list to database
-        #TODO: Add major categories and sorting
-        """
+        """Load the list of available majors from file."""
         try:
             with open(settings.MAJORS_PATH, "r", encoding="utf-8") as f:
                 majors = [line.strip() for line in f.readlines() if line.strip()]
+                self.logger.info(f"Loaded {len(majors)} majors from file")
                 if not majors:
                     self.logger.warning("majors.txt is empty")
                 return majors
         except FileNotFoundError:
-            self.logger.error("majors.txt not found")
+            self.logger.error(f"majors.txt not found at {settings.MAJORS_PATH}")
             return ["Undeclared"]
         except Exception as e:
-            self.logger.error(f"Error loading majors: {e}")
+            self.logger.error(f"Error loading majors from {settings.MAJORS_PATH}: {e}")
             return ["Undeclared"]
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
@@ -208,15 +202,24 @@ class ProfileCog(commands.Cog):
             action: The action to perform (create/update)
         """
         user = db.get_document(User, interaction.user.id)
+        self.logger.info(
+            f"Profile {action} requested by {interaction.user} (ID: {interaction.user.id})"
+        )
 
         # Check if user exists for the given action
         if action == "create" and user:
+            self.logger.warning(
+                f"User {interaction.user} attempted to create duplicate profile"
+            )
             await interaction.response.send_message(
                 "You already have a profile. Use /profile update to modify it.",
                 ephemeral=True,
             )
             return
         elif action == "update" and not user:
+            self.logger.warning(
+                f"User {interaction.user} attempted to update non-existent profile"
+            )
             await interaction.response.send_message(
                 "You don't have a profile yet! Use /profile create first.",
                 ephemeral=True,
@@ -226,6 +229,7 @@ class ProfileCog(commands.Cog):
         # Get profile data from modal
         modal = await self.get_profile_data(interaction, action, user)
         if not modal:
+            self.logger.info(f"Profile {action} cancelled by {interaction.user}")
             return
 
         # Get major selection
@@ -253,10 +257,12 @@ class ProfileCog(commands.Cog):
             )
             db.add_document(new_user)
             user = new_user
+            self.logger.info(f"Created new profile for {interaction.user}")
         else:
             updates = {f"profile__{k}": v for k, v in profile_data.items()}
             db.update_document(user, updates)
             user = db.get_document(User, interaction.user.id)
+            self.logger.info(f"Updated profile for {interaction.user}")
 
         # Show the profile using followup
         await self.show_profile_embed(msg, user)
@@ -339,7 +345,12 @@ class ProfileCog(commands.Cog):
         #TODO: Add profile backup before deletion
         """
         user = db.get_document(User, interaction.user.id)
+        self.logger.info(f"Profile deletion requested by {interaction.user}")
+
         if not user:
+            self.logger.warning(
+                f"User {interaction.user} attempted to delete non-existent profile"
+            )
             await interaction.edit_original_response(
                 content="You don't have a profile to delete."
             )

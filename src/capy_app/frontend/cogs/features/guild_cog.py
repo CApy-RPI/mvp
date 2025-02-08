@@ -50,6 +50,10 @@ class GuildCog(commands.Cog):
         self, interaction: discord.Interaction, selection: str, guild_data: typing.Any
     ) -> None:
         """Handle settings selection and updates."""
+        self.logger.info(
+            f"Settings update initiated for {interaction.guild} (ID: {interaction.guild.id}), selection: {selection}"
+        )
+
         if selection in ["channels", "all"]:
             channel_view = ChannelSelectView(self.channels)
             await interaction.edit_original_response(
@@ -58,6 +62,9 @@ class GuildCog(commands.Cog):
             await channel_view.wait()
 
             if channel_view.value is False:
+                self.logger.info(
+                    f"Channel settings update cancelled for {interaction.guild}"
+                )
                 await interaction.edit_original_response(
                     content="Cancelled channel settings update.", embed=None, view=None
                 )
@@ -66,10 +73,17 @@ class GuildCog(commands.Cog):
             if not channel_view.value or not await handle_channel_update(
                 interaction, channel_view, guild_data, self.channels
             ):
+                self.logger.error(
+                    f"Failed to update channel settings for {interaction.guild}"
+                )
                 await interaction.edit_original_response(
                     content="Failed to update channel settings.", embed=None, view=None
                 )
                 return
+
+            self.logger.info(
+                f"Successfully updated channel settings for {interaction.guild}"
+            )
 
         if selection in ["roles", "all"]:
             role_view = RoleSelectView(self.roles)
@@ -79,6 +93,9 @@ class GuildCog(commands.Cog):
             await role_view.wait()
 
             if role_view.value is False:
+                self.logger.info(
+                    f"Role settings update cancelled for {interaction.guild}"
+                )
                 await interaction.edit_original_response(
                     content="Cancelled role settings update.", embed=None, view=None
                 )
@@ -87,10 +104,17 @@ class GuildCog(commands.Cog):
             if not role_view.value or not await handle_role_update(
                 interaction, role_view, guild_data, self.roles
             ):
+                self.logger.error(
+                    f"Failed to update role settings for {interaction.guild}"
+                )
                 await interaction.edit_original_response(
                     content="Failed to update role settings.", embed=None, view=None
                 )
                 return
+
+            self.logger.info(
+                f"Successfully updated role settings for {interaction.guild}"
+            )
 
         await self.show_settings(interaction)
 
@@ -104,8 +128,14 @@ class GuildCog(commands.Cog):
     async def server(self, interaction: discord.Interaction, action: str) -> None:
         """Handle server setting actions."""
         await interaction.response.defer(ephemeral=True)
+        self.logger.info(
+            f"Server settings {action} requested by {interaction.user} in {interaction.guild}"
+        )
 
         if not isinstance(interaction.user, discord.Member):
+            self.logger.warning(
+                f"Non-member {interaction.user} attempted to use server command"
+            )
             await interaction.edit_original_response(
                 content="This command can only be used in a server."
             )
@@ -227,6 +257,7 @@ class GuildCog(commands.Cog):
         await clear_view.wait()
 
         if not clear_view.selected_setting:
+            self.logger.info(f"Settings clearing cancelled for {interaction.guild}")
             await interaction.edit_original_response(
                 content="Settings clearing cancelled.", embed=None, view=None
             )
@@ -235,6 +266,9 @@ class GuildCog(commands.Cog):
         try:
             guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
             if not guild_data:
+                self.logger.error(
+                    f"Failed to access guild settings for {interaction.guild}"
+                )
                 await interaction.edit_original_response(
                     content="Failed to access guild settings.", embed=None, view=None
                 )
@@ -249,6 +283,9 @@ class GuildCog(commands.Cog):
                 updates.update({f"roles__{role}": None for role in self.roles})
 
             db.update_document(guild_data, updates)
+            self.logger.info(
+                f"Successfully cleared {clear_view.selected_setting} settings for {interaction.guild}"
+            )
             await interaction.edit_original_response(
                 content=f"Successfully cleared {clear_view.selected_setting} settings!",
                 embed=None,
@@ -256,7 +293,7 @@ class GuildCog(commands.Cog):
             )
 
         except Exception as e:
-            self.logger.error(f"Failed to clear settings: {e}")
+            self.logger.error(f"Failed to clear settings for {interaction.guild}: {e}")
             await interaction.edit_original_response(
                 content="Failed to clear settings.", embed=None, view=None
             )
