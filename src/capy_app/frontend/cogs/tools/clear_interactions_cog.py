@@ -12,7 +12,7 @@ class ClearInteractionsCog(commands.Cog):
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
 
-    @commands.command(name="clear_interactions")
+    @commands.command(name="clear_interactions", aliases=["ci"], hidden=True)
     @commands.is_owner()
     async def clear_interactions(self, ctx: commands.Context):
         try:
@@ -24,14 +24,14 @@ class ClearInteractionsCog(commands.Cog):
             self.bot.tree.clear_commands(guild=None)
 
             # Sync the empty tree
-            debug_guild = self.get_guild(settings.DEBUG_GUILD_ID)
+            debug_guild = self.bot.get_guild(settings.DEBUG_GUILD_ID)
             if debug_guild:
                 self.logger.info(f"Connected to debug guild: {debug_guild.name}")
-            await self.tree.sync(guild=debug_guild)
+            synced = await self.bot.tree.sync(guild=debug_guild)
 
             embed = discord.Embed(
                 title="Clear Interactions",
-                description="✅ Successfully cleared and re-synced all application commands!",
+                description=f"✅ Successfully cleared and re-synced all application commands!\nSynced commands:\n{"\n".join(synced)}",
                 color=colors.SUCCESS,
             )
             await ctx.send(embed=embed)

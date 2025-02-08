@@ -100,8 +100,8 @@ class Bot(commands.AutoShardedBot):
         debug_guild = self.get_guild(settings.DEBUG_GUILD_ID)
         if debug_guild:
             self.logger.info(f"Connected to debug guild: {debug_guild.name}")
-        await self.tree.sync(guild=debug_guild)
-        self.logger.info("Command tree synced")
+        synced = await self.tree.sync(guild=debug_guild)
+        self.logger.info(f"Synced {len(synced)} commands")
 
     async def on_message(self, message: discord.Message) -> None:
         """Process incoming messages and commands.
