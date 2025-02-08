@@ -20,9 +20,11 @@ from discord.ext import commands
 from config import settings
 from backend.db.database import Database as db
 from backend.db.documents.user import User, UserProfile, UserName
-from frontend.utils.interactions.view_bases import ConfirmDeleteView
-from frontend.utils.interactions.profile.profile_handlers import EmailVerifier
-from frontend.utils.interactions.profile.profile_views import (
+from frontend.interactions.view_bases import ConfirmDeleteView
+from .profile_handlers import (
+    EmailVerifier,
+)
+from .profile_views import (
     MajorView,
     ProfileModal,
     EmailVerificationView,

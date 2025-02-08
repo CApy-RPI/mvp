@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     WHO_DUNNIT: typing.Optional[str] = None
     DEV_LOCKED_CHANNEL_ID: typing.Optional[int] = None
 
+    # Developer channels
+    TICKET_BUG_REPORT_CHANNEL_ID: typing.Optional[int] = None
+    TICKET_FEEDBACK_CHANNEL_ID: typing.Optional[int] = None
+    TICKET_FEATURE_REQUEST_CHANNEL_ID: typing.Optional[int] = None
+
     # Error handling settings
     FAILED_COMMANDS_INVITE_EXPIRY: typing.Optional[int] = 300
     FAILED_COMMANDS_INVITE_USES: typing.Optional[int] = 1

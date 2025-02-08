@@ -15,6 +15,7 @@ from discord.ext import commands
 from discord import app_commands
 from frontend.utils.embed_helpers import success_embed, error_embed
 from config import settings
+from frontend.interactions.checks.owners import is_owner
 
 
 class SyncCog(commands.Cog):
@@ -69,6 +70,7 @@ class SyncCog(commands.Cog):
                 embed=error_embed("Sync Commands", f"❌ Failed to sync commands: {e}")
             )
 
+    @is_owner()
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="sync", description="Sync application commands")
     async def sync_slash(self, interaction: discord.Interaction) -> None:

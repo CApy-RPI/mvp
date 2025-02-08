@@ -7,19 +7,19 @@ from discord import app_commands
 from discord.ext import commands
 
 from backend.db.database import Database as db
-from frontend.utils.interactions.guild.guild_views import (
+from .guild_views import (
     ChannelSelectView,
     RoleSelectView,
     SettingsSelectView,
     ClearSettingsView,
 )
-from frontend.utils.interactions.guild.guild_handlers import (
+from .guild_handlers import (
     handle_channel_update,
     handle_role_update,
 )
 from frontend.cogs.handlers.guild_handler_cog import GuildHandlerCog
-from frontend.utils import embed_colors as colors
-from frontend.utils.interactions.checks.scopes import is_guild
+from frontend import config_colors as colors
+from frontend.interactions.checks.scopes import is_guild
 from config import settings
 
 

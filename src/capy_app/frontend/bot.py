@@ -60,7 +60,7 @@ class Bot(commands.AutoShardedBot):
         for item in path.iterdir():
             if (
                 item.is_file()
-                and item.suffix == ".py"
+                and item.name.endswith("cog.py")
                 and not item.name.startswith("_")
             ):
                 # Convert path to module path and load extension

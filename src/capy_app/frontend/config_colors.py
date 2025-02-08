@@ -14,3 +14,8 @@ HELP = discord.Color.purple()
 PING = discord.Color.teal()
 GUILD = discord.Color.gold()
 OLLAMA = discord.Color.dark_purple()
+
+# Ticket colors
+TICKET_BUG = discord.Color.red()
+TICKET_FEATURE = discord.Color.blue()
+TICKET_FEEDBACK = discord.Color.green()
