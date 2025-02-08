@@ -1,10 +1,18 @@
-"""Guild settings update handlers."""
+"""Guild settings update handlers.
+
+This module provides handlers for updating guild settings:
+- Channel configuration updates
+- Role configuration updates
+
+#TODO: Add validation for channel/role permissions
+#TODO: Add rollback mechanism for failed updates
+"""
 
 import logging
-from typing import Any
+from typing import Any, Dict
 import discord
 from backend.db.database import Database as db
-from .views import ChannelSelectView, RoleSelectView
+from .guild_views import ChannelSelectView, RoleSelectView
 
 logger = logging.getLogger("discord.guild.handler")
 
@@ -13,7 +21,7 @@ async def handle_channel_update(
     interaction: discord.Interaction,
     view: ChannelSelectView,
     guild_data: Any,
-    channels: dict[str, str],
+    channels: Dict[str, str],
 ) -> bool:
     """Handle channel updates after selection.
 
@@ -25,18 +33,17 @@ async def handle_channel_update(
 
     Returns:
         bool: True if update was successful, False otherwise
-    """
-    if not view.selected_channels:
-        await interaction.edit_original_response(
-            content="No channels were selected. Select channels to update:",
-            view=ChannelSelectView(channels),
-            embed=None,
-        )
-        return False
 
+    #! Warning: Does not validate channel permissions
+    #TODO: Add permission validation
+    """
     try:
+        if not view.selected_channels:
+            return True  # No changes needed
+
         updates = {
-            f"channels__{name}": id for name, id in view.selected_channels.items()
+            f"channels__{name}": channel_id
+            for name, channel_id in view.selected_channels.items()
         }
         db.update_document(guild_data, updates)
         return True
@@ -54,7 +61,7 @@ async def handle_role_update(
     interaction: discord.Interaction,
     view: RoleSelectView,
     guild_data: Any,
-    roles: dict[str, str],
+    roles: Dict[str, str],
 ) -> bool:
     """Handle role updates after selection.
 
@@ -66,17 +73,17 @@ async def handle_role_update(
 
     Returns:
         bool: True if update was successful, False otherwise
-    """
-    if not view.selected_roles:
-        await interaction.edit_original_response(
-            content="No roles were selected. Select roles to update:",
-            view=RoleSelectView(roles),
-            embed=None,
-        )
-        return False
 
+    #! Warning: Does not validate role hierarchy
+    #TODO: Add role hierarchy validation
+    """
     try:
-        updates = {f"roles__{name}": id for name, id in view.selected_roles.items()}
+        if not view.selected_roles:
+            return True  # No changes needed
+
+        updates = {
+            f"roles__{name}": role_id for name, role_id in view.selected_roles.items()
+        }
         db.update_document(guild_data, updates)
         return True
     except Exception as e:

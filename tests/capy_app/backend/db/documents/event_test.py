@@ -29,7 +29,7 @@ def test_event_creation(db):
     """
     details = EventDetails(
         name="Test Event",
-        datetime=datetime(2025, 1, 1, 12, 0),
+        time=datetime(2025, 1, 1, 12, 0),
     )
 
     event = Event(
@@ -44,7 +44,7 @@ def test_event_creation(db):
     saved_event = Event.objects(_id=123).first()
     assert saved_event is not None
     assert saved_event.details.name == "Test Event"
-    assert saved_event.details.datetime == datetime(2025, 1, 1, 12, 0)
+    assert saved_event.details.time == datetime(2025, 1, 1, 12, 0)
     assert saved_event.users == [123, 456]
     assert saved_event.guild_id == 789
     assert saved_event.message_id == 111
@@ -53,7 +53,7 @@ def test_event_creation(db):
 def test_event_reactions_defaults(db):
     # If your Event requires an _id, specify it:
     details = EventDetails(
-        name="Event With Reactions", datetime=datetime(2030, 5, 5, 10, 0)
+        name="Event With Reactions", time=datetime(2030, 5, 5, 10, 0)
     )
     event = Event(_id=200, details=details).save()
 
@@ -71,7 +71,7 @@ def test_event_required_name(db):
 
     details = EventDetails(
         # missing name
-        datetime=datetime(2025, 1, 1, 12, 0),
+        time=datetime(2025, 1, 1, 12, 0),
     )
     event = Event(_id=201, details=details)
 
@@ -81,26 +81,26 @@ def test_event_required_name(db):
     assert "name" in str(excinfo.value)
 
 
-def test_event_required_datetime(db):
+def test_event_required_time(db):
     """
-    Test that 'datetime' is required in EventDetails.
+    Test that 'time' is required in EventDetails.
     """
     from mongoengine import ValidationError
 
     details = EventDetails(
         name="Event Missing Date"
-        # missing datetime
+        # missing time
     )
     event = Event(_id=202, details=details)
 
     with pytest.raises(ValidationError) as excinfo:
         event.save()
     assert "Field is required" in str(excinfo.value)
-    assert "datetime" in str(excinfo.value)
+    assert "time" in str(excinfo.value)
 
 
 def test_add_users_after_creation(db):
-    details = EventDetails(name="Event to Update", datetime=datetime(2025, 1, 1, 12, 0))
+    details = EventDetails(name="Event to Update", time=datetime(2025, 1, 1, 12, 0))
     event = Event(_id=203, users=[111], guild_id=222, message_id=333, details=details)
     event.save()
 
@@ -115,7 +115,7 @@ def test_set_reactions(db):
     reactions = EventReactions(yes=10, maybe=2, no=1)
     details = EventDetails(
         name="Event With Custom Reactions",
-        datetime=datetime(2030, 6, 6, 12, 0),
+        time=datetime(2030, 6, 6, 12, 0),
         reactions=reactions,
     )
     Event(_id=204, details=details).save()

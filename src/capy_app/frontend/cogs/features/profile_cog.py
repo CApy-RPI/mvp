@@ -1,19 +1,28 @@
-# stl imports
-import logging
-import typing
+"""Profile management cog for handling user profiles.
 
-# third-party imports
+This module provides commands and utilities for managing user profiles including:
+- Profile creation and updates
+- Email verification
+- Major selection
+- Profile display and deletion
+
+#TODO: Add profile export/import functionality
+#TODO: Add profile privacy settings
+"""
+
+import logging
+from typing import Union
+
 import discord
 from discord import app_commands
 from discord.ext import commands
 
-# local imports
 from config import settings
 from backend.db.database import Database as db
 from backend.db.documents.user import User, UserProfile, UserName
 from frontend.utils.interactions.view_bases import ConfirmDeleteView
-from frontend.utils.interactions.profile.handlers import EmailVerifier
-from frontend.utils.interactions.profile.views import (
+from frontend.utils.interactions.profile.profile_handlers import EmailVerifier
+from frontend.utils.interactions.profile.profile_views import (
     MajorView,
     ProfileModal,
     EmailVerificationView,
@@ -21,25 +30,42 @@ from frontend.utils.interactions.profile.views import (
 
 
 class ProfileCog(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    """Profile management cog for handling user profiles."""
+
+    def __init__(self, bot: commands.Bot) -> None:
+        """Initialize the profile cog.
+
+        Args:
+            bot: The Discord bot instance
+        """
         self.bot = bot
         self.logger = logging.getLogger(
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
-        self.major_list = self.load_major_list()
+        self.major_list = self._load_major_list()
         self.email_verifier = EmailVerifier()
 
-    def load_major_list(self):
+    def _load_major_list(self) -> list[str]:
+        """Load the list of available majors from file.
+
+        Returns:
+            List of major names
+
+        #TODO: Move major list to database
+        #TODO: Add major categories and sorting
+        """
         try:
-            with open(settings.MAJORS_PATH, "r") as f:
-                majors = [line.strip() for line in f.readlines()]
+            with open(settings.MAJORS_PATH, "r", encoding="utf-8") as f:
+                majors = [line.strip() for line in f.readlines() if line.strip()]
                 if not majors:
                     self.logger.warning("majors.txt is empty")
                 return majors
         except FileNotFoundError:
             self.logger.error("majors.txt not found")
+            return ["Undeclared"]
         except Exception as e:
             self.logger.error(f"Error loading majors: {e}")
+            return ["Undeclared"]
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="profile", description="Manage your profile")
@@ -52,8 +78,13 @@ class ProfileCog(commands.Cog):
             app_commands.Choice(name="delete", value="delete"),
         ]
     )
-    async def profile(self, interaction: discord.Interaction, action: str):
-        """Handle profile actions."""
+    async def profile(self, interaction: discord.Interaction, action: str) -> None:
+        """Handle profile actions.
+
+        Args:
+            interaction: The Discord interaction
+            action: The action to perform (create/update/show/delete)
+        """
         if action in ["create", "update"]:
             await self.handle_profile(interaction, action)
         else:  # Show and delete can defer
@@ -63,8 +94,15 @@ class ProfileCog(commands.Cog):
             elif action == "show":
                 await self.show_profile(interaction)
 
-    async def handle_profile(self, interaction: discord.Interaction, action: str):
-        """Handle profile creation and updates."""
+    async def handle_profile(
+        self, interaction: discord.Interaction, action: str
+    ) -> None:
+        """Handle profile creation and updates.
+
+        Args:
+            interaction: The Discord interaction
+            action: The action to perform (create/update)
+        """
         user = db.get_document(User, interaction.user.id)
 
         # Check if user exists for the given action
@@ -94,8 +132,8 @@ class ProfileCog(commands.Cog):
             self.major_list, current_majors=user.profile.major if user else None
         )
         # Store the message reference from the major selection
-        #! This creates a follow up and thus a message instead of an interaction is carried throughout
-        #! Ideally, create one menu for everything to be handled in one interaction as it's cleaner
+        # ! This creates a follow up and thus a message instead of an interaction is carried throughout
+        # ! Ideally, create one menu for everything to be handled in one interaction as it's cleaner
         msg = await modal.interaction.followup.send(
             content="Select your major(s):",
             view=major_view,
@@ -173,10 +211,18 @@ class ProfileCog(commands.Cog):
 
     async def show_profile_embed(
         self,
-        message_or_interaction: typing.Union[discord.Message, discord.Interaction],
+        message_or_interaction: Union[discord.Message, discord.Interaction],
         user: User,
-    ):
-        """Helper method to show profile embed."""
+    ) -> None:
+        """Display a user's profile in an embed.
+
+        Args:
+            message_or_interaction: Either a Message or Interaction to respond to
+            user: The user profile to display
+
+        #TODO: Add profile customization options
+        #TODO: Add profile badges/achievements
+        """
         # Determine if we're using a Message or Interaction
 
         is_message = isinstance(message_or_interaction, discord.Message)
@@ -212,8 +258,12 @@ class ProfileCog(commands.Cog):
         else:
             await message_or_interaction.followup.send(embed=embed, ephemeral=True)
 
-    async def show_profile(self, interaction: discord.Interaction):
-        """Display user profile."""
+    async def show_profile(self, interaction: discord.Interaction) -> None:
+        """Display the user's profile.
+
+        Args:
+            interaction: The Discord interaction
+        """
         user = db.get_document(User, interaction.user.id)
         if not user:
             await interaction.edit_original_response(
@@ -223,8 +273,15 @@ class ProfileCog(commands.Cog):
 
         await self.show_profile_embed(interaction, user)
 
-    async def delete_profile(self, interaction: discord.Interaction):
-        """Delete user profile with confirmation."""
+    async def delete_profile(self, interaction: discord.Interaction) -> None:
+        """Delete the user's profile with confirmation.
+
+        Args:
+            interaction: The Discord interaction
+
+        #! Note: This action is irreversible
+        #TODO: Add profile backup before deletion
+        """
         user = db.get_document(User, interaction.user.id)
         if not user:
             await interaction.edit_original_response(
@@ -250,5 +307,10 @@ class ProfileCog(commands.Cog):
             )
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
+    """Set up the Profile cog.
+
+    Args:
+        bot: The Discord bot instance
+    """
     await bot.add_cog(ProfileCog(bot))

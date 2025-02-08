@@ -1,4 +1,3 @@
-import typing
 import datetime
 import mongoengine
 
@@ -6,13 +5,7 @@ import mongoengine
 class RestrictedBase(mongoengine.Document):
     """Base class for restricted documents with proper type hints."""
 
-    _fields: typing.ClassVar[typing.Dict[str, mongoengine.BaseField]]
     meta = {"abstract": True}
-
-    @classmethod
-    def get_fields(cls) -> typing.Dict[str, mongoengine.BaseField]:
-        """Get document fields with proper type hints."""
-        return cls._fields
 
     def __setattr__(self, name, value):
         if not name.startswith("_") and name not in self._fields:

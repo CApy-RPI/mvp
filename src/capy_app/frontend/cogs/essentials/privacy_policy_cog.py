@@ -1,17 +1,34 @@
+"""Privacy policy cog for displaying data handling information.
+
+This module handles the display of privacy policy information to users.
+
+#TODO: Add version control for privacy policy updates
+#TODO: Load privacy policy from external configuration
+#! Ensure compliance with data protection regulations
+"""
+
 import discord
 from discord.ext import commands
 from discord import app_commands
+
 from frontend.utils import embed_colors as colors
 
 
 class PrivacyPolicyCog(commands.Cog):
-    """Privacy policy and data handling information."""
+    """Privacy policy and data handling information cog."""
 
     @app_commands.command(
         name="privacy",
         description="View our privacy policy and data handling practices",
     )
-    async def privacy(self, interaction: discord.Interaction):
+    async def privacy(self, interaction: discord.Interaction) -> None:
+        """Display privacy policy and data handling information.
+
+        Args:
+            interaction: The Discord interaction initiating the command
+
+        #TODO: Add privacy policy acceptance tracking
+        """
         embed = discord.Embed(
             title="Privacy Policy & Data Handling",
             color=colors.INFO,
@@ -77,5 +94,5 @@ class PrivacyPolicyCog(commands.Cog):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(PrivacyPolicyCog(bot))

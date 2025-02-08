@@ -3,7 +3,10 @@ import mongoengine
 import time
 from datetime import datetime, timezone
 from mongomock import MongoClient
-from src.capy_app.backend.db.documents.restrict import RestrictedDocument, RestrictedEmbeddedDocument
+from src.capy_app.backend.db.documents.restrict import (
+    RestrictedDocument,
+    RestrictedEmbeddedDocument,
+)
 
 
 class ConcreteRestrictedDocument(RestrictedDocument):
@@ -60,7 +63,6 @@ def test_restricted_document_delete_attribute(db):
         del doc.created_at
 
 
-
 def test_restricted_document_autoupdate(db):
     """
     Test that `updated_at` automatically updates when saving the document after changes.
@@ -77,14 +79,20 @@ def test_restricted_document_autoupdate(db):
     updated_at = doc.updated_at.replace(tzinfo=timezone.utc)
 
     # Round both timestamps to the nearest millisecond
-    first_updated_ms = first_updated.replace(microsecond=(first_updated.microsecond // 1000) * 1000)
-    updated_at_ms = updated_at.replace(microsecond=(updated_at.microsecond // 1000) * 1000)
-
-    print(f"Before update (ms rounded): {first_updated_ms}, After update (ms rounded): {updated_at_ms}")
-
-    assert updated_at_ms >= first_updated_ms, (
-        f"Expected updated_at ({updated_at_ms}) to be later than first_updated ({first_updated_ms})"
+    first_updated_ms = first_updated.replace(
+        microsecond=(first_updated.microsecond // 1000) * 1000
     )
+    updated_at_ms = updated_at.replace(
+        microsecond=(updated_at.microsecond // 1000) * 1000
+    )
+
+    print(
+        f"Before update (ms rounded): {first_updated_ms}, After update (ms rounded): {updated_at_ms}"
+    )
+
+    assert (
+        updated_at_ms >= first_updated_ms
+    ), f"Expected updated_at ({updated_at_ms}) to be later than first_updated ({first_updated_ms})"
 
 
 def test_restricted_embedded_document_set_known_field(db):

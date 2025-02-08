@@ -1,7 +1,18 @@
-"""Profile-specific view classes."""
+"""Profile-specific view classes for Discord interactions.
+
+This module provides the UI components for profile management:
+- Profile creation/editing modal
+- Major selection view
+- Email verification view
+
+#TODO: Add profile customization views
+#TODO: Add profile privacy settings view
+"""
 
 import asyncio
 import datetime
+from typing import Optional
+
 import discord
 from frontend.utils.interactions.view_bases import BaseDropdownView
 from backend.db.documents.user import User
@@ -10,7 +21,12 @@ from backend.db.documents.user import User
 class ProfileModal(discord.ui.Modal):
     """Modal for creating/updating user profile information."""
 
-    def __init__(self, user: User | None = None):
+    def __init__(self, user: Optional[User] = None) -> None:
+        """Initialize the profile modal.
+
+        Args:
+            user: Optional user for pre-filling update forms
+        """
         super().__init__(title="Create Profile")
         self.add_item(
             discord.ui.TextInput(label="First Name", placeholder="John", required=True)
@@ -49,7 +65,18 @@ class ProfileModal(discord.ui.Modal):
             self.children[3].default = user.profile.student_id
             self.children[4].default = user.profile.school_email
 
-    async def on_submit(self, interaction: discord.Interaction):
+    async def on_submit(self, interaction: discord.Interaction) -> bool:
+        """Handle modal submission and validation.
+
+        Args:
+            interaction: The Discord interaction
+
+        Returns:
+            bool: Whether the submission was valid
+
+        #TODO: Add more robust validation
+        #TODO: Add custom error messages
+        """
         await interaction.response.defer(ephemeral=True)
         self.interaction = interaction
 
@@ -97,7 +124,18 @@ class ProfileModal(discord.ui.Modal):
 class MajorView(BaseDropdownView):
     """Major selection view with dropdown and accept/cancel buttons."""
 
-    def __init__(self, major_list: list[str], current_majors: list[str] | None = None):
+    def __init__(
+        self, major_list: list[str], current_majors: Optional[list[str]] = None
+    ) -> None:
+        """Initialize the major selection view.
+
+        Args:
+            major_list: List of available majors
+            current_majors: Optional list of currently selected majors
+
+        #TODO: Add major categories
+        #TODO: Add major search/filter
+        """
         super().__init__()
         self.selected_majors = current_majors or ["Undeclared"]
 
@@ -112,7 +150,7 @@ class MajorView(BaseDropdownView):
             row=0,
         )
 
-        async def select_callback(interaction: discord.Interaction):
+        async def select_callback(interaction: discord.Interaction) -> None:
             self.selected_majors = select.values
             await interaction.response.defer()
 
@@ -123,11 +161,12 @@ class MajorView(BaseDropdownView):
 class EmailVerificationView(discord.ui.View):
     """View for email verification code entry."""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize the email verification view."""
         super().__init__()
         self.verification_code = None
 
-        async def button_callback(interaction: discord.Interaction):
+        async def button_callback(interaction: discord.Interaction) -> None:
             modal = discord.ui.Modal(title="Email Verification")
             modal.add_item(
                 discord.ui.TextInput(
@@ -139,7 +178,7 @@ class EmailVerificationView(discord.ui.View):
                 )
             )
 
-            async def modal_callback(interaction: discord.Interaction):
+            async def modal_callback(interaction: discord.Interaction) -> None:
                 await interaction.response.defer(ephemeral=True)
                 self.verification_code = modal.children[0].value
                 self.stop()
@@ -156,7 +195,18 @@ class EmailVerificationView(discord.ui.View):
         )
         self.children[0].callback = button_callback
 
-    async def wait_for_verification(self, timeout: float = 300.0) -> str | None:
+    async def wait_for_verification(self, timeout: float = 300.0) -> Optional[str]:
+        """Wait for the user to enter a verification code.
+
+        Args:
+            timeout: Time in seconds to wait for verification
+
+        Returns:
+            The verification code if entered, None if timed out
+
+        #TODO: Add code retry limit
+        #TODO: Add code expiration
+        """
         try:
             await asyncio.wait_for(self.wait(), timeout=timeout)
             return self.verification_code

@@ -1,6 +1,18 @@
-"""Guild settings management cog."""
+"""Guild settings management cog.
+
+This module provides commands and utilities for managing guild settings:
+- Channel configuration
+- Role configuration
+- Settings display and management
+
+#TODO: Add configuration backup/restore
+#TODO: Add configuration templates
+#TODO: Add guild setup wizard
+"""
 
 import logging
+from typing import Dict
+
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -8,12 +20,12 @@ from discord.ext import commands
 from backend.db.database import Database as db
 from frontend.utils import embed_colors as colors
 from frontend.cogs.handlers.guild_handler_cog import GuildHandlerCog
-from frontend.utils.interactions.guild.views import (
+from frontend.utils.interactions.guild.guild_views import (
     ChannelSelectView,
     RoleSelectView,
     SettingsSelectView,
 )
-from frontend.utils.interactions.guild.handlers import (
+from frontend.utils.interactions.guild.guild_handlers import (
     handle_channel_update,
     handle_role_update,
 )
@@ -25,17 +37,20 @@ class GuildCog(commands.Cog):
     """Server configuration management."""
 
     def __init__(self, bot: commands.Bot) -> None:
+        """Initialize the guild cog."""
         super().__init__()
         self.bot = bot
         self.logger = logging.getLogger("discord.guild")
 
-        self.channels = {
+        self.channels: Dict[str, str] = {
+            # Channel name -> Description
             "reports": "Channel for report submissions",
             "announcements": "Channel for announcements",
             "moderator": "Channel for moderator communications",
         }
 
-        self.roles = {
+        self.roles: Dict[str, str] = {
+            # Role name -> Description
             "visitor": "Role for visitors",
             "member": "Role for verified members",
             "eboard": "Role for executive board members",
@@ -52,14 +67,37 @@ class GuildCog(commands.Cog):
             app_commands.Choice(name="clear", value="clear"),
         ]
     )
-    async def server(self, interaction: discord.Interaction, action: str):
+    async def server(self, interaction: discord.Interaction, action: str) -> None:
+        """Handle server setting actions.
+
+        Args:
+            interaction: The Discord interaction
+            action: The action to perform (show/edit/clear)
+        """
         await interaction.response.defer(ephemeral=True)
-        if action == "show":
-            await self.show_settings(interaction)
-        elif action == "edit":
-            await self.edit_settings(interaction)
-        elif action == "clear":
-            await self.clear_settings(interaction)
+
+        # Check permissions for edit/clear actions
+        if (
+            action in ["edit", "clear"]
+            and not interaction.user.guild_permissions.manage_guild
+        ):
+            await interaction.edit_original_response(
+                content="You need 'Manage Server' permission to modify settings."
+            )
+            return
+
+        try:
+            if action == "show":
+                await self.show_settings(interaction)
+            elif action == "edit":
+                await self.edit_settings(interaction)
+            elif action == "clear":
+                await self.clear_settings(interaction)
+        except Exception as e:
+            self.logger.error(f"Failed to handle server action {action}: {e}")
+            await interaction.edit_original_response(
+                content=f"An error occurred while performing {action}. Please try again."
+            )
 
     async def show_settings(self, interaction: discord.Interaction) -> None:
         """Display current server settings.
@@ -99,7 +137,14 @@ class GuildCog(commands.Cog):
         await interaction.edit_original_response(content=None, embed=embed, view=None)
 
     async def edit_settings(self, interaction: discord.Interaction) -> None:
-        """Edit server settings using views."""
+        """Edit server settings using views.
+
+        Args:
+            interaction: The Discord interaction
+
+        #TODO: Add configuration validation
+        #TODO: Add audit logging
+        """
         view = SettingsSelectView(self)
         select = discord.ui.Select(
             placeholder="Choose what to edit",
@@ -110,10 +155,14 @@ class GuildCog(commands.Cog):
                     description="Edit channel settings",
                 ),
                 discord.SelectOption(
-                    label="Roles", value="roles", description="Edit role settings"
+                    label="Roles",
+                    value="roles",
+                    description="Edit role settings",
                 ),
                 discord.SelectOption(
-                    label="All", value="all", description="Edit all settings"
+                    label="All",
+                    value="all",
+                    description="Edit all settings",
                 ),
             ],
         )
@@ -263,6 +312,10 @@ class GuildCog(commands.Cog):
 
         Args:
             interaction: The Discord interaction
+
+        #! Warning: This action cannot be undone
+        #TODO: Add confirmation dialog
+        #TODO: Add backup before clearing
         """
         options = [
             discord.SelectOption(
@@ -326,5 +379,9 @@ class GuildCog(commands.Cog):
 
 
 async def setup(bot: commands.Bot) -> None:
-    """Set up the Guild cog."""
+    """Set up the Guild cog.
+
+    Args:
+        bot: The Discord bot instance
+    """
     await bot.add_cog(GuildCog(bot))

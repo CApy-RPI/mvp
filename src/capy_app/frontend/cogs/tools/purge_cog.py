@@ -1,5 +1,14 @@
-import discord
+"""Message purging functionality for server management.
+
+This module provides commands for bulk message deletion with various modes.
+
+#TODO: Add audit logging for purge actions
+#TODO: Separate purge command into subcommands like guild or profile
+#! Use with caution - deletions are permanent
+"""
+
 import logging
+import discord
 from discord.ext import commands
 from discord import app_commands
 from datetime import datetime, timedelta
@@ -9,9 +18,12 @@ from frontend.utils.embed_helpers import success_embed, error_embed
 from config import settings
 
 
-class DateTimeModal(discord.ui.Modal):
-    def __init__(self):
-        super().__init__(title="Enter Date and Time")
+class DateTimeModal(discord.ui.Modal, title="Enter Date and Time"):
+    """Modal for date and time input."""
+
+    def __init__(self) -> None:
+        """Initialize the date time modal."""
+        super().__init__()
         self.add_item(
             discord.ui.TextInput(
                 label="Date (YYYY-MM-DD)",

@@ -1,7 +1,7 @@
 import typing
 from mailjet_rest import Client
 
-from config import settings
+from src.capy_app.config import settings
 
 
 class EmailError(Exception):
@@ -17,15 +17,15 @@ class EmailSendError(EmailError):
 
 
 class Email:
-    mailjet: Client
-
     def __init__(self) -> None:
         """Initialize the Mailer with Mailjet client."""
         self.mailjet = Client(
             auth=(settings.MAILJET_API_KEY, settings.MAILJET_API_SECRET), version="v3.1"
         )
 
-    def send_mail(self, to_email: str, verification_code: str) -> typing.Any:
+    def send_mail(
+        self, to_email: str, verification_code: str
+    ) -> typing.Dict[str, typing.Any]:
         """
         Send a verification email.
 
