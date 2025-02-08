@@ -1,7 +1,6 @@
 # stl imports
-import asyncio
 import logging
-import random
+import typing
 
 # third-party imports
 import discord
@@ -55,11 +54,8 @@ class ProfileCog(commands.Cog):
     )
     async def profile(self, interaction: discord.Interaction, action: str):
         """Handle profile actions."""
-        if action in ["create", "update"]:  # These use modals, don't defer
-            if action == "create":
-                await self.create_profile(interaction)
-            else:
-                await self.update_profile(interaction)
+        if action in ["create", "update"]:
+            await self.handle_profile(interaction, action)
         else:  # Show and delete can defer
             await interaction.response.defer(ephemeral=True)
             if action == "delete":
@@ -67,136 +63,77 @@ class ProfileCog(commands.Cog):
             elif action == "show":
                 await self.show_profile(interaction)
 
-    async def create_profile(self, interaction: discord.Interaction):
-        """Create a new user profile."""
+    async def handle_profile(self, interaction: discord.Interaction, action: str):
+        """Handle profile creation and updates."""
         user = db.get_document(User, interaction.user.id)
-        if user:
+
+        # Check if user exists for the given action
+        if action == "create" and user:
             await interaction.response.send_message(
                 "You already have a profile. Use /profile update to modify it.",
                 ephemeral=True,
             )
             return
-
-        # Show modal first
-        modal = ProfileModal()
-        await interaction.response.send_modal(modal)
-        await modal.wait()
-
-        if not modal.interaction:
-            return
-
-        # Use followup instead of response.defer since modal.interaction has already been responded to
-        msg = await modal.interaction.followup.send(
-            content="Select your major(s):", view=MajorView(self.major_list), wait=True
-        )
-
-        # Get the view from the message
-        major_view = msg.view
-        await major_view.wait()
-
-        if not major_view.value:  # Cancelled
-            selected_majors = ["Undeclared"]
-        else:
-            selected_majors = major_view.selected_majors
-
-        # Handle email verification
-        verification_code = self.email_verifier.generate_code(
-            interaction.user.id, modal.children[4].value
-        )
-        email_result = self.email_verifier._email_client.send_mail(
-            modal.children[4].value, verification_code
-        )
-
-        if not email_result:
-            await msg.edit(
-                content="Failed to send verification email. Please try again.",
-                view=None,
-            )
-            return
-
-        # Show verification button
-        verify_view = EmailVerificationView()
-        await msg.edit(
-            content="Please check your email and spam for a verification code, then click the button below to verify:",
-            view=verify_view,
-        )
-
-        submitted_code = await verify_view.wait_for_verification(timeout=300.0)
-        if not submitted_code:
-            await msg.edit(
-                content="Verification timed out. Please try again.", view=None
-            )
-            return
-
-        if not self.email_verifier.verify_code(interaction.user.id, submitted_code):
-            await msg.edit(
-                content="Invalid verification code. Please try again.", view=None
-            )
-            return
-
-        # Create user profile
-        new_user = User(
-            _id=interaction.user.id,
-            profile=UserProfile(
-                name=UserName(
-                    first=modal.children[0].value, last=modal.children[1].value
-                ),
-                major=selected_majors,
-                graduation_year=modal.children[2].value,
-                school_email=modal.children[4].value,
-                student_id=modal.children[3].value,
-            ),
-        )
-        db.add_document(new_user)
-
-        # Show the new profile immediately
-        embed = discord.Embed(
-            title=f"{interaction.user.display_name}'s Profile",
-            color=discord.Color.purple(),
-        )
-        # ... rest of embed creation ...
-        await msg.edit(content=None, embed=embed, view=None)
-
-    async def update_profile(self, interaction: discord.Interaction):
-        """Update existing user profile."""
-        user = db.get_document(User, interaction.user.id)
-        if not user:
+        elif action == "update" and not user:
             await interaction.response.send_message(
                 "You don't have a profile yet! Use /profile create first.",
                 ephemeral=True,
             )
             return
 
-        modal = ProfileModal(user=user)
+        # Show modal
+        modal = ProfileModal(user=user if action == "update" else None)
         await interaction.response.send_modal(modal)
         await modal.wait()
 
         if not modal.interaction:
             return
 
-        # Use followup since modal.interaction has already been responded to
+        # Create and show major view
+        major_view = MajorView(
+            self.major_list, current_majors=user.profile.major if user else None
+        )
+        # Store the message reference from the major selection
+        #! This creates a follow up and thus a message instead of an interaction is carried throughout
+        #! Ideally, create one menu for everything to be handled in one interaction as it's cleaner
         msg = await modal.interaction.followup.send(
-            content="Processing your update...", ephemeral=True, wait=True
+            content="Select your major(s):",
+            view=major_view,
+            ephemeral=True,
+            wait=True,  # Important: This makes it return the message object
         )
 
-        # Verify email if changed
-        if modal.children[4].value != user.profile.school_email:
-            # Use the send_verification_email method
+        # Wait for major selection
+        await major_view.wait()
+        selected_majors = (
+            major_view.selected_majors
+            if major_view.value
+            else (user.profile.major if user else ["Undeclared"])
+        )
+
+        # Handle email verification if needed
+        new_email = modal.children[4].value
+        if not user or (user and new_email != user.profile.school_email):
+            if not new_email.endswith("edu"):
+                await msg.edit(content="Invalid School email!", view=None)
+                return
+
             if not self.email_verifier.send_verification_email(
-                interaction.user.id, modal.children[4].value
+                interaction.user.id, new_email
             ):
                 await msg.edit(
-                    content="Failed to send verification email. Please try again."
+                    content="Failed to send verification email. Please try again.",
+                    view=None,
                 )
                 return
 
-            view = EmailVerificationView()
+            verify_view = EmailVerificationView()
             await msg.edit(
                 content="Please check your email for a verification code, then click the button below to verify:",
-                view=view,
+                view=verify_view,
             )
 
-            submitted_code = await view.wait_for_verification(timeout=300.0)
+            submitted_code = await verify_view.wait_for_verification(timeout=300.0)
             if not submitted_code:
                 await msg.edit(
                     content="Verification timed out. Please try again.", view=None
@@ -209,38 +146,54 @@ class ProfileCog(commands.Cog):
                 )
                 return
 
-        # Update major selection
-        major_view = MajorView(self.major_list, current_majors=user.profile.major)
-        await msg.edit(content="Update your major(s):", view=major_view)
-
-        await major_view.wait()
-        selected_majors = (
-            major_view.selected_majors if major_view.value else user.profile.major
-        )
-
-        # Update the user profile
-        updates = {
-            "profile__name__first": modal.children[0].value,
-            "profile__name__last": modal.children[1].value,
-            "profile__graduation_year": modal.children[2].value,
-            "profile__school_email": modal.children[4].value,
-            "profile__student_id": modal.children[3].value,
-            "profile__major": selected_majors,
+        # Create or update user profile
+        profile_data = {
+            "name": UserName(
+                first=modal.children[0].value, last=modal.children[1].value
+            ),
+            "major": selected_majors,
+            "graduation_year": modal.children[2].value,
+            "school_email": modal.children[4].value,
+            "student_id": modal.children[3].value,
         }
 
-        db.update_document(user, updates)
+        if action == "create":
+            new_user = User(
+                _id=interaction.user.id, profile=UserProfile(**profile_data)
+            )
+            db.add_document(new_user)
+            user = new_user
+        else:
+            updates = {f"profile__{k}": v for k, v in profile_data.items()}
+            db.update_document(user, updates)
+            user = db.get_document(User, interaction.user.id)
 
-        # Show the updated profile
-        updated_user = db.get_document(User, interaction.user.id)
-        await self.show_profile_embed(msg, updated_user)
+        # Show the profile using followup
+        await self.show_profile_embed(msg, user)
 
-    async def show_profile_embed(self, interaction: discord.Interaction, user: User):
+    async def show_profile_embed(
+        self,
+        message_or_interaction: typing.Union[discord.Message, discord.Interaction],
+        user: User,
+    ):
         """Helper method to show profile embed."""
+        # Determine if we're using a Message or Interaction
+
+        is_message = isinstance(message_or_interaction, discord.Message)
+
         embed = discord.Embed(
-            title=f"{interaction.user.display_name}'s Profile",
+            title=f"{user.profile.name.first}'s Profile",
             color=discord.Color.purple(),
         )
-        embed.set_thumbnail(url=interaction.user.display_avatar.url)
+
+        # Get the avatar URL differently based on the type
+        if is_message:
+            avatar_url = (
+                message_or_interaction.interaction_metadata.user.display_avatar.url
+            )
+        else:
+            avatar_url = message_or_interaction.user.display_avatar.url
+        embed.set_thumbnail(url=avatar_url)
         embed.add_field(name="First Name", value=user.profile.name.first, inline=True)
         embed.add_field(name="Last Name", value=user.profile.name.last, inline=True)
         embed.add_field(name="Major", value=", ".join(user.profile.major), inline=True)
@@ -252,7 +205,12 @@ class ProfileCog(commands.Cog):
         )
         embed.add_field(name="Student ID", value=user.profile.student_id, inline=True)
 
-        await interaction.edit_original_response(content=None, embed=embed, view=None)
+        # Use followup instead of edit_original_response
+        # Send differently based on the type
+        if is_message:
+            await message_or_interaction.edit(content=None, embed=embed, view=None)
+        else:
+            await message_or_interaction.followup.send(embed=embed, ephemeral=True)
 
     async def show_profile(self, interaction: discord.Interaction):
         """Display user profile."""
