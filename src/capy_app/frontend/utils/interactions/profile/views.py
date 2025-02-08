@@ -1,6 +1,7 @@
 """Profile-specific view classes."""
 
 import asyncio
+import datetime
 import discord
 from frontend.utils.interactions.view_bases import BaseDropdownView
 from backend.db.documents.user import User
@@ -50,6 +51,47 @@ class ProfileModal(discord.ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
+        self.interaction = interaction
+
+        # Validate graduation year
+        try:
+            grad_year = int(self.children[2].value)
+            current_year = datetime.datetime.now().year
+            if not (current_year <= grad_year <= current_year + 6):
+                await interaction.followup.send(
+                    "Invalid graduation year. Must be between current year and 6 years in the future.",
+                    ephemeral=True,
+                )
+                return False
+        except ValueError:
+            await interaction.followup.send(
+                "Graduation year must be a valid number.", ephemeral=True
+            )
+            return False
+
+        # Validate student ID
+        try:
+            student_id = int(self.children[3].value)
+            if not (100000000 <= student_id <= 999999999):
+                await interaction.followup.send(
+                    "Student ID must be a 9-digit number.", ephemeral=True
+                )
+                return False
+        except ValueError:
+            await interaction.followup.send(
+                "Student ID must be a valid number.", ephemeral=True
+            )
+            return False
+
+        # Validate email
+        email = self.children[4].value.lower()
+        if not email.endswith(".edu"):
+            await interaction.followup.send(
+                "Please use a valid school email address.", ephemeral=True
+            )
+            return False
+
+        return True
 
 
 class MajorView(BaseDropdownView):

@@ -17,7 +17,7 @@ class BaseDropdownView(discord.ui.View):
         if self.message:
             await self.message.delete()
 
-    @discord.ui.button(label="Accept", style=discord.ButtonStyle.green, row=1)
+    @discord.ui.button(label="Accept", style=discord.ButtonStyle.green, row=4)
     async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         self.value = True
@@ -26,7 +26,7 @@ class BaseDropdownView(discord.ui.View):
         if self.message:
             await self.message.delete()
 
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, row=1)
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red, row=4)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         self.value = False

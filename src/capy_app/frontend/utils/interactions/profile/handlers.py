@@ -4,9 +4,10 @@ import random
 from typing import Any
 from backend.modules.email import Email
 
+
 class EmailVerifier:
     """Handler for email verification codes."""
-    
+
     def __init__(self):
         self._codes = {}
         self._email_client = Email()
@@ -31,18 +32,3 @@ class EmailVerifier:
         """Send verification email to user."""
         code = self.generate_code(user_id, email)
         return self._email_client.send_mail(email, code)
-
-
-async def validate_profile_data(modal: Any) -> tuple[bool, str]:
-    """Validate profile modal input data.
-    
-    Returns:
-        tuple[bool, str]: (is_valid, error_message)
-    """
-    if not modal.children[2].value.isdigit():
-        return False, "Invalid graduation year!"
-    if not modal.children[3].value.isdigit():
-        return False, "Invalid student ID!"
-    if not modal.children[4].value.endswith("edu"):
-        return False, "Invalid School email!"
-    return True, ""
