@@ -1,8 +1,7 @@
-# cogs.ping.py - displays the bot's latency (for testing)
-
 import discord
 import logging
 from discord.ext import commands
+from discord import app_commands
 from frontend.utils import colors
 
 
@@ -13,8 +12,8 @@ class PingCog(commands.Cog):
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
 
-    @commands.command(name="ping", help="Shows the bot's latency")
-    async def ping(self, ctx):
+    @app_commands.command(name="ping", description="Shows the bot's latency")
+    async def ping(self, interaction: discord.Interaction):
         message = f"⏱ {round(self.bot.latency * 1000)} ms Latency!"
         embed = discord.Embed(
             title="Ping",
@@ -22,7 +21,7 @@ class PingCog(commands.Cog):
             color=colors.PING,
         )
         self.logger.info(message)
-        await ctx.send(embed=embed)
+        await interaction.response.send_message(embed=embed)
 
 
 async def setup(bot: commands.Bot):

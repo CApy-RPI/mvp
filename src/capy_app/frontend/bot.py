@@ -9,7 +9,6 @@ import pathlib
 import discord
 from discord.ext import commands
 from discord.ext.commands import Context
-from backend.db.documents.guild import Guild
 
 # Local imports
 from backend.db.database import Database as db
@@ -85,6 +84,7 @@ class Bot(commands.AutoShardedBot):
         """Load all cog extensions during bot setup."""
         cog_path = pathlib.Path(settings.COG_PATH)
         await self._load_cogs_recursive(cog_path, settings.COG_PATH.replace("/", "."))
+        self.logger.info("Cog extensions loaded")
 
     async def on_ready(self) -> None:
         """Handle bot ready event and log connection details."""
@@ -94,8 +94,14 @@ class Bot(commands.AutoShardedBot):
         self.logger.info(f"Logged in as {self.user.name} - {self.user.id}")
         self.logger.info(
             f"Connected to {len(self.guilds)} guilds "
-            f"across {self.shard_count} shards."
+            f"across {self.shard_count} shards"
         )
+
+        debug_guild = self.get_guild(settings.DEBUG_GUILD_ID)
+        if debug_guild:
+            self.logger.info(f"Connected to debug guild: {debug_guild.name}")
+        await self.tree.sync(guild=debug_guild)
+        self.logger.info("Command tree synced")
 
     async def on_message(self, message: discord.Message) -> None:
         """Process incoming messages and commands.

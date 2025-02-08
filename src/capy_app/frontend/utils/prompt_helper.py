@@ -2,7 +2,6 @@
 
 import typing
 import asyncio
-import logging
 import discord
 from discord.ext import commands
 
@@ -117,7 +116,7 @@ async def prompt_one(
     title: str = "Input Needed",
     color: discord.Color = discord.Color.blurple(),
     timeout: float = 30.0,
-) -> typing.Optional[discord.Message]:
+) -> typing.Optional[typing.Any]:
     """Prompt user for a single input response.
 
     Args:
@@ -139,7 +138,10 @@ async def prompt_one(
             timeout=timeout,
             check=lambda m: m.author == ctx.author and m.channel == ctx.channel,
         )
+        if not response.content:
+            return None
         return response
+
     except asyncio.TimeoutError:
         await prompt_msg.edit(
             embed=discord.Embed(

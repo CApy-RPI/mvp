@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     MODEL_NAME: typing.Optional[str] = None
     MESSAGE_LIMIT: typing.Optional[int] = 500
 
+    # Debug guild setting
+    DEBUG_GUILD_ID: typing.Optional[int] = None
+
     class Config:
         env_file = ".env"
         case_sensitive = True

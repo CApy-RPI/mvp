@@ -51,7 +51,7 @@ class HelpCog(commands.HelpCommand):
                 if command_list:
                     cog_name = cog.qualified_name if cog else "No Category"
                     embed.add_field(
-                        name=cog_name, value="\n.join(command_list), inline=False"
+                        name=cog_name, value="\n".join(command_list), inline=False
                     )
 
             await ctx.send(embed=embed)
