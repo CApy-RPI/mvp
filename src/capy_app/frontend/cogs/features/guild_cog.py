@@ -43,6 +43,7 @@ class GuildCog(commands.Cog):
         }
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
+    @app_commands.guild_only()
     @app_commands.command(name="server", description="Manage server settings")
     @app_commands.describe(action="The action to perform with server settings")
     @app_commands.choices(
@@ -54,6 +55,14 @@ class GuildCog(commands.Cog):
     )
     async def server(self, interaction: discord.Interaction, action: str):
         await interaction.response.defer(ephemeral=True)
+        if not interaction.user.guild_permissions.manage_guild:
+            await interaction.edit_original_response(
+                content="You don't have permission to edit server settings.",
+                embed=None,
+                view=None,
+            )
+            return
+
         if action == "show":
             await self.show_settings(interaction)
         elif action == "edit":

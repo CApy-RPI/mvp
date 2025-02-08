@@ -37,9 +37,9 @@ class SyncCog(commands.Cog):
                 )
             )
 
+    @app_commands.is_owner()
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="sync", description="Sync application commands")
-    @app_commands.checks.has_permissions(administrator=True)
     async def sync_slash(self, interaction: discord.Interaction):
         try:
             debug_guild = self.bot.get_guild(settings.DEBUG_GUILD_ID)
