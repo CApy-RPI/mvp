@@ -1,8 +1,8 @@
 import typing
 from unittest.mock import Mock, patch
 import pytest
-from capy_app.backend.mods.email import Email, EmailError, EmailSendError
-from config import MAILJET_API_KEY, MAILJET_API_SECRET, EMAIL_ADDRESS
+from src.capy_app.backend.mods.email import Email, EmailError, EmailSendError
+from src.capy_app.config import MAILJET_API_KEY, MAILJET_API_SECRET, EMAIL_ADDRESS
 
 
 @pytest.fixture

@@ -89,3 +89,68 @@ def test_update_channels_roles(db):
     assert updated_guild.channels.moderator == 333
     assert updated_guild.roles.eboard == "VicePresident"
     assert updated_guild.roles.admin == "ModeratorRole"
+
+def test_create_guild_defaults(db):
+    guild = Guild(_id=1, users=[101, 102], events=[201, 202])
+    guild.save()
+
+    saved_guild = Guild.objects.get(_id=1)
+    assert saved_guild._id == 1
+    assert saved_guild.users == [101, 102]
+    assert saved_guild.events == [201, 202]
+    assert isinstance(saved_guild.channels, GuildChannels)
+    assert isinstance(saved_guild.roles, GuildRoles)
+
+
+def test_guild_invalid_user_ids(db):
+    # Test with string instead of integer user IDs
+    with pytest.raises(mongoengine.ValidationError):
+        guild = Guild(_id=1, users=["invalid", "user_ids"])
+        guild.save()
+
+    # Test with negative user IDs
+    with pytest.raises(mongoengine.ValidationError):
+        guild = Guild(_id=1, users=[-1, -2])
+        guild.save()
+
+
+def test_guild_invalid_event_ids(db):
+    # Test with string instead of integer event IDs
+    with pytest.raises(mongoengine.ValidationError):
+        guild = Guild(_id=1, events=["invalid", "event_ids"])
+        guild.save()
+
+    # Test with negative event IDs
+    with pytest.raises(mongoengine.ValidationError):
+        guild = Guild(_id=1, events=[-1, -2])
+        guild.save()
+
+
+def test_guild_invalid_channels(db):
+    # Test with invalid channel data
+    with pytest.raises(mongoengine.ValidationError):
+        guild = Guild(_id=1)
+        guild.channels = {"invalid": "channel_data"}  # Should be GuildChannels instance
+        guild.save()
+
+
+def test_guild_invalid_roles(db):
+    # Test with invalid role data
+    with pytest.raises(mongoengine.ValidationError):
+        guild = Guild(_id=1)
+        guild.roles = ["invalid_roles"]  # Should be GuildRoles instance
+        guild.save()
+
+def test_save_updates_timestamp(db):
+    """Test that saving a guild updates the updated_at timestamp"""
+    guild = Guild(_id=6, users=[107], events=[207])
+    guild.save()
+    initial_updated_at = guild.updated_at
+
+    # Wait a moment to ensure timestamp will be different
+    import time
+    time.sleep(0.1)
+
+    # Save again and verify timestamp changed
+    guild.save()
+    assert guild.updated_at > initial_updated_at

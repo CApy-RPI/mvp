@@ -1,7 +1,7 @@
 import pytest
 import mongoengine
 import mongomock
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from src.capy_app.backend.db.documents.event import Event, EventDetails, EventReactions
 
@@ -124,3 +124,115 @@ def test_set_reactions(db):
     assert event.details.reactions.yes == 10
     assert event.details.reactions.maybe == 2
     assert event.details.reactions.no == 1
+
+def test_event_creation_with_long_name(db):
+    """Test event creation with a very long name and special characters"""
+    long_name = "🎉 " + "Very Long Event Name! " * 50 + " 🎊"
+    details = EventDetails(
+        name=long_name,
+        datetime=datetime(2025, 1, 1, 12, 0),
+    )
+
+    event = Event(
+        _id=124,
+        users=[123],
+        guild_id=789,
+        message_id=111,
+        details=details,
+    )
+    event.save()
+
+    saved_event = Event.objects(_id=124).first()
+    assert saved_event is not None
+    assert saved_event.details.name == long_name
+
+
+def test_event_creation_with_past_date(db):
+    """Test event creation with a past date"""
+    past_date = datetime.now() - timedelta(days=7)
+    details = EventDetails(
+        name="Past Event",
+        datetime=past_date,
+    )
+
+    event = Event(
+        _id=125,
+        users=[123],
+        guild_id=789,
+        message_id=111,
+        details=details,
+    )
+    event.save()
+
+    saved_event = Event.objects(_id=125).first()
+    assert saved_event is not None
+    assert saved_event.details.datetime == past_date
+
+
+def test_event_creation_with_empty_users(db):
+    """Test event creation with no users"""
+    details = EventDetails(
+        name="No Users Event",
+        datetime=datetime(2025, 1, 1, 12, 0),
+    )
+
+    event = Event(
+        _id=126,
+        users=[],
+        guild_id=789,
+        message_id=111,
+        details=details,
+    )
+    event.save()
+
+    saved_event = Event.objects(_id=126).first()
+    assert saved_event is not None
+    assert saved_event.users == []
+
+
+def test_event_creation_with_many_users(db):
+    """Test event creation with a large number of users"""
+    many_users = list(range(1000))  # 1000 user IDs
+    details = EventDetails(
+        name="Many Users Event",
+        datetime=datetime(2025, 1, 1, 12, 0),
+    )
+
+    event = Event(
+        _id=127,
+        users=many_users,
+        guild_id=789,
+        message_id=111,
+        details=details,
+    )
+    event.save()
+
+    saved_event = Event.objects(_id=127).first()
+    assert saved_event is not None
+    assert saved_event.users == many_users
+
+def test_save_updates_timestamp(db):
+    """Test that saving an event updates the updated_at timestamp"""
+    details = EventDetails(
+        name="Timestamp Test Event",
+        datetime=datetime(2025, 1, 1, 12, 0),
+    )
+
+    # Create initial event
+    event = Event(
+        _id=128,
+        users=[123],
+        guild_id=789,
+        message_id=111,
+        details=details,
+    )
+    event.save()
+    initial_updated_at = event.updated_at
+
+    # Wait a moment to ensure timestamp will be different
+    import time
+    time.sleep(0.1)
+
+    # Save again and verify timestamp changed
+    event.save()
+    assert event.updated_at > initial_updated_at

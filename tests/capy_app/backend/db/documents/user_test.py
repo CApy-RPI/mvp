@@ -205,3 +205,79 @@ def test_add_guilds_and_events(db):
     updated_user = User.objects(_id=8).first()
     assert updated_user.guilds == [5001, 5002, 5003]
     assert updated_user.events == [6001, 6002]
+
+    # Test invalid input scenarios
+    # Test invalid email format
+    with pytest.raises(mongoengine.ValidationError):
+        invalid_profile = UserProfile(
+            school_email="not.an.email",
+            student_id=12345,
+            major=["Computer Science"],
+            graduation_year=2025
+        )
+        User(_id=2, profile=invalid_profile).save()
+
+    # Test invalid student ID (non-numeric)
+    with pytest.raises(mongoengine.ValidationError):
+        invalid_profile = UserProfile(
+            school_email="valid@school.edu",
+            student_id="abc123",  # Should be numeric
+            major=["Computer Science"],
+            graduation_year=2025
+        )
+        User(_id=3, profile=invalid_profile).save()
+
+    # Test empty major list
+    with pytest.raises(mongoengine.ValidationError):
+        invalid_profile = UserProfile(
+            school_email="valid@school.edu",
+            student_id=12345,
+            major=[],  # Empty major list
+            graduation_year=2025
+        )
+        User(_id=4, profile=invalid_profile).save()
+
+    # Test invalid graduation year (past date)
+    with pytest.raises(mongoengine.ValidationError):
+        invalid_profile = UserProfile(
+            school_email="valid@school.edu",
+            student_id=12345,
+            major=["Computer Science"],
+            graduation_year=2000  # Past year
+        )
+        User(_id=5, profile=invalid_profile).save()
+
+    # Test invalid phone number format
+    with pytest.raises(mongoengine.ValidationError):
+        invalid_profile = UserProfile(
+            school_email="valid@school.edu",
+            student_id=12345,
+            major=["Computer Science"],
+            graduation_year=2025,
+            phone="not-a-phone"  # Invalid phone format
+        )
+        User(_id=6, profile=invalid_profile).save()
+
+
+def test_save_updates_timestamp(db):
+    """Test that saving a user updates the updated_at timestamp"""
+    name = UserName(first="Timestamp", last="Test")
+    profile = UserProfile(
+        name=name,
+        school_email="timestamp.test@school.edu",
+        student_id=44444,
+        major=["Testing"],
+        graduation_year=2025,
+    )
+    
+    user = User(_id=9, profile=profile)
+    user.save()
+    initial_updated_at = user.updated_at
+
+    # Wait a moment to ensure timestamp will be different
+    import time
+    time.sleep(0.1)
+
+    # Save again and verify timestamp changed
+    user.save()
+    assert user.updated_at > initial_updated_at
