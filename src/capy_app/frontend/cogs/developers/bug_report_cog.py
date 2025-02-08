@@ -52,6 +52,12 @@ class BugReportCog(commands.Cog):
         self.logger = logging.getLogger(
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
+        self.status_emojis = {
+            "⭐": "Important",
+            "✅": "Resolved",
+            "❌": "Ignored",
+            "🔄": "Unmarked",
+        }
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="bug", description="Report a bug in the bot")
@@ -126,6 +132,46 @@ class BugReportCog(commands.Cog):
                     "❌ An unexpected error occurred. Please try again later.",
                     ephemeral=True,
                 )
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+        if payload.channel_id != settings.TICKET_BUG_REPORT_CHANNEL_ID:
+            return
+
+        if payload.user_id == self.bot.user.id:  # Ignore bot's own reactions
+            return
+
+        channel = self.bot.get_channel(payload.channel_id)
+        message = await channel.fetch_message(payload.message_id)
+
+        if not message.embeds or not message.embeds[0].title.startswith(
+            "🐛 Bug Report:"
+        ):
+            return
+
+        emoji = str(payload.emoji)
+        if emoji not in self.status_emojis:
+            return
+
+        # Remove the user's reaction immediately
+        await message.remove_reaction(payload.emoji, payload.member)
+
+        embed = message.embeds[0]
+        status = self.status_emojis[emoji]
+
+        if status == "Unmarked":
+            embed.color = STATUS_ERROR
+        else:
+            embed.color = {
+                "Important": STATUS_IMPORTANT,
+                "Resolved": STATUS_RESOLVED,
+                "Ignored": STATUS_IGNORED,
+            }[status]
+
+        embed.set_footer(
+            text=f"Status: {status} | ⭐ Important • ✅ Resolve • ❌ Ignore • 🔄 Reset"
+        )
+        await message.edit(embed=embed)
 
 
 async def setup(bot: commands.Bot) -> None:

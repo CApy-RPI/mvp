@@ -151,6 +151,9 @@ class FeatureRequestCog(commands.Cog):
         if emoji not in self.status_emojis:
             return
 
+        # Remove the user's reaction immediately
+        await message.remove_reaction(payload.emoji, payload.member)
+
         embed = message.embeds[0]
         status = self.status_emojis[emoji]
 
