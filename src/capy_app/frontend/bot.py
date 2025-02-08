@@ -91,6 +91,11 @@ class Bot(commands.AutoShardedBot):
         if self.user is None:
             return
 
+        if settings.DEBUG_GUILD_ID:
+            self.logger.info(f"Connected to debug guild {settings.DEBUG_GUILD_ID}")
+            synced = await self.tree.sync(guild=self.get_guild(settings.DEBUG_GUILD_ID))
+            self.logger.info(f"Synced {len(synced)} application commands")
+
         self.logger.info(f"Logged in as {self.user.name} - {self.user.id}")
         self.logger.info(
             f"Connected to {len(self.guilds)} guilds "

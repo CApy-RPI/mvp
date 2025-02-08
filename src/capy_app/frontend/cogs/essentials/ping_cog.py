@@ -2,7 +2,9 @@ import discord
 import logging
 from discord.ext import commands
 from discord import app_commands
+
 from frontend import config_colors as colors
+from config import settings
 
 
 class PingCog(commands.Cog):
@@ -12,6 +14,7 @@ class PingCog(commands.Cog):
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
 
+    @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="ping", description="Shows the bot's latency")
     async def ping(self, interaction: discord.Interaction):
         message = f"⏱ {round(self.bot.latency * 1000)} ms Latency!"

@@ -12,11 +12,13 @@ from discord.ext import commands
 from discord import app_commands
 
 from frontend import config_colors as colors
+from config import settings
 
 
 class PrivacyPolicyCog(commands.Cog):
     """Privacy policy and data handling information cog."""
 
+    @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(
         name="privacy",
         description="View our privacy policy and data handling practices",
