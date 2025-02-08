@@ -88,6 +88,19 @@ class Database:
         document.delete()
 
     @staticmethod
+    def delete_document_by_id(document: T, document_id: int) -> None:
+        """Removes a document from the database.
+
+        Args:
+            document: Document instance to delete
+
+        Raises:
+            OperationError: If deletion fails
+        """
+        document.objects(pk=document_id).delete()
+        return document
+
+    @staticmethod
     def list_documents(
         document_class: typing.Type[T],
         filters: typing.Optional[typing.Dict[str, typing.Any]] = None,

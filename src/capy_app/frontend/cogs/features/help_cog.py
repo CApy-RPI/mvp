@@ -4,7 +4,7 @@
 import discord
 from discord.ext import commands
 import logging
-from frontend.utils import colors
+from frontend.utils import embed_colors as colors
 
 
 class HelpCog(commands.HelpCommand):

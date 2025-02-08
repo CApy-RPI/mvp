@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from frontend.utils import colors
+from frontend.utils import embed_colors as colors
 
 
 class PrivacyPolicyCog(commands.Cog):

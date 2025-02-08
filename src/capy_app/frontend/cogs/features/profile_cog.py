@@ -61,7 +61,8 @@ class ProfileModal(discord.ui.Modal):
 
 class MajorView(discord.ui.View):
     def __init__(self, major_list):
-        super().__init__()
+        super().__init__(timeout=180.0)
+        self.message = None
         if not major_list:
             major_list = ["Undeclared"]
 
@@ -81,29 +82,36 @@ class MajorView(discord.ui.View):
         async def select_callback(interaction: discord.Interaction):
             self.selected_majors = select.values
             await interaction.response.defer()
-            self.stop()
+            if not self.skipped:  # Only stop if not skipped
+                self.stop()
 
         select.callback = select_callback
         self.add_item(select)
+
+        # Add skip button
+        skip_button = discord.ui.Button(
+            label="Skip", style=discord.ButtonStyle.secondary
+        )
 
         async def skip_callback(interaction: discord.Interaction):
             await interaction.response.defer()
             self.skipped = True
             self.stop()
 
-        skip_button = discord.ui.Button(
-            label="Skip", style=discord.ButtonStyle.secondary
-        )
         skip_button.callback = skip_callback
         self.add_item(skip_button)
 
+    async def on_timeout(self) -> None:
+        if self.message:
+            await self.message.delete()
+
     async def wait_for_majors(self, timeout=180.0):
         try:
-            await asyncio.wait_for(self.wait(), timeout=timeout)
+            await self.wait()
             if self.skipped:
                 return "skip"
-            return self.selected_majors
-        except asyncio.TimeoutError:
+            return self.selected_majors or None
+        except TimeoutError:
             return None
 
 
@@ -205,15 +213,13 @@ class ProfileCog(commands.Cog):
                 majors = [line.strip() for line in f.readlines()]
                 if not majors:
                     self.logger.warning("majors.txt is empty")
-                    return ["Undeclared"]
                 return majors
         except FileNotFoundError:
             self.logger.error("majors.txt not found")
-            return ["Undeclared"]
         except Exception as e:
             self.logger.error(f"Error loading majors: {e}")
-            return ["Undeclared"]
 
+    @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="profile", description="Manage your profile")
     @app_commands.describe(action="The action to perform with your profile")
     @app_commands.choices(
@@ -263,18 +269,19 @@ class ProfileCog(commands.Cog):
 
         # Show major selection first
         major_view = MajorView(self.major_list)
-        await interaction.followup.send(
+        major_view.message = await interaction.followup.send(
             "Select your major(s):", view=major_view, ephemeral=True
         )
 
         selected_majors = await major_view.wait_for_majors(timeout=180.0)
+        if major_view.message:
+            await major_view.message.delete()
+        
         if selected_majors is None:  # Timed out
             await interaction.followup.send(
                 "Major selection timed out. Please try again.", ephemeral=True
             )
             return
-        elif selected_majors == "skip":
-            selected_majors = ["Undeclared"]
 
         # Now handle email verification
         # Send verification code while user is selecting major
@@ -386,13 +393,16 @@ class ProfileCog(commands.Cog):
 
         # Update major selection
         major_view = MajorView(self.major_list)
-        await interaction.followup.send(
+        major_view.message = await interaction.followup.send(
             "Update your major(s) or click Skip to keep current majors:",
             view=major_view,
             ephemeral=True,
         )
 
         selected_majors = await major_view.wait_for_majors(timeout=180.0)
+        if major_view.message:
+            await major_view.message.delete()
+
         if selected_majors is None:  # Timed out
             await interaction.followup.send(
                 "Major selection timed out. Please try again.", ephemeral=True
@@ -468,7 +478,7 @@ class ProfileCog(commands.Cog):
 
         await view.wait()
         if view.value:
-            db.delete_document(User, interaction.user.id)
+            db.delete_document(user)
             await interaction.followup.send(
                 "Your profile has been deleted.", ephemeral=True
             )
@@ -480,3 +490,4 @@ class ProfileCog(commands.Cog):
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(ProfileCog(bot))
+`
