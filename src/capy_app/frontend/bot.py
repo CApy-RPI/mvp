@@ -2,8 +2,8 @@
 
 # Standard library imports
 import logging
-import os
 import typing
+import pathlib
 
 # Third-party imports
 import discord
@@ -26,26 +26,6 @@ class Bot(commands.AutoShardedBot):
         )
         self.logger = logging.getLogger("discord.main")
         self.logger.setLevel(logging.INFO)
-
-    async def on_guild_join(self, guild: discord.Guild) -> None:
-        """Handle event when bot joins a new guild.
-
-        Args:
-            guild: Discord guild object representing the joined server.
-        """
-        guild_data = db.get_document(Guild, guild.id)
-
-        if not guild_data:
-            guild_data = Guild(_id=guild.id)
-            guild_data.save()
-            self.logger.info(
-                f"Created new guild entry for {guild.name} (ID: {guild.id})"
-            )
-        else:
-            db.sync_document_with_template(guild_data, Guild)
-            self.logger.info(
-                f"Guild {guild.name} (ID: {guild.id}) already exists and synced"
-            )
 
     async def on_member_join(self, member: discord.Member) -> None:
         """Handle event when a new member joins a guild.
@@ -71,20 +51,40 @@ class Bot(commands.AutoShardedBot):
             f" (ID: {member.guild.id})"
         )
 
+    async def _load_cogs_recursive(self, path: pathlib.Path, base_package: str) -> None:
+        """Recursively load cogs from a directory and its subdirectories.
+
+        Args:
+            path: Directory path to search for cogs
+            base_package: Base package path for imports
+        """
+        for item in path.iterdir():
+            if (
+                item.is_file()
+                and item.suffix == ".py"
+                and not item.name.startswith("_")
+            ):
+                # Convert path to module path and load extension
+                module_path = (
+                    str(item.relative_to(pathlib.Path(settings.COG_PATH)))
+                    .replace("\\", ".")
+                    .replace("/", ".")[:-3]
+                )
+                full_module_path = f"{base_package}.{module_path}"
+                try:
+                    await self.load_extension(full_module_path)
+                    self.logger.info(f"Loaded {full_module_path}")
+                except Exception as e:
+                    self.logger.error(f"Failed to load {full_module_path}: {e}")
+
+            elif item.is_dir() and not item.name.startswith("_"):
+                # Recursively explore subdirectories
+                await self._load_cogs_recursive(item, f"{base_package}")
+
     async def setup_hook(self) -> None:
         """Load all cog extensions during bot setup."""
-        for filename in os.listdir(settings.COG_PATH):
-            if not filename.endswith(".py"):
-                self.logger.warning(f"Skipping {filename}: Not a Python file")
-                continue
-
-            try:
-                await self.load_extension(
-                    f"{settings.COG_PATH.replace('/', '.')}.{filename[:-3]}"
-                )
-                self.logger.info(f"Loaded {filename}")
-            except Exception as e:
-                self.logger.error(f"Failed to load {filename}: {e}")
+        cog_path = pathlib.Path(settings.COG_PATH)
+        await self._load_cogs_recursive(cog_path, settings.COG_PATH.replace("/", "."))
 
     async def on_ready(self) -> None:
         """Handle bot ready event and log connection details."""
@@ -141,15 +141,3 @@ class Bot(commands.AutoShardedBot):
         self.logger.info(
             f"Command from {ctx.author} in disallowed channel {ctx.channel}"
         )
-
-    async def on_command_error(
-        self, ctx: Context[typing.Any], error: Exception
-    ) -> None:
-        """Handle command execution errors.
-
-        Args:
-            ctx: Command context object
-            error: Exception that occurred during command execution
-        """
-        self.logger.error(f"{ctx.command}: {error}")
-        await ctx.send(f"Failed to execute command: {error}")

@@ -3,6 +3,7 @@
 import discord
 import logging
 from discord.ext import commands
+from frontend.utils import colors
 
 
 class PingCog(commands.Cog):
@@ -18,7 +19,7 @@ class PingCog(commands.Cog):
         embed = discord.Embed(
             title="Ping",
             description=message,
-            color=discord.Color.pink(),
+            color=colors.PING,
         )
         self.logger.info(message)
         await ctx.send(embed=embed)

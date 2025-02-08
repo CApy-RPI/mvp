@@ -4,6 +4,7 @@
 import discord
 from discord.ext import commands
 import logging
+from frontend.utils import colors
 
 
 class HelpCog(commands.HelpCommand):
@@ -29,7 +30,7 @@ class HelpCog(commands.HelpCommand):
             embed = discord.Embed(
                 title="Help",
                 description="Available commands",
-                color=discord.Color.green(),
+                color=colors.HELP,
             )
             await ctx.send("Custom Help Command Active!")
 
@@ -50,7 +51,7 @@ class HelpCog(commands.HelpCommand):
                 if command_list:
                     cog_name = cog.qualified_name if cog else "No Category"
                     embed.add_field(
-                        name=cog_name, value="\n".join(command_list), inline=False
+                        name=cog_name, value="\n.join(command_list), inline=False"
                     )
 
             await ctx.send(embed=embed)
@@ -66,8 +67,8 @@ class HelpCog(commands.HelpCommand):
             ctx = self.context
             embed = discord.Embed(
                 title=f"{cog.qualified_name} Commands",
-                description="LSDFJLSDKFJSLDKJFSLKDJFLK",
-                color=discord.Color.blue(),
+                description="Available commands",
+                color=colors.HELP,
             )
 
             # Combine all commands into a single string
@@ -125,7 +126,7 @@ class HelpCog(commands.HelpCommand):
             embed = discord.Embed(
                 title=command.name,
                 description=description,
-                color=discord.Color.purple(),
+                color=colors.HELP,
             )
             await self.context.send(embed=embed)
         except commands.CommandNotFound:
@@ -149,7 +150,6 @@ class Help(commands.Cog):
         self.bot.help_command = HelpCog()  # Assign to bot's help command
 
     def cog_unload(self):
-        print("test unloading")
         self.bot.help_command = (
             commands.DefaultHelpCommand()
         )  # Reset the help command when the cog is unloaded

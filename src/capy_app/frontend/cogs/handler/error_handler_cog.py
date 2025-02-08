@@ -1,13 +1,17 @@
 """Error handling cog for managing error messages and their resolution status."""
 
+# Standard library imports
+import datetime
+import logging
 import re
 import time
 import typing
-import logging
-import datetime
+
+# Third-party imports
 import discord
 from discord.ext import commands
 
+# Local application imports
 from config import settings
 
 
@@ -598,6 +602,8 @@ class ErrorHandlerCog(commands.Cog):
             ctx: Command context object
             error: Exception that occurred during command execution
         """
+        self.logger.error(f"{ctx.command}: {error}")
+        await ctx.send(f"Failed to execute command: {error}")
         await self._log_error(ctx, error)
 
 
