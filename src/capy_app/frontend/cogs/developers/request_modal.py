@@ -2,7 +2,7 @@ import discord
 from discord import TextStyle
 
 
-class RequestModal(discord.ui.Modal):
+class RequestModal(discord.ui.Modal, title="Ticket"):
     def __init__(
         self, modal_title: str, message: str = "Describe your request here..."
     ):

@@ -22,7 +22,7 @@ BUG_REPORT = ReportType(
     channel_id_setting="BUG_REPORTS_CHANNEL_ID",
     emoji="🐛",
     embed_title_prefix="Bug Report",
-    embed_color="RED",
+    embed_color="TICKET_BUG",
     success_message="Bug report submitted successfully!",
 )
 
@@ -34,7 +34,7 @@ FEATURE_REQUEST = ReportType(
     channel_id_setting="FEATURE_REQUESTS_CHANNEL_ID",
     emoji="💡",
     embed_title_prefix="Feature Request",
-    embed_color="GREEN",
+    embed_color="TICKET_FEATURE",
     success_message="Feature request submitted successfully!",
 )
 
@@ -46,6 +46,6 @@ FEEDBACK = ReportType(
     channel_id_setting="FEEDBACK_CHANNEL_ID",
     emoji="📝",
     embed_title_prefix="Feedback",
-    embed_color="BLUE",
+    embed_color="TICKET_FEEDBACK",
     success_message="Feedback submitted successfully!",
 )
