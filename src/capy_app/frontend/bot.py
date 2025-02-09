@@ -2,14 +2,13 @@
 
 # Standard library imports
 import logging
-import os
 import typing
+import pathlib
 
 # Third-party imports
 import discord
 from discord.ext import commands
 from discord.ext.commands import Context
-from backend.db.documents.guild import Guild
 
 # Local imports
 from backend.db.database import Database as db
@@ -22,30 +21,12 @@ class Bot(commands.AutoShardedBot):
     def __init__(self, **options: typing.Any) -> None:
         """Initialize the Bot instance."""
         super().__init__(
+            command_prefix=settings.BOT_COMMAND_PREFIX,
+            intents=discord.Intents.all(),
             **options,
         )
         self.logger = logging.getLogger("discord.main")
-        self.logger.setLevel(logging.INFO)
-
-    async def on_guild_join(self, guild: discord.Guild) -> None:
-        """Handle event when bot joins a new guild.
-
-        Args:
-            guild: Discord guild object representing the joined server.
-        """
-        guild_data = db.get_document(Guild, guild.id)
-
-        if not guild_data:
-            guild_data = Guild(_id=guild.id)
-            guild_data.save()
-            self.logger.info(
-                f"Created new guild entry for {guild.name} (ID: {guild.id})"
-            )
-        else:
-            db.sync_document_with_template(guild_data, Guild)
-            self.logger.info(
-                f"Guild {guild.name} (ID: {guild.id}) already exists and synced"
-            )
+        self.logger.setLevel(settings.LOG_LEVEL)
 
     async def on_member_join(self, member: discord.Member) -> None:
         """Handle event when a new member joins a guild.
@@ -71,30 +52,59 @@ class Bot(commands.AutoShardedBot):
             f" (ID: {member.guild.id})"
         )
 
-    async def setup_hook(self) -> None:
-        """Load all cog extensions during bot setup."""
-        for filename in os.listdir(settings.COG_PATH):
-            if not filename.endswith(".py"):
-                self.logger.warning(f"Skipping {filename}: Not a Python file")
+    async def _load_cogs_recursive(self, path: pathlib.Path, base_package: str) -> None:
+        """Recursively load cogs from a directory and its subdirectories.
+
+        Args:
+            path: Directory path to search for cogs
+            base_package: Base package path for imports
+        """
+        for item in path.iterdir():
+            if settings.DEBUG_GUILD_ID is None and item.name.endswith("test_cog.py"):
                 continue
 
-            try:
-                await self.load_extension(
-                    f"{settings.COG_PATH.replace('/', '.')}.{filename[:-3]}"
+            if (
+                item.is_file()
+                and item.name.endswith("cog.py")
+                and not item.name.startswith("_")
+            ):
+                # Convert path to module path and load extension
+                module_path = (
+                    str(item.relative_to(pathlib.Path(settings.COG_PATH)))
+                    .replace("\\", ".")
+                    .replace("/", ".")[:-3]
                 )
-                self.logger.info(f"Loaded {filename}")
-            except Exception as e:
-                self.logger.error(f"Failed to load {filename}: {e}")
+                full_module_path = f"{base_package}.{module_path}"
+                try:
+                    await self.load_extension(full_module_path)
+                    self.logger.info(f"Loaded {full_module_path}")
+                except Exception as e:
+                    self.logger.error(f"Failed to load {full_module_path}: {e}")
+
+            elif item.is_dir() and not item.name.startswith("_"):
+                # Recursively explore subdirectories
+                await self._load_cogs_recursive(item, f"{base_package}")
+
+    async def setup_hook(self) -> None:
+        """Load all cog extensions during bot setup."""
+        cog_path = pathlib.Path(settings.COG_PATH)
+        await self._load_cogs_recursive(cog_path, settings.COG_PATH.replace("/", "."))
+        self.logger.info("Cog extensions loaded")
 
     async def on_ready(self) -> None:
         """Handle bot ready event and log connection details."""
         if self.user is None:
             return
 
+        if settings.DEBUG_GUILD_ID:
+            self.logger.info(f"Connected to debug guild {settings.DEBUG_GUILD_ID}")
+            synced = await self.tree.sync(guild=self.get_guild(settings.DEBUG_GUILD_ID))
+            self.logger.info(f"Synced {len(synced)} application commands")
+
         self.logger.info(f"Logged in as {self.user.name} - {self.user.id}")
         self.logger.info(
             f"Connected to {len(self.guilds)} guilds "
-            f"across {self.shard_count} shards."
+            f"across {self.shard_count} shards"
         )
 
     async def on_message(self, message: discord.Message) -> None:
@@ -142,14 +152,6 @@ class Bot(commands.AutoShardedBot):
             f"Command from {ctx.author} in disallowed channel {ctx.channel}"
         )
 
-    async def on_command_error(
-        self, ctx: Context[typing.Any], error: Exception
-    ) -> None:
-        """Handle command execution errors.
-
-        Args:
-            ctx: Command context object
-            error: Exception that occurred during command execution
-        """
-        self.logger.error(f"{ctx.command}: {error}")
-        await ctx.send(f"Failed to execute command: {error}")
+    def run(self) -> None:
+        """Run the bot instance."""
+        super().run(settings.BOT_TOKEN, reconnect=True)

@@ -56,16 +56,16 @@ class Guild(mongoengine.Document):
         GuildRoles, default=GuildRoles
     )
     created_at: datetime.datetime = mongoengine.DateTimeField(
-        default=datetime.datetime.utcnow
+        default=datetime.datetime.now
     )
     updated_at: datetime.datetime = mongoengine.DateTimeField(
-        default=datetime.datetime.utcnow
+        default=datetime.datetime.now
     )
 
     meta = {"collection": "guilds", "indexes": ["created_at", "updated_at"]}
 
     def save(self, *args: typing.Any, **kwargs: typing.Any) -> "Guild":
         """Override save to update the updated_at timestamp."""
-        self.updated_at = datetime.datetime.utcnow()
+        self.updated_at = datetime.datetime.now()
         result = super().save(*args, **kwargs)
         return typing.cast("Guild", result)
