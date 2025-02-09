@@ -93,7 +93,7 @@ class FeedbackCog(commands.Cog):
                 return
 
             embed = discord.Embed(
-                title=f"📝 Feedback:",
+                title="📝 Feedback:",
                 description=modal.description,
                 color=STATUS_INFO,
             )

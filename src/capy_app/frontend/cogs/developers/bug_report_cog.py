@@ -97,7 +97,7 @@ class BugReportCog(commands.Cog):
                 return
 
             embed = discord.Embed(
-                title=f"🐛 Bug Report:",
+                title="🐛 Bug Report:",
                 description=modal.description,
                 color=STATUS_ERROR,
             )

@@ -50,6 +50,9 @@ class GuildCog(commands.Cog):
         self, interaction: discord.Interaction, selection: str, guild_data: typing.Any
     ) -> None:
         """Handle settings selection and updates."""
+        if not isinstance(interaction.guild, discord.Guild):
+            raise TypeError("Interaction must be in a guild.")
+
         self.logger.info(
             f"Settings update initiated for {interaction.guild} (ID: {interaction.guild.id}), selection: {selection}"
         )
@@ -183,6 +186,9 @@ class GuildCog(commands.Cog):
         Args:
             interaction: The Discord interaction
         """
+        if not isinstance(interaction.guild, discord.Guild):
+            raise TypeError("Interaction must be in a guild.")
+
         guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
         if not guild_data:
             await interaction.edit_original_response(
@@ -216,6 +222,9 @@ class GuildCog(commands.Cog):
 
     async def edit_settings(self, interaction: discord.Interaction) -> None:
         """Edit server settings using views."""
+        if not isinstance(interaction.guild, discord.Guild):
+            raise TypeError("Interaction must be in a guild.")
+
         settings_view = SettingsSelectView()
         await interaction.edit_original_response(
             content="Select what you'd like to edit:", view=settings_view
@@ -250,6 +259,9 @@ class GuildCog(commands.Cog):
 
     async def clear_settings(self, interaction: discord.Interaction) -> None:
         """Clear server settings."""
+        if not isinstance(interaction.guild, discord.Guild):
+            raise TypeError("Interaction must be in a guild.")
+
         clear_view = ClearSettingsView()
         await interaction.edit_original_response(
             content="Select what you'd like to clear:", view=clear_view

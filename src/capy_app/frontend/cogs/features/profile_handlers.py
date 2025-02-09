@@ -55,9 +55,7 @@ class EmailVerifier:
             del self._codes[user_id]
         return is_valid
 
-    def send_verification_email(
-        self, user_id: int, email: str
-    ) -> typing.Dict[str, typing.Union[bool, str]]:
+    def send_verification_email(self, user_id: int, email: str) -> typing.Any:
         """Send verification email to user.
 
         Args:

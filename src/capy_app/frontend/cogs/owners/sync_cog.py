@@ -34,7 +34,7 @@ class SyncCog(commands.Cog):
 
     async def _sync_commands(
         self, debug_guild: Optional[discord.Guild]
-    ) -> List[app_commands.Command]:
+    ) -> List[discord.app_commands.AppCommand]:
         """Synchronize commands with Discord.
 
         Args:

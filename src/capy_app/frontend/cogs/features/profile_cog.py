@@ -20,7 +20,7 @@ from discord.ext import commands
 from config import settings
 from backend.db.database import Database as db
 from backend.db.documents.user import User, UserProfile, UserName
-from frontend.interactions.view_bases import ConfirmDeleteView
+from frontend.interactions.bases.view_bases import ConfirmDeleteView
 from .profile_handlers import (
     EmailVerifier,
 )
@@ -92,7 +92,7 @@ class ProfileCog(commands.Cog):
 
     async def get_profile_data(
         self, interaction: discord.Interaction, action: str, user: User | None
-    ) -> tuple[ProfileModal, discord.Message] | None:
+    ) -> ProfileModal | None:
         """Get profile data from modal.
 
         Args:

@@ -16,7 +16,7 @@ def expected_data() -> typing.Dict[str, typing.Any]:
         "Messages": [
             {
                 "From": {
-                    "Email": settings.EMAIL_ADDRESS,
+                    "Email": settings.MAILJET_EMAIL_ADDRESS,
                     "Name": "CApy Verification",
                 },
                 "To": [

@@ -95,7 +95,7 @@ class FeatureRequestCog(commands.Cog):
                 return
 
             embed = discord.Embed(
-                title=f"💡 Feature Request:",
+                title="💡 Feature Request:",
                 description=modal.description,
                 color=STATUS_UNMARKED,
             )

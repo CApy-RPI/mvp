@@ -21,10 +21,12 @@ class Bot(commands.AutoShardedBot):
     def __init__(self, **options: typing.Any) -> None:
         """Initialize the Bot instance."""
         super().__init__(
+            command_prefix=settings.BOT_COMMAND_PREFIX,
+            intents=discord.Intents.all(),
             **options,
         )
         self.logger = logging.getLogger("discord.main")
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(settings.LOG_LEVEL)
 
     async def on_member_join(self, member: discord.Member) -> None:
         """Handle event when a new member joins a guild.
@@ -58,6 +60,9 @@ class Bot(commands.AutoShardedBot):
             base_package: Base package path for imports
         """
         for item in path.iterdir():
+            if settings.DEBUG_GUILD_ID is None and item.name.endswith("test_cog.py"):
+                continue
+
             if (
                 item.is_file()
                 and item.name.endswith("cog.py")
@@ -146,3 +151,7 @@ class Bot(commands.AutoShardedBot):
         self.logger.info(
             f"Command from {ctx.author} in disallowed channel {ctx.channel}"
         )
+
+    def run(self) -> None:
+        """Run the bot instance."""
+        super().run(settings.BOT_TOKEN, reconnect=True)
