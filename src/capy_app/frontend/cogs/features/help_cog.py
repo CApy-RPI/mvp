@@ -56,7 +56,7 @@ class HelpCog(commands.HelpCommand):
 
             await ctx.send(embed=embed)
         except Exception as e:
-            self.logger.error(f"Error occured in send_bot_help {e}")
+            self.logger.error(f"Error occurred in send_bot_help {e}")
             await self.send_error_message(
                 "There was an error sending the help message."
             )
@@ -104,7 +104,7 @@ class HelpCog(commands.HelpCommand):
         except commands.MissingPermissions:
             self.logger.error("Missing Permissions!")
             await self.send_error_message(
-                "You do not have permission to view this categorie."
+                "You do not have permission to view this category."
             )
         except Exception as e:
             self.logger.error(f"Error displaying help for command '{cog}': {e}")
