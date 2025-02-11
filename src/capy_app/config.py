@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 from typing import Optional
+from pydantic import field_validator
 
 
 class Settings(BaseSettings):
@@ -55,6 +56,24 @@ class Settings(BaseSettings):
         "case_sensitive": True,
     }
 
+    # Validators
+    @field_validator('MONGO_URI')
+    def validate_mongo_uri(cls, v):
+        if v is not None and not v.startswith('mongodb://') and not v.startswith('mongodb+srv://'):
+            raise ValueError('MONGO_URI must start with "mongodb://" or "mongodb+srv://"')
+        return v
+
+    @field_validator('MAILJET_EMAIL_ADDRESS')
+    def validate_email(cls, v):
+        if v and "@" not in v:
+            raise ValueError('MAILJET_EMAIL_ADDRESS must be a valid email address')
+        return v
+
+    @field_validator('FAILED_COMMANDS_INVITE_EXPIRY', 'FAILED_COMMANDS_INVITE_USES', 'MESSAGE_LIMIT')
+    def validate_positive_numbers(cls, v):
+        if v is not None and v <= 0:
+            raise ValueError('Value must be a positive integer')
+        return v
 
 @lru_cache()
 def get_settings() -> Settings:
