@@ -1,9 +1,7 @@
 # stl imports
 import os
-import logging
-from time import strftime, gmtime
-import socket
 
+from capy_app.sys_logger import init_logger
 # local imports
 from frontend.bot import Bot
 
@@ -12,11 +10,7 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
 def main():
-    if not os.path.exists("logs"):
-        os.mkdir("logs")
-
-    logging.basicConfig(filename = f'logs/{strftime("%Y-%m-%d %H:%M:%S", gmtime())}@{socket.gethostname()}.log',level=logging.INFO)
-
+    init_logger()
     bot = Bot()
     bot.run()
 
