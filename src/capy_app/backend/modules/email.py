@@ -1,4 +1,5 @@
 import typing
+import logging
 from mailjet_rest import Client
 
 from config import settings
@@ -17,6 +18,8 @@ class EmailSendError(EmailError):
 
 
 class Email:
+    logger = logging.getLogger(__name__)
+
     def __init__(self) -> None:
         """Initialize the Mailer with Mailjet client."""
         self.mailjet = Client(
@@ -55,12 +58,11 @@ class Email:
             ]
         }
 
-        try:
-            result = self.mailjet.send.create(data=data)
-            if result.status_code == 200:
-                return result.json()
-            raise EmailSendError(
-                f"Failed to send email: {result.status_code} - {result.json()}"
-            )
-        except Exception as e:
-            raise EmailSendError(f"Error sending email: {str(e)}") from e
+        result = self.mailjet.send.create(data=data)
+        if result.status_code == 200:
+            return result.json()
+        err =  EmailSendError(
+            f"Failed to send email: {result.status_code} - {result.json()}"
+        )
+        self.logger.exception(err, stack_info=True)
+        raise err

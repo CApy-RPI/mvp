@@ -138,7 +138,7 @@ class ProfileCog(commands.Cog):
 
         await major_view.wait()
 
-        print(major_view.selected_majors)
+        self.logger.info(major_view.selected_majors)
 
         return major_view.selected_majors, msg
 

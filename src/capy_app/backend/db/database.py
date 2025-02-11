@@ -1,3 +1,5 @@
+import logging
+
 import mongoengine
 
 import typing
@@ -141,7 +143,9 @@ class Database:
 
             extra_fields = set(doc._fields) - set(tmpl._fields)
             if extra_fields:
-                raise ValueError(f"Fields not in template: {', '.join(extra_fields)}")
+                err = ValueError(f"Fields not in template: {', '.join(extra_fields)}")
+                logging.exception(err, stack_info=True)
+                raise err
 
         template_instance = template()
         sync_fields(document, template_instance)
