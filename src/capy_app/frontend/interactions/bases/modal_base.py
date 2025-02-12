@@ -161,13 +161,14 @@ class DynamicModalView(View):
         if self._modal is None:
             raise ValueError("No modal added to view")
 
-        if self._modal.interaction is not None:
-            await self._modal.interaction.response.send_modal(self._modal)
-            self._message = message
-            return await self._get_data()
+        if self._modal.interaction is None:
+            logger.error("Modal has no interaction to send modal from")
+            return None, message
 
-        logger.error("Modal has no interaction to send modal from")
-        return None, message
+        self._message = message
+        # IDK how modal finds interaction but it works ig
+        await self._modal.interaction.response.send_modal(self._modal)
+        return await self._get_data()
 
     async def _get_data(self) -> tuple[Optional[Dict[str, str]], Optional[Message]]:
         """Wait for user input and return form values and message.
