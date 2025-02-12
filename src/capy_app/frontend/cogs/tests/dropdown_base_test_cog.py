@@ -6,6 +6,214 @@ from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 
 from config import settings
 
+DROPDOWN_CONFIGS = {
+    "simple_selection": {
+        "ephemeral": False,
+        "add_buttons": False,
+        "dropdowns": [
+            {
+                "placeholder": "Make your selection",
+                "max_values": 1,
+                "disable_on_select": True,
+                "custom_id": "simple_select",
+                "selections": [
+                    {
+                        "label": "Option A",
+                        "value": "a",
+                        "description": "First choice",
+                        "emoji": "🅰️",
+                    },
+                    {
+                        "label": "Option B",
+                        "value": "b",
+                        "description": "Second choice",
+                        "emoji": "🅱️",
+                    },
+                    {
+                        "label": "Option C",
+                        "value": "c",
+                        "description": "Third choice",
+                        "emoji": "©️",
+                    },
+                ],
+            }
+        ],
+    },
+    "multi_selection": {
+        "ephemeral": False,
+        "add_buttons": True,
+        "dropdowns": [
+            {
+                "placeholder": "Choose a fruit",
+                "custom_id": "fruits",
+                "selections": [
+                    {"label": "Apple", "value": "apple", "emoji": "🍎"},
+                    {"label": "Banana", "value": "banana", "emoji": "🍌"},
+                    {"label": "Orange", "value": "orange", "emoji": "🍊"},
+                ],
+            },
+            {
+                "placeholder": "Choose an animal",
+                "custom_id": "animals",
+                "selections": [
+                    {"label": "Dog", "value": "dog", "emoji": "🐕"},
+                    {"label": "Cat", "value": "cat", "emoji": "🐈"},
+                    {"label": "Bird", "value": "bird", "emoji": "🐦"},
+                ],
+            },
+            {
+                "placeholder": "Choose weather",
+                "custom_id": "weather",
+                "selections": [
+                    {"label": "Sunny", "value": "sun", "emoji": "☀️"},
+                    {"label": "Rainy", "value": "rain", "emoji": "🌧️"},
+                    {"label": "Cloudy", "value": "cloud", "emoji": "☁️"},
+                ],
+            },
+        ],
+    },
+    "paint_step1": {
+        "ephemeral": False,
+        "add_buttons": False,
+        "dropdowns": [
+            {
+                "placeholder": "Select color family",
+                "custom_id": "color_family",
+                "max_values": 1,
+                "selections": [
+                    {
+                        "label": "Warm Colors",
+                        "value": "warm",
+                        "description": "Red, Orange, Yellow family",
+                        "emoji": "🔥",
+                    },
+                    {
+                        "label": "Cool Colors",
+                        "value": "cool",
+                        "description": "Blue, Green, Purple family",
+                        "emoji": "❄️",
+                    },
+                    {
+                        "label": "Neutral Colors",
+                        "value": "neutral",
+                        "description": "Black, White, Gray family",
+                        "emoji": "⚪",
+                    },
+                ],
+            }
+        ],
+    },
+    "paint_step2_warm": {
+        "ephemeral": False,
+        "add_buttons": False,
+        "dropdowns": [
+            {
+                "placeholder": "Select specific colors",
+                "custom_id": "specific_colors",
+                "min_values": 1,
+                "max_values": 2,
+                "selections": [
+                    {"label": "Red", "value": "red", "emoji": "🔴"},
+                    {"label": "Orange", "value": "orange", "emoji": "🟠"},
+                    {"label": "Yellow", "value": "yellow", "emoji": "🟡"},
+                ],
+            }
+        ],
+    },
+    "paint_step2_cool": {
+        "ephemeral": False,
+        "add_buttons": False,
+        "dropdowns": [
+            {
+                "placeholder": "Select specific colors",
+                "custom_id": "specific_colors",
+                "min_values": 1,
+                "max_values": 2,
+                "selections": [
+                    {"label": "Blue", "value": "blue", "emoji": "🔵"},
+                    {"label": "Green", "value": "green", "emoji": "🟢"},
+                    {"label": "Purple", "value": "purple", "emoji": "🟣"},
+                ],
+            }
+        ],
+    },
+    "paint_step2_neutral": {
+        "ephemeral": False,
+        "add_buttons": False,
+        "dropdowns": [
+            {
+                "placeholder": "Select specific colors",
+                "custom_id": "specific_colors",
+                "min_values": 1,
+                "max_values": 2,
+                "selections": [
+                    {"label": "Black", "value": "black", "emoji": "⚫"},
+                    {"label": "White", "value": "white", "emoji": "⚪"},
+                    {"label": "Gray", "value": "gray", "emoji": "⭕"},
+                ],
+            }
+        ],
+    },
+    "paint_step3": {
+        "ephemeral": False,
+        "add_buttons": True,
+        "dropdowns": [
+            {
+                "placeholder": "Select 1-2 finishes",
+                "custom_id": "finishes",
+                "min_values": 1,
+                "max_values": 2,
+                "selections": [
+                    {
+                        "label": "Matte",
+                        "value": "matte",
+                        "description": "Matte finish",
+                        "emoji": "🎨",
+                    },
+                    {
+                        "label": "Gloss",
+                        "value": "gloss",
+                        "description": "Glossy finish",
+                        "emoji": "✨",
+                    },
+                    {
+                        "label": "Metallic",
+                        "value": "metallic",
+                        "description": "Metallic finish",
+                        "emoji": "🌟",
+                    },
+                ],
+            },
+            {
+                "placeholder": "Select application method",
+                "custom_id": "application",
+                "min_values": 1,
+                "max_values": 1,
+                "selections": [
+                    {
+                        "label": "Brush",
+                        "value": "brush",
+                        "description": "Apply with brush",
+                        "emoji": "🖌️",
+                    },
+                    {
+                        "label": "Spray",
+                        "value": "spray",
+                        "description": "Apply with spray",
+                        "emoji": "💨",
+                    },
+                    {
+                        "label": "Roll",
+                        "value": "roll",
+                        "description": "Apply with roller",
+                        "emoji": "🎢",
+                    },
+                ],
+            },
+        ],
+    },
+}
+
 
 class DropdownTestCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -15,82 +223,19 @@ class DropdownTestCog(commands.Cog):
     @app_commands.command(name="test_dropdown")
     async def test_dropdown(self, interaction: Interaction):
         """Test the dropdown base functionality with a single dropdown"""
-        view = DynamicDropdownView(ephemeral=False)
-
-        view.add_dropdown(
-            placeholder="Make your selection",
-            max_values=1,
-            disable_on_select=True,
-            custom_id="simple_select",
-            row=0,
-            fields=[
-                {
-                    "label": "Option A",
-                    "value": "a",
-                    "description": "First choice",
-                    "emoji": "🅰️",
-                },
-                {
-                    "label": "Option B",
-                    "value": "b",
-                    "description": "Second choice",
-                    "emoji": "🅱️",
-                },
-                {
-                    "label": "Option C",
-                    "value": "c",
-                    "description": "Third choice",
-                    "emoji": "©️",
-                },
-            ],
-        )
-
+        view = DynamicDropdownView(**DROPDOWN_CONFIGS["simple_selection"])
         selections, message = await view.initiate_from_interaction(
             interaction, "Test a simple dropdown selection with emojis:"
         )
 
         if selections and message:
-            await message.edit(
-                content=f"Selected value: {selections}",
-                view=None,
-            )
+            await message.edit(content=f"Selected value: {selections}", view=None)
 
     @app_commands.guilds(Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="test_dropdown_with_buttons")
     async def test_dropdown_with_buttons(self, interaction: Interaction):
         """Test the dropdown base with accept/cancel buttons"""
-        view = DynamicDropdownView(ephemeral=False, add_buttons=True)
-
-        view.add_dropdown(
-            placeholder="Choose a fruit",
-            custom_id="fruits",
-            row=0,
-            fields=[
-                {"label": "Apple", "value": "apple", "emoji": "🍎"},
-                {"label": "Banana", "value": "banana", "emoji": "🍌"},
-                {"label": "Orange", "value": "orange", "emoji": "🍊"},
-            ],
-        )
-        view.add_dropdown(
-            placeholder="Choose an animal",
-            custom_id="animals",
-            row=1,
-            fields=[
-                {"label": "Dog", "value": "dog", "emoji": "🐕"},
-                {"label": "Cat", "value": "cat", "emoji": "🐈"},
-                {"label": "Bird", "value": "bird", "emoji": "🐦"},
-            ],
-        )
-        view.add_dropdown(
-            placeholder="Choose weather",
-            custom_id="weather",
-            row=2,
-            fields=[
-                {"label": "Sunny", "value": "sun", "emoji": "☀️"},
-                {"label": "Rainy", "value": "rain", "emoji": "🌧️"},
-                {"label": "Cloudy", "value": "cloud", "emoji": "☁️"},
-            ],
-        )
+        view = DynamicDropdownView(**DROPDOWN_CONFIGS["multi_selection"])
 
         selections, message = await view.initiate_from_interaction(
             interaction, "Select from each category:"
@@ -108,138 +253,27 @@ class DropdownTestCog(commands.Cog):
     @app_commands.command(name="test_dropdown_sequential")
     async def test_sequential_dropdowns(self, interaction: Interaction):
         """Test sequential dropdowns where each appears after the previous is selected"""
-        # First dropdown - Color family
-        view1 = DynamicDropdownView(ephemeral=False)
-        view1.add_dropdown(
-            fields=[
-                {
-                    "label": "Warm Colors",
-                    "value": "warm",
-                    "description": "Red, Orange, Yellow family",
-                    "emoji": "🔥",
-                },
-                {
-                    "label": "Cool Colors",
-                    "value": "cool",
-                    "description": "Blue, Green, Purple family",
-                    "emoji": "❄️",
-                },
-                {
-                    "label": "Neutral Colors",
-                    "value": "neutral",
-                    "description": "Black, White, Gray family",
-                    "emoji": "⚪",
-                },
-            ],
-            placeholder="Select color family",
-            custom_id="color_family",
-            max_values=1,
-            row=0,
-        )
+        # First dropdown - Color family selection
+        view1 = DynamicDropdownView(**DROPDOWN_CONFIGS["paint_step1"])
         primary_selection, message = await view1.initiate_from_interaction(
             interaction, "Step 1: Choose a color family:"
         )
         if not primary_selection or not message:
             return
 
-        # Second dropdown - Specific colors
-        view2 = DynamicDropdownView(ephemeral=False)
-
-        color_options = {
-            "warm": [
-                {"label": "Red", "value": "red", "emoji": "🔴"},
-                {"label": "Orange", "value": "orange", "emoji": "🟠"},
-                {"label": "Yellow", "value": "yellow", "emoji": "🟡"},
-            ],
-            "cool": [
-                {"label": "Blue", "value": "blue", "emoji": "🔵"},
-                {"label": "Green", "value": "green", "emoji": "🟢"},
-                {"label": "Purple", "value": "purple", "emoji": "🟣"},
-            ],
-            "neutral": [
-                {"label": "Black", "value": "black", "emoji": "⚫"},
-                {"label": "White", "value": "white", "emoji": "⚪"},
-                {"label": "Gray", "value": "gray", "emoji": "⭕"},
-            ],
-        }
-
+        # Second dropdown - Specific colors based on family
         selected_family = primary_selection["color_family"][0]
-        view2.add_dropdown(
-            fields=color_options[selected_family],
-            placeholder="Select specific colors",
-            custom_id="specific_colors",
-            min_values=1,
-            max_values=2,
-            row=0,
+        view2 = DynamicDropdownView(
+            **DROPDOWN_CONFIGS[f"paint_step2_{selected_family}"]
         )
-
         secondary_selection, message = await view2.initiate_from_message(
             message, f"Step 2: Choose 1-2 colors from the {selected_family} family:"
         )
         if not secondary_selection or not message:
             return
 
-        # Final step - Additional options
-        view3 = DynamicDropdownView(ephemeral=False, add_buttons=True)
-
-        # Finish types dropdown
-        view3.add_dropdown(
-            fields=[
-                {
-                    "label": "Matte",
-                    "value": "matte",
-                    "description": "Matte finish",
-                    "emoji": "🎨",
-                },
-                {
-                    "label": "Gloss",
-                    "value": "gloss",
-                    "description": "Glossy finish",
-                    "emoji": "✨",
-                },
-                {
-                    "label": "Metallic",
-                    "value": "metallic",
-                    "description": "Metallic finish",
-                    "emoji": "🌟",
-                },
-            ],
-            placeholder="Select 1-2 finishes",
-            custom_id="finishes",
-            min_values=1,
-            max_values=2,
-            row=0,
-        )
-
-        # Application method dropdown
-        view3.add_dropdown(
-            fields=[
-                {
-                    "label": "Brush",
-                    "value": "brush",
-                    "description": "Apply with brush",
-                    "emoji": "🖌️",
-                },
-                {
-                    "label": "Spray",
-                    "value": "spray",
-                    "description": "Apply with spray",
-                    "emoji": "💨",
-                },
-                {
-                    "label": "Roll",
-                    "value": "roll",
-                    "description": "Apply with roller",
-                    "emoji": "🎢",
-                },
-            ],
-            placeholder="Select application method",
-            custom_id="application",
-            min_values=1,
-            max_values=1,
-            row=1,
-        )
-
+        # Final step - Finishes and application method
+        view3 = DynamicDropdownView(**DROPDOWN_CONFIGS["paint_step3"])
         application_selections, message = await view3.initiate_from_message(
             message,
             "Step 3: Choose your application preferences:\n"
