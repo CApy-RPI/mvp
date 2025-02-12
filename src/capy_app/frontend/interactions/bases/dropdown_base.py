@@ -8,7 +8,7 @@ dropdown menus with optional accept/cancel buttons. It supports:
 - Message lifecycle management
 """
 
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, Optional, List, Tuple, Any
 import logging
 from discord import SelectOption, Interaction, ButtonStyle, Message
 from discord.ui import Select, View, Button
@@ -66,44 +66,19 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
 
     def __init__(
         self,
-        options_dict: Dict[str, Dict[str, str]],
-        placeholder: str = "Make a selection",
-        min_values: int = 1,
-        max_values: int = 1,
+        fields: Optional[List[Dict[str, Any]]] = None,
         disable_on_select: bool = False,
-        custom_id: str = "",
-        row: int = 0,
+        **options,
     ) -> None:
-        """Initialize the dropdown with options from a dictionary.
-
-        Args:
-            options_dict: Dictionary of options {label: {"value": val, "description": desc}}
-            placeholder: Text shown when no selection is made
-            min_values: Minimum number of selections required
-            max_values: Maximum number of selections allowed
-            disable_on_select: Whether to disable the dropdown after selection
-            custom_id: Unique identifier for the dropdown
-            row: Discord UI row number (0-4)
-        """
-        self.disable_on_select = disable_on_select
         self.selected_values: List[str] = []
 
-        options = [
-            SelectOption(
-                label=label,
-                value=data.get("value", label),
-                description=data.get("description", ""),
-            )
-            for label, data in options_dict.items()
-        ]
+        self._disable_on_select = disable_on_select
+
+        select_options = [SelectOption(field_config for field_config in fields)]
 
         super().__init__(
-            placeholder=placeholder,
-            min_values=min_values,
-            max_values=max_values,
-            options=options,
-            custom_id=custom_id,
-            row=row,
+            options=select_options,
+            **options,
         )
 
     async def callback(self, interaction: Interaction) -> None:
@@ -113,11 +88,12 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
             f"Dropdown {self.custom_id} selected values: {self.selected_values}"
         )
 
-        if self.disable_on_select:
+        if self._disable_on_select:
             self.disabled = True
             logger.debug(f"Dropdown {self.custom_id} disabled after selection")
 
-        if isinstance(self.view, DynamicDropdownView) and not self.view._has_buttons:
+        if not self.view._has_buttons:
+            self.view.accepted = True
             self.view.stop()
 
         await interaction.response.defer()
@@ -128,8 +104,10 @@ class DynamicDropdownView(View):
 
     def __init__(
         self,
-        timeout: float = 180.0,
+        ephemeral: bool = True,
         auto_buttons: bool = True,
+        add_buttons: bool = False,
+        **options,
     ) -> None:
         """Initialize the multi-selector view.
 
@@ -137,30 +115,30 @@ class DynamicDropdownView(View):
             timeout: Time in seconds before the view times out
             auto_buttons: Whether to automatically add accept/cancel buttons for multiple dropdowns
         """
-        super().__init__(timeout=timeout)
-        self.dropdowns: List[DynamicDropdown] = []
+        super().__init__(**options)
         self.accepted: bool = False
-        self.timeout: bool = False
-        self._has_buttons: bool = False
+
+        self._dropdowns: List[DynamicDropdown] = []
         self._completed: bool = False
-        self.message: Optional[Message] = None
-        self.ephemeral: bool = True
-        self.auto_buttons = auto_buttons
+        self._timed_out: bool = False
+        self._has_buttons: bool = False
+        self._message: Optional[Message] = None
+        self._ephemeral: bool = ephemeral
+        self._auto_buttons = auto_buttons
+        self._add_buttons = add_buttons
 
     async def initiate_from_interaction(
         self,
         interaction: Interaction,
         content: str = "Make your selections:",
-        ephemeral: bool = True,
     ) -> tuple[Dict[str, List[str]] | None, Message | None]:
         """Send initial message and wait for selections."""
-        if self.auto_buttons and len(self.dropdowns) > 1:
-            logger.debug("Auto-adding buttons for multiple dropdowns")
-            self.add_accept_cancel_buttons()
+        self.add_accept_cancel_buttons_if_needed()
 
-        self.ephemeral = ephemeral
-        await interaction.response.send_message(content, view=self, ephemeral=ephemeral)
-        self.message = await interaction.original_response()
+        await interaction.response.send_message(
+            content, view=self, ephemeral=self._ephemeral
+        )
+        self._message = await interaction.original_response()
         return await self._get_data()
 
     async def initiate_from_message(
@@ -169,46 +147,38 @@ class DynamicDropdownView(View):
         content: str = "Make your selections:",
     ) -> tuple[Dict[str, List[str]] | None, Message | None]:
         """Update existing message and wait for selections."""
-        if self.auto_buttons and len(self.dropdowns) > 1:
-            self.add_accept_cancel_buttons()
+        self.add_accept_cancel_buttons_if_needed()
 
-        self.message = await message.edit(content=content, view=self)
-        self.ephemeral = message.flags.ephemeral
+        self._message = await message.edit(content=content, view=self)
+        self._ephemeral = message.flags.ephemeral
         return await self._get_data()
 
     async def on_timeout(self) -> None:
-        if self.message:
+        if self._message:
             try:
-                await self.message.edit(content="Selection timed out", view=None)
+                await self._message.edit(content="Selection timed out", view=None)
             except NotFound:
                 pass
 
     def add_dropdown(
         self,
         options_dict: Dict[str, Dict[str, str]],
-        placeholder: str = "Make a selection",
-        min_values: int = 1,
-        max_values: int = 1,
-        disable_on_select: bool = False,
-        custom_id: str = "",
-        row: int = 0,
+        **options,
     ) -> DynamicDropdown:
-        dropdown = DynamicDropdown(
-            options_dict=options_dict,
-            placeholder=placeholder,
-            min_values=min_values,
-            max_values=max_values,
-            disable_on_select=disable_on_select,
-            custom_id=custom_id or f"dropdown_{len(self.dropdowns)}",
-            row=row,
-        )
-        self.dropdowns.append(dropdown)
+        dropdown = DynamicDropdown(options_dict=options_dict, **options)
+        self._dropdowns.append(dropdown)
         self.add_item(dropdown)
         return dropdown
 
-    def add_accept_cancel_buttons(self) -> None:
+    def add_accept_cancel_buttons_if_needed(self) -> None:
         """Adds accept and cancel buttons to the view."""
         if self._has_buttons:
+            logger.warning("Buttons already added to view")
+            return
+
+        if not self._add_buttons and (
+            not self._auto_buttons or len(self._dropdowns) == 1
+        ):
             return
 
         self.add_item(AcceptButton())
@@ -230,7 +200,7 @@ class DynamicDropdownView(View):
 
         selections = {
             dropdown.custom_id: dropdown.selected_values
-            for dropdown in self.dropdowns
+            for dropdown in self._dropdowns
             if dropdown.selected_values
         }
 
@@ -239,18 +209,18 @@ class DynamicDropdownView(View):
         )
 
         # Update message based on result
-        if self.message:
+        if self._message:
             try:
                 if self.accepted:
                     logger.debug("Selections accepted")
-                    await self.message.edit(content="Selections accepted", view=None)
-                elif self.timeout:
+                    await self._message.edit(content="Selections accepted", view=None)
+                elif self._timed_out:
                     logger.debug("Selection timed out")
-                    await self.message.edit(content="Selection timed out", view=None)
+                    await self._message.edit(content="Selection timed out", view=None)
                 else:
                     logger.debug("Selection cancelled")
-                    await self.message.edit(content="Selection cancelled", view=None)
+                    await self._message.edit(content="Selection cancelled", view=None)
             except NotFound:
                 logger.warning("Message not found when trying to update status")
 
-        return selections if self.accepted else None, self.message
+        return selections if self.accepted else None, self._message

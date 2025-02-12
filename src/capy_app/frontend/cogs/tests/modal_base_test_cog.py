@@ -69,6 +69,7 @@ class ModalTestCog(commands.Cog):
         values, message = await view.initiate_from_interaction(
             interaction, prompt="Click below to start the survey!"
         )
+        print(values, message)
         if values and message:
             try:
                 await message.edit(

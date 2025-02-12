@@ -2,7 +2,6 @@
 
 from discord.ext import commands
 from discord import app_commands, Interaction, Object
-from discord.errors import NotFound
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 
 from config import settings
@@ -16,61 +15,85 @@ class DropdownTestCog(commands.Cog):
     @app_commands.command(name="test_dropdown")
     async def test_dropdown(self, interaction: Interaction):
         """Test the dropdown base functionality with a single dropdown"""
-        view = DynamicDropdownView()
-
+        view = DynamicDropdownView(ephemeral=False)
+        
         view.add_dropdown(
-            options_dict={
-                "Option A": {"value": "a", "description": "First choice"},
-                "Option B": {"value": "b", "description": "Second choice"},
-                "Option C": {"value": "c", "description": "Third choice"},
-            },
             placeholder="Make your selection",
             max_values=1,
             disable_on_select=True,
             custom_id="simple_select",
             row=0,
+            fields=[
+                {
+                    "label": "Option A",
+                    "value": "a",
+                    "description": "First choice",
+                    "emoji": "🅰️"
+                },
+                {
+                    "label": "Option B",
+                    "value": "b", 
+                    "description": "Second choice",
+                    "emoji": "🅱️"
+                },
+                {
+                    "label": "Option C",
+                    "value": "c",
+                    "description": "Third choice",
+                    "emoji": "©️"
+                },
+            ]
         )
 
         selections, message = await view.initiate_from_interaction(
-            interaction, "Test a simple dropdown selection:"
+            interaction, "Test a simple dropdown selection with emojis:"
         )
 
         if selections and message:
             await message.edit(
                 content=f"Selected value: {selections}",
                 view=None,
-                delete_after=10,
             )
 
     @app_commands.guilds(Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="test_dropdown_with_buttons")
     async def test_dropdown_with_buttons(self, interaction: Interaction):
         """Test the dropdown base with accept/cancel buttons"""
-        view = DynamicDropdownView(timeout=180.0)
+        view = DynamicDropdownView(ephemeral=False, add_buttons=True)
 
-        # Add dropdowns in different rows
         view.add_dropdown(
-            options_dict={"Option A": {"value": "a"}},
-            placeholder="Row 0 select",
-            custom_id="row0",
+            placeholder="Choose a fruit",
+            custom_id="fruits",
             row=0,
+            fields=[
+                {"label": "Apple", "value": "apple", "emoji": "🍎"},
+                {"label": "Banana", "value": "banana", "emoji": "🍌"},
+                {"label": "Orange", "value": "orange", "emoji": "🍊"},
+            ]
         )
         view.add_dropdown(
-            options_dict={"Option B": {"value": "b"}},
-            placeholder="Row 1 select",
-            custom_id="row1",
+            placeholder="Choose an animal",
+            custom_id="animals",
             row=1,
+            fields=[
+                {"label": "Dog", "value": "dog", "emoji": "🐕"},
+                {"label": "Cat", "value": "cat", "emoji": "🐈"},
+                {"label": "Bird", "value": "bird", "emoji": "🐦"},
+            ]
         )
         view.add_dropdown(
-            options_dict={"Option C": {"value": "c"}},
-            placeholder="Row 2 select",
-            custom_id="row2",
+            placeholder="Choose weather",
+            custom_id="weather",
             row=2,
+            fields=[
+                {"label": "Sunny", "value": "sun", "emoji": "☀️"},
+                {"label": "Rainy", "value": "rain", "emoji": "🌧️"},
+                {"label": "Cloudy", "value": "cloud", "emoji": "☁️"},
+            ]
         )
-        view.add_accept_cancel_buttons()
 
         selections, message = await view.initiate_from_interaction(
-            interaction, "Make your selections and click accept when done:"
+            interaction, "Select from each category:"
         )
 
         if message:
@@ -79,62 +102,93 @@ class DropdownTestCog(commands.Cog):
                 if selections
                 else "Selection cancelled."
             )
-            await message.edit(content=content, view=None, delete_after=10)
+            await message.edit(content=content, view=None)
 
     @app_commands.guilds(Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="test_dropdown_sequential")
     async def test_sequential_dropdowns(self, interaction: Interaction):
         """Test sequential dropdowns where each appears after the previous is selected"""
-        # First dropdown - single select
-        view1 = DynamicDropdownView(timeout=180.0)
+        # First dropdown - Color family
+        view1 = DynamicDropdownView(ephemeral=False)
         view1.add_dropdown(
-            options_dict={
-                "Red": {"value": "red", "description": "Primary red"},
-                "Blue": {"value": "blue", "description": "Primary blue"},
-                "Green": {"value": "green", "description": "Primary green"},
-            },
-            placeholder="Select ONE primary color",
-            custom_id="primary_color",
+            fields=[
+                {
+                    "label": "Warm Colors",
+                    "value": "warm",
+                    "description": "Red, Orange, Yellow family",
+                    "emoji": "🔥"
+                },
+                {
+                    "label": "Cool Colors",
+                    "value": "cool",
+                    "description": "Blue, Green, Purple family",
+                    "emoji": "❄️"
+                },
+                {
+                    "label": "Neutral Colors",
+                    "value": "neutral",
+                    "description": "Black, White, Gray family",
+                    "emoji": "⚪"
+                },
+            ],
+            placeholder="Select color family",
+            custom_id="color_family",
             max_values=1,
             row=0,
         )
         primary_selection, message = await view1.initiate_from_interaction(
-            interaction, "Step 1: Choose exactly one primary color:"
+            interaction, "Step 1: Choose a color family:"
         )
         if not primary_selection or not message:
             return
 
-        # Second dropdown - multi select (1-2)
-        view2 = DynamicDropdownView(timeout=180.0)
+        # Second dropdown - Specific colors
+        view2 = DynamicDropdownView(ephemeral=False)
+        
+        color_options = {
+            "warm": [
+                {"label": "Red", "value": "red", "emoji": "🔴"},
+                {"label": "Orange", "value": "orange", "emoji": "🟠"},
+                {"label": "Yellow", "value": "yellow", "emoji": "🟡"},
+            ],
+            "cool": [
+                {"label": "Blue", "value": "blue", "emoji": "🔵"},
+                {"label": "Green", "value": "green", "emoji": "🟢"},
+                {"label": "Purple", "value": "purple", "emoji": "🟣"},
+            ],
+            "neutral": [
+                {"label": "Black", "value": "black", "emoji": "⚫"},
+                {"label": "White", "value": "white", "emoji": "⚪"},
+                {"label": "Gray", "value": "gray", "emoji": "⭕"},
+            ]
+        }
+
+        selected_family = primary_selection["color_family"][0]
         view2.add_dropdown(
-            options_dict={
-                "Yellow": {"value": "yellow", "description": "Mix with yellow"},
-                "Purple": {"value": "purple", "description": "Mix with purple"},
-                "Orange": {"value": "orange", "description": "Mix with orange"},
-                "White": {"value": "white", "description": "Mix with white"},
-            },
-            placeholder="Select 1-2 secondary colors",
-            custom_id="secondary_colors",
+            fields=color_options[selected_family],
+            placeholder="Select specific colors",
+            custom_id="specific_colors",
             min_values=1,
             max_values=2,
             row=0,
         )
+        
         secondary_selection, message = await view2.initiate_from_message(
-            message, "Step 2: Choose one or two secondary colors to mix:"
+            message, f"Step 2: Choose 1-2 colors from the {selected_family} family:"
         )
         if not secondary_selection or not message:
             return
 
-        # Third step - multiple concurrent dropdowns
-        view3 = DynamicDropdownView(timeout=180.0)
+        # Final step - Additional options
+        view3 = DynamicDropdownView(ephemeral=False, add_buttons=True)
 
         # Finish types dropdown
         view3.add_dropdown(
-            options_dict={
-                "Matte": {"value": "matte", "description": "Matte finish"},
-                "Gloss": {"value": "gloss", "description": "Glossy finish"},
-                "Metallic": {"value": "metallic", "description": "Metallic finish"},
-            },
+            fields=[
+                {"label": "Matte", "value": "matte", "description": "Matte finish", "emoji": "🎨"},
+                {"label": "Gloss", "value": "gloss", "description": "Glossy finish", "emoji": "✨"},
+                {"label": "Metallic", "value": "metallic", "description": "Metallic finish", "emoji": "🌟"},
+            ],
             placeholder="Select 1-2 finishes",
             custom_id="finishes",
             min_values=1,
@@ -144,11 +198,11 @@ class DropdownTestCog(commands.Cog):
 
         # Application method dropdown
         view3.add_dropdown(
-            options_dict={
-                "Brush": {"value": "brush", "description": "Apply with brush"},
-                "Spray": {"value": "spray", "description": "Apply with spray"},
-                "Roll": {"value": "roll", "description": "Apply with roller"},
-            },
+            fields=[
+                {"label": "Brush", "value": "brush", "description": "Apply with brush", "emoji": "🖌️"},
+                {"label": "Spray", "value": "spray", "description": "Apply with spray", "emoji": "💨"},
+                {"label": "Roll", "value": "roll", "description": "Apply with roller", "emoji": "🎢"},
+            ],
             placeholder="Select application method",
             custom_id="application",
             min_values=1,
@@ -156,49 +210,31 @@ class DropdownTestCog(commands.Cog):
             row=1,
         )
 
-        # Coating layers dropdown
-        view3.add_dropdown(
-            options_dict={
-                "Single": {"value": "1", "description": "One coat"},
-                "Double": {"value": "2", "description": "Two coats"},
-                "Triple": {"value": "3", "description": "Three coats"},
-            },
-            placeholder="Select number of coats",
-            custom_id="coats",
-            min_values=1,
-            max_values=1,
-            row=2,
-        )
-
         application_selections, message = await view3.initiate_from_message(
             message,
             "Step 3: Choose your application preferences:\n"
             "• Select 1-2 finish types\n"
-            "• Choose an application method\n"
-            "• Specify number of coats",
+            "• Choose an application method",
         )
         if not application_selections or not message:
             return
 
         combined_results = {
-            "primary": primary_selection.get("primary_color", []),
-            "secondary": secondary_selection.get("secondary_colors", []),
+            "color_family": primary_selection.get("color_family", []),
+            "specific_colors": secondary_selection.get("specific_colors", []),
             "finish_types": application_selections.get("finishes", []),
             "application_method": application_selections.get("application", []),
-            "coating_layers": application_selections.get("coats", []),
         }
 
         await message.edit(
             content=(
                 "Your paint configuration:\n"
-                f"Primary Color: {combined_results['primary']}\n"
-                f"Secondary Colors: {combined_results['secondary']}\n"
+                f"Color Family: {combined_results['color_family']}\n"
+                f"Specific Colors: {combined_results['specific_colors']}\n"
                 f"Finish Types: {combined_results['finish_types']}\n"
-                f"Application Method: {combined_results['application_method']}\n"
-                f"Number of Coats: {combined_results['coating_layers']}"
+                f"Application Method: {combined_results['application_method']}"
             ),
             view=None,
-            delete_after=15,
         )
 
 
