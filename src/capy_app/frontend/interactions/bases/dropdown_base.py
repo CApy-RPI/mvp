@@ -66,7 +66,7 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
 
     def __init__(
         self,
-        fields: Optional[List[Dict[str, Any]]] = [],
+        selections: Optional[List[Dict[str, Any]]] = [],
         disable_on_select: bool = False,
         **options,
     ) -> None:
@@ -75,8 +75,8 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
         self._disable_on_select = disable_on_select
 
         select_options = []
-        for field in fields:
-            select_options.append(SelectOption(**field))
+        for selection in selections:
+            select_options.append(SelectOption(**selection))
 
         super().__init__(
             options=select_options,
@@ -106,7 +106,7 @@ class DynamicDropdownView(View):
 
     def __init__(
         self,
-        dropdown_configs: Optional[List[Dict[str, Any]]] = [],
+        dropdowns: Optional[List[Dict[str, Any]]] = [],
         ephemeral: bool = True,
         auto_buttons: bool = True,
         add_buttons: bool = False,
@@ -130,8 +130,8 @@ class DynamicDropdownView(View):
         self._auto_buttons = auto_buttons
         self._add_buttons = add_buttons
 
-        for dropdown_config in dropdown_configs:
-            self._add_dropdown(**dropdown_config)
+        for dropdown in dropdowns:
+            self._add_dropdown(**dropdown)
 
     async def initiate_from_interaction(
         self,
@@ -168,10 +168,10 @@ class DynamicDropdownView(View):
 
     def _add_dropdown(
         self,
-        fields: Dict[str, Dict[str, str]],
+        selections: Dict[str, Dict[str, str]],
         **options,
     ) -> DynamicDropdown:
-        dropdown = DynamicDropdown(fields=fields, **options)
+        dropdown = DynamicDropdown(selections=selections, **options)
         self._dropdowns.append(dropdown)
         self.add_item(dropdown)
         return dropdown
