@@ -1,0 +1,65 @@
+{
+    "profile_modal": {
+        "ephemeral": true,
+        "modal": {
+            "title": "Profile Information",
+            "fields": [
+                {
+                    "label": "First Name",
+                    "placeholder": "Enter your first name",
+                    "required": true,
+                    "custom_id": "first_name"
+                },
+                {
+                    "label": "Last Name",
+                    "placeholder": "Enter your last name",
+                    "required": true,
+                    "custom_id": "last_name"
+                },
+                {
+                    "label": "Student ID",
+                    "placeholder": "Enter your student ID (e.g. 661234567)",
+                    "required": true,
+                    "min_length": 9,
+                    "max_length": 9,
+                    "custom_id": "student_id"
+                },
+                {
+                    "label": "School Email",
+                    "placeholder": "Enter your .edu email",
+                    "required": true,
+                    "custom_id": "school_email"
+                },
+                {
+                    "label": "Graduation Year",
+                    "placeholder": "Expected graduation year",
+                    "required": true,
+                    "min_length": 4,
+                    "max_length": 4,
+                    "custom_id": "graduation_year"
+                }
+            ]
+        }
+    },
+    "major_dropdown": {
+        "ephemeral": true,
+        "add_buttons": true,
+        "dropdowns": []
+    },
+    "verify_modal": {
+        "ephemeral": true,
+        "modal": {
+            "title": "Email Verification",
+            "fields": [
+                {
+                    "label": "Verification Code",
+                    "placeholder": "Enter the 6-digit code sent to your email",
+                    "required": true,
+                    "max_length": 6,
+                    "min_length": 6,
+                    "custom_id": "verification_code"
+                }
+            ]
+        }
+    }
+}
