@@ -127,7 +127,7 @@ class DynamicModal(Modal):
         }
         self.success = True
         await interaction.response.defer()
-        self.view.stop()
+        self.stop()
 
     async def on_timeout(self) -> None:
         """Handle modal timeout."""
@@ -155,7 +155,7 @@ class ModalTriggerButton(Button["DynamicModalView"]):
 
     async def callback(self, interaction: Interaction) -> None:
         """Show the modal when button is clicked."""
-        await self.modal.initiate_from_interaction(interaction)
+        await interaction.response.send_modal(self.modal)
 
 
 class DynamicModalView(View):
@@ -172,8 +172,9 @@ class DynamicModalView(View):
         self.ephemeral = ephemeral
         self.modal: Optional[DynamicModal] = None
         self.message: Optional[Message] = None
+        self.interaction: Optional[Interaction] = None
         self._completed: bool = False
-        self.timeout_occurred: bool = False
+        self.timeout: bool = False
 
     def add_modal(
         self,
@@ -199,36 +200,39 @@ class DynamicModalView(View):
         logger.debug(f"Added modal '{title}' to view")
         return modal
 
+    async def _send_status_message(self, content: str) -> None:
+        """Create initial status message after modal is sent."""
+        if self.message:
+            await self.message.edit(
+                content=content or f"Form '{self.modal.title}' has been opened",
+                view=None,
+                ephemeral=self.ephemeral,
+            )
+            print("Message sent")
+        elif self.interaction:
+            self.message = await self.interaction.followup.send(
+                content=content or f"Form '{self.modal.title}' has been opened",
+                ephemeral=self.ephemeral,
+            )
+            print("Message sent by interact")
+        else:
+            logger.error("No interaction or message to send status message")
+
     async def initiate_from_interaction(
         self,
         interaction: Interaction,
-    ) -> Message:
-        """Show modal directly and send result message."""
+    ) -> tuple[Dict[str, str] | None, Message | None]:
+        """Show modal and wait for submission.
+
+        Returns:
+            Tuple of (form values, message) if submitted, (None, None) if cancelled
+        """
         if self.modal is None:
             logger.error("Attempted to initiate view without modal")
             raise ValueError("No modal added to view")
 
         logger.debug(f"Initiating modal '{self.modal.title}' from interaction")
-        await self.modal.initiate_from_interaction(interaction)
-
-        # Create result message
-        await interaction.followup.send(
-            content=f"Form '{self.modal.title}' has been opened",
-            ephemeral=self.ephemeral,
-        )
-        self.message = await interaction.original_response()
-        return self.message
-
-    async def initiate_from_none(
-        self,
-        channel,
-    ) -> Message:
-        """Create a new message with this view."""
-        if self.modal is None:
-            logger.error("Attempted to initiate view without modal")
-            raise ValueError("No modal added to view")
-
-        if self.button_enable:
+        if self.button_label:
             logger.debug("Adding trigger button to view")
             self.add_item(
                 ModalTriggerButton(
@@ -237,50 +241,77 @@ class DynamicModalView(View):
                     style=self.button_style,
                 )
             )
+            await interaction.response.send_message(
+                "Click the button below to open the form", view=self
+            )
+        else:
+            await interaction.response.send_modal(self.modal)
 
-        logger.debug(f"Creating new message for modal '{self.modal.title}'")
-        self.message = await channel.send(
-            content=f"Form '{self.modal.title}' is ready",
-            view=self,
-        )
-        return self.message
+        await interaction.response.send_modal(self.modal)
 
-    async def get_data(self) -> tuple[Dict[str, str] | None, Message | None]:
-        """Wait for modal to complete and return its values."""
-        if self._completed:
-            logger.debug("Modal already completed, returning None")
-            return None, self.message
+        self.interaction = interaction
 
-        logger.debug("Waiting for modal completion")
-        await self.modal.wait()
-        self._completed = True
+        return await self._get_data()
 
-        if not self.message:
-            logger.warning("No message reference found after modal completion")
-            return (self.modal.values if self.modal.success else None), None
+    async def initiate_from_message(
+        self,
+        message: Message,
+    ) -> tuple[Dict[str, str] | None, Message | None]:
+        """Update message with modal trigger and wait for submission."""
+        if self.modal is None:
+            logger.error("Attempted to initiate view without modal")
+            raise ValueError("No modal added to view")
 
-        try:
-            if self.modal.success:
-                logger.debug("Modal submitted successfully")
-                await self.message.edit(
-                    content="Form submitted successfully", view=None
+        logger.debug(f"Initiating modal '{self.modal.title}' from message")
+        if self.button_label:
+            logger.debug("Adding trigger button to view")
+            self.add_item(
+                ModalTriggerButton(
+                    modal=self.modal,
+                    label=self.button_label,
+                    style=self.button_style,
                 )
-            else:
-                logger.debug("Modal submission cancelled")
-                await self.message.edit(content="Form submission cancelled", view=None)
-        except NotFound:
-            logger.warning("Message not found when updating status")
+            )
+        else:
+            await self.modal.interaction.response.send_modal(self.modal)
 
-        return (self.modal.values if self.modal.success else None), self.message
+        self.message = message
+
+        return await self._get_data()
+
+    async def _get_data(self) -> tuple[Dict[str, str] | None, Message | None]:
+        """Wait for user input and return form values and message.
+
+        Returns:
+            Tuple containing:
+            - Dictionary of field values if submitted successfully, None if cancelled
+            - Reference to the message object
+        """
+        if not self._completed:
+            logger.debug("Waiting for modal submission")
+            await self.modal.wait()
+            self._completed = True
+
+        if self.modal.success:
+            logger.debug("Modal submitted successfully")
+            await self._send_status_message("Form submitted successfully")
+        elif self.timeout:
+            logger.debug("Modal input timed out")
+            await self._send_status_message("Form input timed out")
+        else:
+            logger.debug("Modal submission cancelled")
+            await self._send_status_message("Form submission cancelled")
+
+        return self.modal.values if self.modal.success else None, self.message
 
     async def on_timeout(self) -> None:
         """Handle view timeout."""
-        self.timeout_occurred = True
+        self.timeout = True
         if not self.message:
             return
 
         try:
             logger.debug("View timed out, updating message")
-            await self.message.edit(content="Form input timed out", view=None)
+            await self._send_status_message("Form input timed out")
         except NotFound:
             logger.warning("Message not found when handling timeout")
