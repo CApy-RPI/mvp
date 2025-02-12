@@ -114,6 +114,8 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
 class DynamicDropdownView(View):
     """A view that can contain multiple dropdowns with optional accept/cancel buttons."""
 
+    MAX_DROPDOWNS = 5  # Discord's limit for components in a view
+
     def __init__(
         self,
         dropdowns: Optional[List[Dict[str, Any]]] = [],
@@ -139,6 +141,15 @@ class DynamicDropdownView(View):
         self._ephemeral: bool = ephemeral
         self._auto_buttons = auto_buttons
         self._add_buttons = add_buttons
+
+        if (
+            len(dropdowns) > self.MAX_DROPDOWNS
+            or len(dropdowns) > self.MAX_DROPDOWNS - 1
+            and (self._auto_buttons or self._add_buttons)
+        ):
+            raise ValueError(
+                f"Number of dropdowns exceeds Discord limit of {self.MAX_DROPDOWNS}. "
+            )
 
         for dropdown in dropdowns:
             self._add_dropdown(**dropdown)

@@ -46,26 +46,20 @@
         "add_buttons": true,
         "dropdowns": [
             {
-                "placeholder": "Select majors starting with A-D",
-                "custom_id": "major_a_d",
+                "placeholder": "Select majors starting with A-F",
+                "custom_id": "major_a_f",
                 "min_values": 0,
                 "max_values": 2
             },
             {
-                "placeholder": "Select majors starting with E-I",
-                "custom_id": "major_e_i",
+                "placeholder": "Select majors starting with G-L",
+                "custom_id": "major_g_l",
                 "min_values": 0,
                 "max_values": 2
             },
             {
-                "placeholder": "Select majors starting with J-M",
-                "custom_id": "major_j_m",
-                "min_values": 0,
-                "max_values": 2
-            },
-            {
-                "placeholder": "Select majors starting with N-R",
-                "custom_id": "major_n_r",
+                "placeholder": "Select majors starting with M-R",
+                "custom_id": "major_m_r",
                 "min_values": 0,
                 "max_values": 2
             },

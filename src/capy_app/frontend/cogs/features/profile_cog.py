@@ -59,19 +59,17 @@ class ProfileCog(commands.Cog):
     def _group_majors(self) -> dict[str, list[str]]:
         """Group majors by letter ranges."""
         groups = {
-            "major_a_d": [],
-            "major_e_i": [],
-            "major_j_m": [],
-            "major_n_r": [],
+            "major_a_f": [],
+            "major_g_l": [],
+            "major_m_r": [],
             "major_s_z": [],
         }
 
         ranges = {
-            "major_a_d": ("A", "E"),
-            "major_e_i": ("E", "J"),
-            "major_j_m": ("J", "N"),
-            "major_n_r": ("N", "S"),
-            "major_s_z": ("S", "Z"),
+            "major_a_f": ("A", "G"),
+            "major_g_l": ("G", "M"),
+            "major_m_r": ("M", "S"),
+            "major_s_z": ("S", "["),  # '[' comes after 'Z' in ASCII
         }
 
         for major in self.major_list:
@@ -80,9 +78,6 @@ class ProfileCog(commands.Cog):
                 if start <= first_letter < end:
                     groups[group_id].append(major)
                     break
-            else:  # For majors starting with Z
-                if first_letter >= "S":
-                    groups["major_s_z"].append(major)
 
         return groups
 
@@ -152,10 +147,9 @@ class ProfileCog(commands.Cog):
         values, message = await view.initiate_from_message(
             message,
             "Select your major(s) from any group (max 2 total):\n"
-            "• A-D: Architecture, Computer Science, etc.\n"
-            "• E-I: Electrical Engineering, Information Technology, etc.\n"
-            "• J-M: Mechanical Engineering, Mathematics, etc.\n"
-            "• N-R: Physics, Psychology, etc.\n"
+            "• A-F: Aeronautical Engineering, Computer Science, etc.\n"
+            "• G-L: Information Technology, Industrial Engineering, etc.\n"
+            "• M-R: Mechanical Engineering, Physics, etc.\n"
             "• S-Z: Software Engineering, Systems Engineering, etc.",
         )
 
