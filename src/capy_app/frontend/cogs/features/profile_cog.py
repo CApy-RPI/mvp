@@ -15,8 +15,11 @@ from backend.db.documents.user import User, UserProfile, UserName
 from frontend.interactions.bases.view_bases import ConfirmDeleteView
 from frontend.interactions.bases.modal_base import DynamicModalView
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
+from frontend.interactions.bases.modal_base import ButtonDynamicModalView
 from .profile_handlers import EmailVerifier
 from .major_handler import MajorHandler
+
+# TODO: Should define ["Not Set"] as a constant
 
 
 class ProfileCog(commands.Cog):
@@ -53,10 +56,10 @@ class ProfileCog(commands.Cog):
                 return majors
         except FileNotFoundError:
             self.logger.error(f"majors.txt not found at {settings.MAJORS_PATH}")
-            return ["Undeclared"]
+            return ["Not Set"]
         except Exception as e:
             self.logger.error(f"Error loading majors from {settings.MAJORS_PATH}: {e}")
-            return ["Undeclared"]
+            return ["Not Set"]
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="profile", description="Manage your profile")
@@ -127,7 +130,7 @@ class ProfileCog(commands.Cog):
     async def verify_email(
         self, message: discord.Message, new_email: str, user: User | None
     ) -> bool:
-        """Verify user's email using modal base"""
+        """Verify user's email using button modal base"""
         if user and new_email == user.profile.school_email:
             return True
 
@@ -141,10 +144,8 @@ class ProfileCog(commands.Cog):
             await message.edit(content="Failed to send verification email.")
             return False
 
-        verify_view = DynamicModalView(**self.config["verify_modal"])
-        values, _ = await verify_view.initiate_from_message(
-            message, "Please check your email for a verification code."
-        )
+        verify_view = ButtonDynamicModalView(**self.config["verify_modal"])
+        values, _ = await verify_view.initiate_from_message(message)
 
         if not values:
             return False
@@ -255,6 +256,7 @@ class ProfileCog(commands.Cog):
                 else message_or_interaction.author.display_avatar.url
             )
         else:
+            avatar_url = message_or_interaction.user.display_avatar.url
             avatar_url = message_or_interaction.user.display_avatar.url
         embed.set_thumbnail(url=avatar_url)
         embed.add_field(name="First Name", value=user.profile.name.first, inline=True)

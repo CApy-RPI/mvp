@@ -48,6 +48,9 @@
     },
     "verify_modal": {
         "ephemeral": true,
+        "button_label": "Enter Verification Code",
+        "button_style": "primary",
+        "message_prompt": "📧 A verification code has been sent to your email.\nClick below when ready to verify:",
         "modal": {
             "title": "Email Verification",
             "fields": [
