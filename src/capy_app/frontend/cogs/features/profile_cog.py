@@ -16,6 +16,7 @@ from frontend.interactions.bases.view_bases import ConfirmDeleteView
 from frontend.interactions.bases.modal_base import DynamicModalView
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 from .profile_handlers import EmailVerifier
+from .major_handler import MajorHandler
 
 
 class ProfileCog(commands.Cog):
@@ -29,6 +30,7 @@ class ProfileCog(commands.Cog):
         self.major_list = self._load_major_list()
         self.email_verifier = EmailVerifier()
         self.config = self._load_config()
+        self.major_handler = MajorHandler(self.major_list)
 
     def _load_config(self) -> dict:
         """Load profile configurations from JSON"""
@@ -55,44 +57,6 @@ class ProfileCog(commands.Cog):
         except Exception as e:
             self.logger.error(f"Error loading majors from {settings.MAJORS_PATH}: {e}")
             return ["Undeclared"]
-
-    def _group_majors(self) -> dict[str, list[str]]:
-        """Group majors by letter ranges."""
-        groups = {
-            "major_a_f": [],
-            "major_g_l": [],
-            "major_m_r": [],
-            "major_s_z": [],
-        }
-
-        ranges = {
-            "major_a_f": ("A", "G"),
-            "major_g_l": ("G", "M"),
-            "major_m_r": ("M", "S"),
-            "major_s_z": ("S", "["),  # '[' comes after 'Z' in ASCII
-        }
-
-        for major in self.major_list:
-            first_letter = major[0].upper()
-            for group_id, (start, end) in ranges.items():
-                if start <= first_letter < end:
-                    groups[group_id].append(major)
-                    break
-
-        return groups
-
-    def _prepare_major_config(self) -> dict:
-        """Prepare major dropdown config with grouped major list"""
-        config = self.config["major_dropdown"].copy()
-        grouped_majors = self._group_majors()
-
-        for dropdown in config["dropdowns"]:
-            group_id = dropdown["custom_id"]
-            dropdown["selections"] = [
-                {"label": major, "value": major} for major in grouped_majors[group_id]
-            ]
-
-        return config
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="profile", description="Manage your profile")
@@ -141,16 +105,11 @@ class ProfileCog(commands.Cog):
         self, message: discord.Message, user: User | None
     ) -> tuple[list[str], discord.Message]:
         """Get selected majors using dropdown base"""
-        config = self._prepare_major_config()
+        config = self.major_handler.get_dropdown_config(self.config["major_dropdown"])
         view = DynamicDropdownView(**config)
 
         values, message = await view.initiate_from_message(
-            message,
-            "Select your major(s) from any group (max 2 total):\n"
-            "• A-F: Aeronautical Engineering, Computer Science, etc.\n"
-            "• G-L: Information Technology, Industrial Engineering, etc.\n"
-            "• M-R: Mechanical Engineering, Physics, etc.\n"
-            "• S-Z: Software Engineering, Systems Engineering, etc.",
+            message, self.major_handler.get_help_text()
         )
 
         if not values:
@@ -161,7 +120,9 @@ class ProfileCog(commands.Cog):
         for dropdown_id in values:
             selected.extend(values[dropdown_id])
 
-        return selected[:2], message  # Limit to max 2 majors total
+        # TODO Check if more than 2-3 majors and warn
+
+        return selected, message  # Limit to max 2 majors total
 
     async def verify_email(
         self, message: discord.Message, new_email: str, user: User | None
