@@ -159,16 +159,14 @@ class ModalTriggerButton(Button["DynamicModalView"]):
 
 
 class DynamicModalView(View):
+    """Base view for handling modal dialogs."""
+
     def __init__(
         self,
         timeout: float = 180.0,
-        button_label: str = None,
-        button_style: ButtonStyle = ButtonStyle.primary,
         ephemeral: bool = True,
     ) -> None:
         super().__init__(timeout=timeout)
-        self.button_label = button_label
-        self.button_style = button_style
         self.ephemeral = ephemeral
         self.modal: Optional[DynamicModal] = None
         self.message: Optional[Message] = None
@@ -182,11 +180,7 @@ class DynamicModalView(View):
         fields: List[Dict[str, any]] = None,
         timeout: float = 180.0,
     ) -> DynamicModal:
-        """Add a modal to the view with optional fields.
-
-        Raises:
-            ValueError: If modal already exists
-        """
+        """Add a modal to the view with optional fields."""
         if self.modal is not None:
             logger.error("Attempted to add second modal to view")
             raise ValueError("View already has a modal")
@@ -203,18 +197,12 @@ class DynamicModalView(View):
     async def _send_status_message(self, content: str) -> None:
         """Create initial status message after modal is sent."""
         if self.message:
-            await self.message.edit(
-                content=content or f"Form '{self.modal.title}' has been opened",
-                view=None,
-                ephemeral=self.ephemeral,
-            )
-            print("Message sent")
+            await self.message.edit(content=content, view=None)
         elif self.interaction:
             self.message = await self.interaction.followup.send(
-                content=content or f"Form '{self.modal.title}' has been opened",
+                content=content,
                 ephemeral=self.ephemeral,
             )
-            print("Message sent by interact")
         else:
             logger.error("No interaction or message to send status message")
 
@@ -222,61 +210,24 @@ class DynamicModalView(View):
         self,
         interaction: Interaction,
     ) -> tuple[Dict[str, str] | None, Message | None]:
-        """Show modal and wait for submission.
-
-        Returns:
-            Tuple of (form values, message) if submitted, (None, None) if cancelled
-        """
+        """Show modal directly from interaction."""
         if self.modal is None:
-            logger.error("Attempted to initiate view without modal")
             raise ValueError("No modal added to view")
 
-        logger.debug(f"Initiating modal '{self.modal.title}' from interaction")
-        if self.button_label:
-            logger.debug("Adding trigger button to view")
-            self.add_item(
-                ModalTriggerButton(
-                    modal=self.modal,
-                    label=self.button_label,
-                    style=self.button_style,
-                )
-            )
-            await interaction.response.send_message(
-                "Click the button below to open the form", view=self
-            )
-        else:
-            await interaction.response.send_modal(self.modal)
-
         await interaction.response.send_modal(self.modal)
-
         self.interaction = interaction
-
         return await self._get_data()
 
     async def initiate_from_message(
         self,
         message: Message,
     ) -> tuple[Dict[str, str] | None, Message | None]:
-        """Update message with modal trigger and wait for submission."""
+        """Show modal from existing message."""
         if self.modal is None:
-            logger.error("Attempted to initiate view without modal")
             raise ValueError("No modal added to view")
 
-        logger.debug(f"Initiating modal '{self.modal.title}' from message")
-        if self.button_label:
-            logger.debug("Adding trigger button to view")
-            self.add_item(
-                ModalTriggerButton(
-                    modal=self.modal,
-                    label=self.button_label,
-                    style=self.button_style,
-                )
-            )
-        else:
-            await self.modal.interaction.response.send_modal(self.modal)
-
+        await self.modal.interaction.response.send_modal(self.modal)
         self.message = message
-
         return await self._get_data()
 
     async def _get_data(self) -> tuple[Dict[str, str] | None, Message | None]:
@@ -315,3 +266,79 @@ class DynamicModalView(View):
             await self._send_status_message("Form input timed out")
         except NotFound:
             logger.warning("Message not found when handling timeout")
+
+
+class ButtonDynamicModalView(DynamicModalView):
+    """Modal view that shows a button to trigger the modal."""
+
+    def __init__(
+        self,
+        timeout: float = 180.0,
+        message_prompt: str = None,
+        button_label: str = "Open Form",
+        button_style: ButtonStyle = ButtonStyle.primary,
+        ephemeral: bool = True,
+    ) -> None:
+        super().__init__(timeout=timeout, ephemeral=ephemeral)
+        self.message_prompt = message_prompt
+        self.button_label = button_label
+        self.button_style = button_style
+
+    async def initiate_from_interaction(
+        self,
+        interaction: Interaction,
+        prompt: str = None,
+    ) -> tuple[Dict[str, str] | None, Message | None]:
+        """Show button and modal from interaction."""
+        if self.modal is None:
+            raise ValueError("No modal added to view")
+
+        self.add_item(
+            ModalTriggerButton(
+                modal=self.modal,
+                label=self.button_label,
+                style=self.button_style,
+            )
+        )
+
+        content = (
+            prompt
+            or self.message_prompt
+            or f"Click the button to open '{self.modal.title}'"
+        )
+        await interaction.response.send_message(
+            content=content,
+            view=self,
+            ephemeral=self.ephemeral,
+        )
+        self.message = await interaction.original_response()
+        return await self._get_data()
+
+    async def initiate_from_message(
+        self,
+        message: Message,
+        prompt: str = None,
+    ) -> tuple[Dict[str, str] | None, Message | None]:
+        """Update message with button and wait for modal submission."""
+        if self.modal is None:
+            raise ValueError("No modal added to view")
+
+        self.add_item(
+            ModalTriggerButton(
+                modal=self.modal,
+                label=self.button_label,
+                style=self.button_style,
+            )
+        )
+
+        content = (
+            prompt
+            or self.message_prompt
+            or f"Click the button to open '{self.modal.title}'"
+        )
+        await message.edit(
+            content=content,
+            view=self,
+        )
+        self.message = message
+        return await self._get_data()

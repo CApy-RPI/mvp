@@ -1,7 +1,10 @@
 from discord.ext import commands
 from discord import app_commands, Interaction, Object, TextStyle, ButtonStyle
 from discord.errors import NotFound
-from frontend.interactions.bases.modal_base import DynamicModalView
+from frontend.interactions.bases.modal_base import (
+    DynamicModalView,
+    ButtonDynamicModalView,
+)
 
 from config import settings
 
@@ -39,10 +42,11 @@ class ModalTestCog(commands.Cog):
     @app_commands.command(name="test_modal_button")
     async def test_modal_button(self, interaction: Interaction):
         """Test modal with custom button"""
-        view = DynamicModalView(
+        view = ButtonDynamicModalView(
             button_label="Open Survey",
             button_style=ButtonStyle.success,
             ephemeral=False,
+            message_prompt="📝 Ready to share your feedback? Click the button below!",
         )
 
         view.add_modal(
@@ -62,7 +66,9 @@ class ModalTestCog(commands.Cog):
             ],
         )
 
-        values, message = await view.initiate_from_interaction(interaction)
+        values, message = await view.initiate_from_interaction(
+            interaction, prompt="Click below to start the survey!"
+        )
         if values and message:
             try:
                 await message.edit(
@@ -77,7 +83,11 @@ class ModalTestCog(commands.Cog):
     async def test_modal_sequential(self, interaction: Interaction):
         """Test sequential modals using message passing"""
         # First modal view
-        view1 = DynamicModalView(button_label="Add Personal Info", ephemeral=False)
+        view1 = ButtonDynamicModalView(
+            button_label="Add Personal Info",
+            ephemeral=False,
+            message_prompt="👤 Let's start with some basic information about you",
+        )
         view1.add_modal(
             title="Personal Info",
             fields=[
@@ -91,9 +101,10 @@ class ModalTestCog(commands.Cog):
             return
 
         # Second modal view using same message
-        view2 = DynamicModalView(
+        view2 = ButtonDynamicModalView(
             button_label="Add Contact Info",
             ephemeral=False,
+            message_prompt="📞 Great! Now let's add your contact details",
         )
         view2.add_modal(
             title="Contact Info",
@@ -121,7 +132,7 @@ class ModalTestCog(commands.Cog):
             for section, info in combined.items()
         )
         try:
-            message.edit(content=f"Profile completed:\n{formatted}")
+            await message.edit(content=f"Profile completed:\n{formatted}")
         except NotFound:
             pass
 
