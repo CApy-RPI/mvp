@@ -39,6 +39,7 @@ class DynamicModal(Modal):
 
     def __init__(
         self,
+        fields: Optional[List[Dict[str, Any]]] = [],
         **options,
     ) -> None:
         """Initialize the modal dialog."""
@@ -49,7 +50,10 @@ class DynamicModal(Modal):
         self._fields: List[DynamicField[View]] = []
         self._interaction: Optional[Interaction] = None
 
-    def add_field(self, **options) -> DynamicField[View]:
+        for field in fields:
+            self._add_field(**field)
+
+    def _add_field(self, **options) -> DynamicField[View]:
         field: DynamicField[View] = DynamicField(**options)
         self._fields.append(field)
         self.add_item(field)
@@ -97,6 +101,7 @@ class DynamicModalView(View):
 
     def __init__(
         self,
+        modal: Optional[List[Dict[str, Any]]] = [],
         ephemeral: bool = True,
         **options,
     ) -> None:
@@ -108,24 +113,21 @@ class DynamicModalView(View):
         self._completed: bool = False
         self._timed_out: bool = False
 
-    def add_modal(
+        self._add_modal(**modal)
+
+    def _add_modal(
         self,
-        title: str,
-        fields: Optional[List[Dict[str, Any]]] = None,
-        timeout: float = 180.0,
+        **options,
     ) -> DynamicModal:
         """Add a modal to the view with optional fields."""
         if self._modal is not None:
             logger.error("Attempted to add second modal to view")
             raise ValueError("View already has a modal")
 
-        modal = DynamicModal(title=title, timeout=timeout)
-        if fields:
-            for field_config in fields:
-                modal.add_field(**field_config)
+        modal = DynamicModal(**options)
 
         self._modal = modal
-        logger.debug(f"Added modal '{title}' to view")
+        logger.debug(f"Added modal '{self._modal.title}' to view")
         return modal
 
     async def _send_status_message(self, content: str) -> None:
@@ -133,11 +135,11 @@ class DynamicModalView(View):
         if self._message:
             await self._message.edit(content=content, view=None)
         elif self._interaction:
-            await self._interaction.followup.send(
+            self._message = await self._interaction.followup.send(
                 content=content,
                 ephemeral=self._ephemeral,
+                wait=True,  # Return message object
             )
-            self._message = await self._interaction.original_response()
 
     async def initiate_from_interaction(
         self,
@@ -183,7 +185,7 @@ class DynamicModalView(View):
         if self._modal and self._modal.success:
             logger.debug("Modal submitted successfully")
             await self._send_status_message("Form submitted successfully")
-            return self._modal.values, self._message
+            return_values = self._modal.values, self._message
         else:
             status = (
                 "Form input timed out"
@@ -192,10 +194,17 @@ class DynamicModalView(View):
             )
             logger.debug(status)
             await self._send_status_message(status)
-            return None, self._message
+            return_values = None, self._message
+
+        self.stop()
+        return return_values
 
     async def on_timeout(self) -> None:
         """Handle view timeout."""
+        # Ignore if already completed
+        if self._completed:
+            return
+
         self._timed_out = True
         if not self._message:
             return
@@ -212,13 +221,19 @@ class ButtonDynamicModalView(DynamicModalView):
 
     def __init__(
         self,
-        timeout: float = 180.0,
         message_prompt: Optional[str] = None,
         button_label: str = "Open Form",
         button_style: ButtonStyle = ButtonStyle.primary,
-        ephemeral: bool = True,
+        **options,
     ) -> None:
-        super().__init__(timeout=timeout, ephemeral=ephemeral)
+        """Initialize the modal view with a trigger button.
+
+        Args:
+            message_prompt: Optional initial message to show with the button.
+            button_label: Label for the button that triggers the modal.
+            button_style: Style for the button that triggers the modal.
+        """
+        super().__init__(**options)
         self._message_prompt = message_prompt
         self._button_label = button_label
         self._button_style = button_style

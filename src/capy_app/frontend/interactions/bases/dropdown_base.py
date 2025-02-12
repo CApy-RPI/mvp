@@ -160,11 +160,17 @@ class DynamicDropdownView(View):
         return await self._get_data()
 
     async def on_timeout(self) -> None:
-        if self._message:
-            try:
-                await self._message.edit(content="Selection timed out", view=None)
-            except NotFound:
-                pass
+        if self._completed:
+            return
+
+        self._timed_out = True
+        if not self._message:
+            return
+
+        try:
+            await self._message.edit(content="Selection timed out", view=None)
+        except NotFound:
+            pass
 
     def _add_dropdown(
         self,
@@ -229,4 +235,5 @@ class DynamicDropdownView(View):
             except NotFound:
                 logger.warning("Message not found when trying to update status")
 
+        self.stop()
         return selections if self.accepted else None, self._message

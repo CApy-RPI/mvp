@@ -8,6 +8,71 @@ from frontend.interactions.bases.modal_base import (
 
 from config import settings
 
+MODAL_CONFIGS = {
+    "direct_modal": {
+        "ephemeral": False,
+        "modal": {
+            "title": "Direct Modal",
+            "fields": [
+                {
+                    "label": "Input",
+                    "placeholder": "Enter something",
+                },
+            ],
+        },
+    },
+    "button_modal": {
+        "ephemeral": False,
+        "button_label": "Open Survey",
+        "button_style": ButtonStyle.success,
+        "message_prompt": "📝 Ready to share your feedback? Click the button below!",
+        "modal": {
+            "title": "Feedback Form",
+            "fields": [
+                {
+                    "label": "Rating",
+                    "placeholder": "1-5",
+                    "max_length": 1,
+                },
+                {
+                    "label": "Comments",
+                    "placeholder": "Your feedback",
+                    "style": TextStyle.paragraph,
+                    "required": False,
+                },
+            ],
+        },
+    },
+    "sequential_personal": {
+        "ephemeral": False,
+        "button_label": "Add Personal Info",
+        "message_prompt": "👤 Let's start with some basic information about you",
+        "modal": {
+            "title": "Personal Info",
+            "fields": [
+                {"label": "Name", "placeholder": "Your name"},
+                {"label": "Age", "placeholder": "Your age", "max_length": 3},
+            ],
+        },
+    },
+    "sequential_contact": {
+        "ephemeral": False,
+        "button_label": "Add Contact Info",
+        "message_prompt": "📞 Great! Now let's add your contact details",
+        "modal": {
+            "title": "Contact Info",
+            "fields": [
+                {"label": "Email", "placeholder": "your@email.com"},
+                {
+                    "label": "Phone",
+                    "placeholder": "Optional",
+                    "required": False,
+                },
+            ],
+        },
+    },
+}
+
 
 class ModalTestCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -17,16 +82,7 @@ class ModalTestCog(commands.Cog):
     @app_commands.command(name="test_modal_direct")
     async def test_modal_direct(self, interaction: Interaction):
         """Test modal without button"""
-        view = DynamicModalView(ephemeral=False)
-        view.add_modal(
-            title="Direct Modal",
-            fields=[
-                {
-                    "label": "Input",
-                    "placeholder": "Enter something",
-                },
-            ],
-        )
+        view = DynamicModalView(**MODAL_CONFIGS["direct_modal"])
 
         values, message = await view.initiate_from_interaction(interaction)
         if values and message:
@@ -42,34 +98,11 @@ class ModalTestCog(commands.Cog):
     @app_commands.command(name="test_modal_button")
     async def test_modal_button(self, interaction: Interaction):
         """Test modal with custom button"""
-        view = ButtonDynamicModalView(
-            button_label="Open Survey",
-            button_style=ButtonStyle.success,
-            ephemeral=False,
-            message_prompt="📝 Ready to share your feedback? Click the button below!",
-        )
-
-        view.add_modal(
-            title="Feedback Form",
-            fields=[
-                {
-                    "label": "Rating",
-                    "placeholder": "1-5",
-                    "max_length": 1,
-                },
-                {
-                    "label": "Comments",
-                    "placeholder": "Your feedback",
-                    "style": TextStyle.paragraph,
-                    "required": False,
-                },
-            ],
-        )
+        view = ButtonDynamicModalView(**MODAL_CONFIGS["button_modal"])
 
         values, message = await view.initiate_from_interaction(
             interaction, prompt="Click below to start the survey!"
         )
-        print(values, message)
         if values and message:
             try:
                 await message.edit(
@@ -84,40 +117,14 @@ class ModalTestCog(commands.Cog):
     async def test_modal_sequential(self, interaction: Interaction):
         """Test sequential modals using message passing"""
         # First modal view
-        view1 = ButtonDynamicModalView(
-            button_label="Add Personal Info",
-            ephemeral=False,
-            message_prompt="👤 Let's start with some basic information about you",
-        )
-        view1.add_modal(
-            title="Personal Info",
-            fields=[
-                {"label": "Name", "placeholder": "Your name"},
-                {"label": "Age", "placeholder": "Your age", "max_length": 3},
-            ],
-        )
+        view1 = ButtonDynamicModalView(**MODAL_CONFIGS["sequential_personal"])
 
         personal_info, message = await view1.initiate_from_interaction(interaction)
         if not personal_info or not message:
             return
 
         # Second modal view using same message
-        view2 = ButtonDynamicModalView(
-            button_label="Add Contact Info",
-            ephemeral=False,
-            message_prompt="📞 Great! Now let's add your contact details",
-        )
-        view2.add_modal(
-            title="Contact Info",
-            fields=[
-                {"label": "Email", "placeholder": "your@email.com"},
-                {
-                    "label": "Phone",
-                    "placeholder": "Optional",
-                    "required": False,
-                },
-            ],
-        )
+        view2 = ButtonDynamicModalView(**MODAL_CONFIGS["sequential_contact"])
 
         contact_info, message = await view2.initiate_from_message(message)
         if not contact_info or not message:
