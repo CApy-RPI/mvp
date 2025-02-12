@@ -56,12 +56,47 @@ class ProfileCog(commands.Cog):
             self.logger.error(f"Error loading majors from {settings.MAJORS_PATH}: {e}")
             return ["Undeclared"]
 
+    def _group_majors(self) -> dict[str, list[str]]:
+        """Group majors by letter ranges."""
+        groups = {
+            "major_a_d": [],
+            "major_e_i": [],
+            "major_j_m": [],
+            "major_n_r": [],
+            "major_s_z": [],
+        }
+
+        ranges = {
+            "major_a_d": ("A", "E"),
+            "major_e_i": ("E", "J"),
+            "major_j_m": ("J", "N"),
+            "major_n_r": ("N", "S"),
+            "major_s_z": ("S", "Z"),
+        }
+
+        for major in self.major_list:
+            first_letter = major[0].upper()
+            for group_id, (start, end) in ranges.items():
+                if start <= first_letter < end:
+                    groups[group_id].append(major)
+                    break
+            else:  # For majors starting with Z
+                if first_letter >= "S":
+                    groups["major_s_z"].append(major)
+
+        return groups
+
     def _prepare_major_config(self) -> dict:
-        """Prepare major dropdown config with current major list"""
+        """Prepare major dropdown config with grouped major list"""
         config = self.config["major_dropdown"].copy()
-        config["dropdowns"][0]["selections"] = [
-            {"label": major, "value": major} for major in self.major_list
-        ]
+        grouped_majors = self._group_majors()
+
+        for dropdown in config["dropdowns"]:
+            group_id = dropdown["custom_id"]
+            dropdown["selections"] = [
+                {"label": major, "value": major} for major in grouped_majors[group_id]
+            ]
+
         return config
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
@@ -115,10 +150,24 @@ class ProfileCog(commands.Cog):
         view = DynamicDropdownView(**config)
 
         values, message = await view.initiate_from_message(
-            message, "Select your major(s):"
+            message,
+            "Select your major(s) from any group (max 2 total):\n"
+            "• A-D: Architecture, Computer Science, etc.\n"
+            "• E-I: Electrical Engineering, Information Technology, etc.\n"
+            "• J-M: Mechanical Engineering, Mathematics, etc.\n"
+            "• N-R: Physics, Psychology, etc.\n"
+            "• S-Z: Software Engineering, Systems Engineering, etc.",
         )
 
-        return values["major_selector"] if values else ["Not Set"], message
+        if not values:
+            return ["Not Set"], message
+
+        # Combine selections from all dropdowns
+        selected = []
+        for dropdown_id in values:
+            selected.extend(values[dropdown_id])
+
+        return selected[:2], message  # Limit to max 2 majors total
 
     async def verify_email(
         self, message: discord.Message, new_email: str, user: User | None
