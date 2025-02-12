@@ -1,6 +1,5 @@
 """Profile management cog for handling user profiles."""
 
-import json
 import logging
 from typing import Union, Dict
 from pathlib import Path
@@ -18,8 +17,7 @@ from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 from frontend.interactions.bases.modal_base import ButtonDynamicModalView
 from .profile_handlers import EmailVerifier
 from .major_handler import MajorHandler
-
-# TODO: Should define ["Not Set"] as a constant
+from .profile_config import PROFILE_CONFIG
 
 
 class ProfileCog(commands.Cog):
@@ -32,18 +30,8 @@ class ProfileCog(commands.Cog):
         )
         self.major_list = self._load_major_list()
         self.email_verifier = EmailVerifier()
-        self.config = self._load_config()
+        self.config = PROFILE_CONFIG
         self.major_handler = MajorHandler(self.major_list)
-
-    def _load_config(self) -> dict:
-        """Load profile configurations from JSON"""
-        config_path = Path(__file__).parent / "profile_config.json"
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            self.logger.error(f"Failed to load profile config: {e}")
-            return {}
 
     def _load_major_list(self) -> list[str]:
         """Load the list of available majors from file."""
