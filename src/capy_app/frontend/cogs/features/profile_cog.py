@@ -11,7 +11,7 @@ This module provides commands and utilities for managing user profiles including
 """
 
 import logging
-from typing import Union
+from typing import Union, Dict
 
 import discord
 from discord import app_commands
@@ -25,9 +25,9 @@ from .profile_handlers import (
     EmailVerifier,
 )
 from .profile_views import (
-    MajorView,
+    MajorSelector,
     ProfileModal,
-    EmailVerificationView,
+    EmailVerificationModal,
 )
 
 
@@ -92,105 +92,64 @@ class ProfileCog(commands.Cog):
 
     async def get_profile_data(
         self, interaction: discord.Interaction, action: str, user: User | None
-    ) -> ProfileModal | None:
-        """Get profile data from modal.
-
-        Args:
-            interaction: The Discord interaction
-            action: The action being performed
-            user: The existing user if updating
-
-        Returns:
-            Tuple of (modal, message) if successful, None otherwise
-        """
+    ) -> tuple[Dict[str, str] | None, discord.Message | None]:
+        """Get profile data directly from modal."""
         modal = ProfileModal(user=user if action == "update" else None)
         await interaction.response.send_modal(modal)
         await modal.wait()
 
-        if not modal.interaction or not modal.success:
-            return None
-
-        return modal
+        return modal.values if modal.success else None, None
 
     async def get_majors(
         self, interaction: discord.Interaction, user: User | None
-    ) -> list[str]:
-        """Get selected majors from major view.
-
-        Args:
-            msg: The message to update
-            user: The existing user if updating
-
-        Returns:
-            List of selected majors
-        """
-
-        major_view = MajorView(
+    ) -> tuple[list[str], discord.Message]:
+        """Get selected majors using dropdown base."""
+        selector = MajorSelector(
             self.major_list, current_majors=user.profile.major if user else None
         )
 
-        msg = await interaction.followup.send(
-            content="Select your major(s):",
-            view=major_view,
-            ephemeral=True,
-            wait=True,
+        msg = await selector.initiate_message_from_interaction(
+            interaction, content="Select your major(s):", ephemeral=True
         )
 
-        await major_view.wait()
-
-        print(major_view.selected_majors)
-
-        return major_view.selected_majors, msg
+        result = await selector.get_data()
+        return (
+            result[0]["major_selector"] if result and result[0] else ["Undeclared"]
+        ), msg
 
     async def verify_email(
-        self, msg: discord.Message, new_email: str, user: User | None
+        self, interaction: discord.Interaction, new_email: str, user: User | None
     ) -> bool:
-        """Verify user's email if needed.
-
-        Args:
-            msg: The message to update
-            new_email: The email to verify
-            user: The existing user if updating
-
-        Returns:
-            True if verification successful or not needed, False otherwise
-        """
+        """Verify user's email using modal view."""
         if user and new_email == user.profile.school_email:
             return True
 
         if not new_email.endswith("edu"):
-            await msg.edit(content="Invalid School email!", view=None)
+            await interaction.followup.send("Invalid School email!", ephemeral=True)
             return False
 
         if not self.email_verifier.send_verification_email(
-            msg.interaction.user.id, new_email
+            interaction.user.id, new_email
         ):
-            await msg.edit(
-                content="Failed to send verification email. Please try again.",
-                view=None,
+            await interaction.followup.send(
+                "Failed to send verification email.", ephemeral=True
             )
             return False
 
         verify_view = EmailVerificationView()
-        await msg.edit(
-            content="Please check your email for a verification code, then click the button below to verify:",
-            view=verify_view,
+        msg = await verify_view.initiate_from_interaction(
+            interaction,
+            content="Please check your email for a verification code.",
+            ephemeral=True,
         )
 
-        submitted_code = await verify_view.wait_for_verification(timeout=300.0)
-        if not submitted_code:
-            await msg.edit(
-                content="Verification timed out. Please try again.", view=None
-            )
+        data, msg = await verify_view.get_data()
+        if not data:
             return False
 
-        if not self.email_verifier.verify_code(msg.interaction.user.id, submitted_code):
-            await msg.edit(
-                content="Invalid verification code. Please try again.", view=None
-            )
-            return False
-
-        return True
+        return self.email_verifier.verify_code(
+            interaction.user.id, data["verification_code"]
+        )
 
     async def handle_profile(
         self, interaction: discord.Interaction, action: str
@@ -226,29 +185,28 @@ class ProfileCog(commands.Cog):
             )
             return
 
-        # Get profile data from modal
-        modal = await self.get_profile_data(interaction, action, user)
-        if not modal:
+        # Get profile data directly from modal
+        profile_data, _ = await self.get_profile_data(interaction, action, user)
+        if not profile_data:
             self.logger.info(f"Profile {action} cancelled by {interaction.user}")
             return
 
-        # Get major selection
-        selected_majors, msg = await self.get_majors(modal.interaction, user)
+        # Get major selection with dropdown
+        selected_majors, msg = await self.get_majors(interaction, user)
 
         # Verify email if needed
-        new_email = modal.children[4].value
-        if not await self.verify_email(msg, new_email, user):
+        if not await self.verify_email(interaction, profile_data["school_email"], user):
             return
 
-        # Create or update user profile
+        # Create user profile data
         profile_data = {
             "name": UserName(
-                first=modal.children[0].value, last=modal.children[1].value
+                first=profile_data["first_name"], last=profile_data["last_name"]
             ),
             "major": selected_majors,
-            "graduation_year": modal.children[2].value,
-            "school_email": modal.children[4].value,
-            "student_id": modal.children[3].value,
+            "graduation_year": profile_data["graduation_year"],
+            "school_email": profile_data["school_email"],
+            "student_id": profile_data["student_id"],
         }
 
         if action == "create":

@@ -8,7 +8,7 @@ dropdown menus with optional accept/cancel buttons. It supports:
 - Message lifecycle management
 """
 
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, Optional, List
 import logging
 from discord import SelectOption, Interaction, ButtonStyle, Message
 from discord.ui import Select, View, Button
@@ -142,12 +142,12 @@ class MultiSelectorView(View):
         self.accepted: bool = False
         self.timeout: bool = False
         self._has_buttons: bool = False
-        self._collected_data: bool = False
+        self._completed: bool = False
         self.message: Optional[Message] = None
         self.ephemeral: bool = True
         self.auto_buttons = auto_buttons
 
-    async def initiate_message_from_interaction(
+    async def initiate_from_interaction(
         self,
         interaction: Interaction,
         content: str = "Make your selections:",
@@ -173,7 +173,7 @@ class MultiSelectorView(View):
         self.message = await interaction.original_response()
         return self.message
 
-    async def initiate_message_from_message(
+    async def initiate_from_message(
         self,
         message: Message,
         content: str = "Make your selections:",
@@ -192,43 +192,6 @@ class MultiSelectorView(View):
                 await self.message.edit(content="Selection timed out", view=None)
             except NotFound:
                 pass
-
-    async def get_data(self) -> Tuple[Dict[str, List[str]] | None, Message | None]:
-        """Wait for user input and return selected values.
-
-        Returns:
-            Tuple containing:
-            - Dictionary of selections if accepted, None if cancelled
-            - Reference to the message object
-        """
-        if not self._collected_data:
-            logger.debug("Waiting for user selections")
-            await self.wait()
-            self._collected_data = True
-
-        selections = {
-            dropdown.custom_id: dropdown.selected_values
-            for dropdown in self.dropdowns
-            if dropdown.selected_values
-        }
-
-        logger.debug(
-            f"Collection complete. Accepted: {self.accepted}, Selections: {selections}"
-        )
-
-        # Update message based on result
-        if self.message:
-            try:
-                if self.accepted:
-                    await self.message.edit(content="Selections accepted", view=None)
-                elif self.timeout:
-                    await self.message.edit(content="Selection timed out", view=None)
-                else:
-                    await self.message.edit(content="Selection cancelled", view=None)
-            except NotFound:
-                logger.warning("Message not found when trying to update status")
-
-        return (selections, self.message) if self.accepted else (None, self.message)
 
     def add_dropdown(
         self,
@@ -261,3 +224,41 @@ class MultiSelectorView(View):
         self.add_item(AcceptButton())
         self.add_item(CancelButton())
         self._has_buttons = True
+
+
+async def get_data(self) -> Dict[str, List[str]] | None:
+    """Wait for user input and return selected values.
+
+    Returns:
+        Tuple containing:
+        - Dictionary of selections if accepted, None if cancelled
+        - Reference to the message object
+    """
+    if not self._completed:
+        logger.debug("Waiting for user selections")
+        await self.wait()
+        self._completed = True
+
+    selections = {
+        dropdown.custom_id: dropdown.selected_values
+        for dropdown in self.dropdowns
+        if dropdown.selected_values
+    }
+
+    logger.debug(
+        f"Collection complete. Accepted: {self.accepted}, Selections: {selections}"
+    )
+
+    # Update message based on result
+    if self.message:
+        try:
+            if self.accepted:
+                await self.message.edit(content="Selections accepted", view=None)
+            elif self.timeout:
+                await self.message.edit(content="Selection timed out", view=None)
+            else:
+                await self.message.edit(content="Selection cancelled", view=None)
+        except NotFound:
+            logger.warning("Message not found when trying to update status")
+
+    return selections if self.accepted else None

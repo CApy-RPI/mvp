@@ -29,11 +29,11 @@ class DropdownTestCog(commands.Cog):
             row=0,
         )
 
-        await view.initiate_message_from_interaction(
+        message = await view.initiate_from_interaction(
             interaction, "Test a simple dropdown selection:"
         )
 
-        selection, message = await view.get_data()
+        selection = await view.get_data()
         if message:
             try:
                 await message.edit(
@@ -71,11 +71,11 @@ class DropdownTestCog(commands.Cog):
         )
         view.add_accept_cancel_buttons()
 
-        await view.initiate_message_from_interaction(
+        message = await view.initiate_from_interaction(
             interaction, "Make your selections and click accept when done:"
         )
 
-        selections, message = await view.get_data()
+        selections = await view.get_data()
         if view.accepted:
             if message:
                 try:
@@ -96,7 +96,7 @@ class DropdownTestCog(commands.Cog):
                     pass
 
     @app_commands.guilds(Object(id=settings.DEBUG_GUILD_ID))
-    @app_commands.command(name="test_sequential_dropdowns")
+    @app_commands.command(name="test_dropdown_sequential")
     async def test_sequential_dropdowns(self, interaction: Interaction):
         """Test sequential dropdowns where each appears after the previous is selected"""
         # First dropdown - single select
@@ -112,10 +112,10 @@ class DropdownTestCog(commands.Cog):
             max_values=1,
             row=0,
         )
-        message = await view1.initiate_message_from_interaction(
+        message = await view1.initiate_from_interaction(
             interaction, "Step 1: Choose exactly one primary color:"
         )
-        primary_selection, message = await view1.get_data()
+        primary_selection = await view1.get_data()
 
         # Second dropdown - multi select (1-2)
         view2 = MultiSelectorView(timeout=180.0)
@@ -132,10 +132,10 @@ class DropdownTestCog(commands.Cog):
             max_values=2,
             row=0,
         )
-        await view2.initiate_message_from_message(
+        await view2.initiate_from_message(
             message, "Step 2: Choose one or two secondary colors to mix:"
         )
-        secondary_selection, message = await view2.get_data()
+        secondary_selection = await view2.get_data()
 
         # Third step - multiple concurrent dropdowns
         view3 = MultiSelectorView(timeout=180.0)
@@ -182,14 +182,14 @@ class DropdownTestCog(commands.Cog):
             row=2,
         )
 
-        await view3.initiate_message_from_message(
+        await view3.initiate_from_message(
             message,
             "Step 3: Choose your application preferences:\n"
             "• Select 1-2 finish types\n"
             "• Choose an application method\n"
             "• Specify number of coats",
         )
-        application_selections, message = await view3.get_data()
+        application_selections = await view3.get_data()
 
         # Final view with all results
         try:
