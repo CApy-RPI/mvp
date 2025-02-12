@@ -1,17 +1,9 @@
-"""Profile management cog for handling user profiles.
+"""Profile management cog for handling user profiles."""
 
-This module provides commands and utilities for managing user profiles including:
-- Profile creation and updates
-- Email verification
-- Major selection
-- Profile display and deletion
-
-#TODO: Add profile export/import functionality
-#TODO: Add profile privacy settings
-"""
-
+import json
 import logging
 from typing import Union, Dict
+from pathlib import Path
 
 import discord
 from discord import app_commands
@@ -21,31 +13,32 @@ from config import settings
 from backend.db.database import Database as db
 from backend.db.documents.user import User, UserProfile, UserName
 from frontend.interactions.bases.view_bases import ConfirmDeleteView
-from .profile_handlers import (
-    EmailVerifier,
-)
-from .profile_views import (
-    MajorSelector,
-    ProfileModal,
-    EmailVerificationModal,
-)
+from frontend.interactions.bases.modal_base import DynamicModalView
+from frontend.interactions.bases.dropdown_base import DynamicDropdownView
+from .profile_handlers import EmailVerifier
 
 
 class ProfileCog(commands.Cog):
     """Profile management cog for handling user profiles."""
 
     def __init__(self, bot: commands.Bot) -> None:
-        """Initialize the profile cog.
-
-        Args:
-            bot: The Discord bot instance
-        """
         self.bot = bot
         self.logger = logging.getLogger(
             f"discord.cog.{self.__class__.__name__.lower()}"
         )
         self.major_list = self._load_major_list()
         self.email_verifier = EmailVerifier()
+        self.config = self._load_config()
+
+    def _load_config(self) -> dict:
+        """Load profile configurations from JSON"""
+        config_path = Path(__file__).parent / "profile_config.json"
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            self.logger.error(f"Failed to load profile config: {e}")
+            return {}
 
     def _load_major_list(self) -> list[str]:
         """Load the list of available majors from file."""
@@ -62,6 +55,14 @@ class ProfileCog(commands.Cog):
         except Exception as e:
             self.logger.error(f"Error loading majors from {settings.MAJORS_PATH}: {e}")
             return ["Undeclared"]
+
+    def _prepare_major_config(self) -> dict:
+        """Prepare major dropdown config with current major list"""
+        config = self.config["major_dropdown"].copy()
+        config["dropdowns"][0]["selections"] = [
+            {"label": major, "value": major} for major in self.major_list
+        ]
+        return config
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="profile", description="Manage your profile")
@@ -93,73 +94,65 @@ class ProfileCog(commands.Cog):
     async def get_profile_data(
         self, interaction: discord.Interaction, action: str, user: User | None
     ) -> tuple[Dict[str, str] | None, discord.Message | None]:
-        """Get profile data directly from modal."""
-        modal = ProfileModal(user=user if action == "update" else None)
-        await interaction.response.send_modal(modal)
-        await modal.wait()
+        """Get profile data using modal base"""
+        modal_view = DynamicModalView(**self.config["profile_modal"])
 
-        return modal.values if modal.success else None, None
+        # Pre-fill values for updates
+        if action == "update" and user:
+            modal_view._modal.children[0].default = user.profile.name.first
+            modal_view._modal.children[1].default = user.profile.name.last
+            modal_view._modal.children[2].default = user.profile.student_id
+            modal_view._modal.children[3].default = user.profile.school_email
+            modal_view._modal.children[4].default = user.profile.graduation_year
+
+        return await modal_view.initiate_from_interaction(interaction)
 
     async def get_majors(
-        self, interaction: discord.Interaction, user: User | None
+        self, message: discord.Message, user: User | None
     ) -> tuple[list[str], discord.Message]:
-        """Get selected majors using dropdown base."""
-        selector = MajorSelector(
-            self.major_list, current_majors=user.profile.major if user else None
+        """Get selected majors using dropdown base"""
+        config = self._prepare_major_config()
+        view = DynamicDropdownView(**config)
+
+        values, message = await view.initiate_from_message(
+            message, "Select your major(s):"
         )
 
-        msg = await selector.initiate_message_from_interaction(
-            interaction, content="Select your major(s):", ephemeral=True
-        )
-
-        result = await selector.get_data()
-        return (
-            result[0]["major_selector"] if result and result[0] else ["Undeclared"]
-        ), msg
+        return values["major_selector"] if values else ["Not Set"], message
 
     async def verify_email(
-        self, interaction: discord.Interaction, new_email: str, user: User | None
+        self, message: discord.Message, new_email: str, user: User | None
     ) -> bool:
-        """Verify user's email using modal view."""
+        """Verify user's email using modal base"""
         if user and new_email == user.profile.school_email:
             return True
 
         if not new_email.endswith("edu"):
-            await interaction.followup.send("Invalid School email!", ephemeral=True)
+            await message.edit(content="Invalid School email!")
             return False
 
         if not self.email_verifier.send_verification_email(
-            interaction.user.id, new_email
+            message.author.id, new_email
         ):
-            await interaction.followup.send(
-                "Failed to send verification email.", ephemeral=True
-            )
+            await message.edit(content="Failed to send verification email.")
             return False
 
-        verify_view = EmailVerificationView()
-        msg = await verify_view.initiate_from_interaction(
-            interaction,
-            content="Please check your email for a verification code.",
-            ephemeral=True,
+        verify_view = DynamicModalView(**self.config["verify_modal"])
+        values, _ = await verify_view.initiate_from_message(
+            message, "Please check your email for a verification code."
         )
 
-        data, msg = await verify_view.get_data()
-        if not data:
+        if not values:
             return False
 
         return self.email_verifier.verify_code(
-            interaction.user.id, data["verification_code"]
+            message.author.id, values["verification_code"]
         )
 
     async def handle_profile(
         self, interaction: discord.Interaction, action: str
     ) -> None:
-        """Handle profile creation and updates.
-
-        Args:
-            interaction: The Discord interaction
-            action: The action to perform (create/update)
-        """
+        """Handle profile creation and updates."""
         user = db.get_document(User, interaction.user.id)
         self.logger.info(
             f"Profile {action} requested by {interaction.user} (ID: {interaction.user.id})"
@@ -185,17 +178,17 @@ class ProfileCog(commands.Cog):
             )
             return
 
-        # Get profile data directly from modal
-        profile_data, _ = await self.get_profile_data(interaction, action, user)
-        if not profile_data:
+        # Get profile data directly from modal and get first message
+        profile_data, message = await self.get_profile_data(interaction, action, user)
+        if not profile_data or not message:
             self.logger.info(f"Profile {action} cancelled by {interaction.user}")
             return
 
-        # Get major selection with dropdown
-        selected_majors, msg = await self.get_majors(interaction, user)
+        # Get major selection with dropdown using previous message
+        selected_majors, message = await self.get_majors(message, user)
 
-        # Verify email if needed
-        if not await self.verify_email(interaction, profile_data["school_email"], user):
+        # Verify email if needed using previous message
+        if not await self.verify_email(message, profile_data["school_email"], user):
             return
 
         # Create user profile data
@@ -222,8 +215,8 @@ class ProfileCog(commands.Cog):
             user = db.get_document(User, interaction.user.id)
             self.logger.info(f"Updated profile for {interaction.user}")
 
-        # Show the profile using followup
-        await self.show_profile_embed(msg, user)
+        # Show the profile using the final message
+        await self.show_profile_embed(message, user)
 
     async def show_profile_embed(
         self,

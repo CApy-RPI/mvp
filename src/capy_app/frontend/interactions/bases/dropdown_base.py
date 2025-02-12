@@ -64,6 +64,8 @@ class CancelButton(Button["DynamicDropdownView"]):
 class DynamicDropdown(Select["DynamicDropdownView"]):
     """A dropdown menu with dynamic options and configurable selection limits."""
 
+    MAX_OPTIONS = 25  # Discord's limit for options in a select menu
+
     def __init__(
         self,
         selections: Optional[List[Dict[str, Any]]] = [],
@@ -77,6 +79,14 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
         select_options = []
         for selection in selections:
             select_options.append(SelectOption(**selection))
+
+        # Validate and truncate selections if needed
+        if len(selections) > self.MAX_OPTIONS:
+            logger.warning(
+                f"Dropdown options exceeded Discord limit of {self.MAX_OPTIONS}. "
+                f"Truncating from {len(selections)} options."
+            )
+            selections = selections[: self.MAX_OPTIONS]
 
         super().__init__(
             options=select_options,
