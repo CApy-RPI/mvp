@@ -66,7 +66,7 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
 
     def __init__(
         self,
-        fields: Optional[List[Dict[str, Any]]] = None,
+        fields: Optional[List[Dict[str, Any]]] = [],
         disable_on_select: bool = False,
         **options,
     ) -> None:
@@ -74,7 +74,9 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
 
         self._disable_on_select = disable_on_select
 
-        select_options = [SelectOption(field_config for field_config in fields)]
+        select_options = []
+        for field in fields:
+            select_options.append(SelectOption(**field))
 
         super().__init__(
             options=select_options,
@@ -104,6 +106,7 @@ class DynamicDropdownView(View):
 
     def __init__(
         self,
+        dropdown_configs: Optional[List[Dict[str, Any]]] = [],
         ephemeral: bool = True,
         auto_buttons: bool = True,
         add_buttons: bool = False,
@@ -127,13 +130,16 @@ class DynamicDropdownView(View):
         self._auto_buttons = auto_buttons
         self._add_buttons = add_buttons
 
+        for dropdown_config in dropdown_configs:
+            self._add_dropdown(**dropdown_config)
+
     async def initiate_from_interaction(
         self,
         interaction: Interaction,
         content: str = "Make your selections:",
     ) -> tuple[Dict[str, List[str]] | None, Message | None]:
         """Send initial message and wait for selections."""
-        self.add_accept_cancel_buttons_if_needed()
+        self._add_accept_cancel_buttons_if_needed()
 
         await interaction.response.send_message(
             content, view=self, ephemeral=self._ephemeral
@@ -147,7 +153,7 @@ class DynamicDropdownView(View):
         content: str = "Make your selections:",
     ) -> tuple[Dict[str, List[str]] | None, Message | None]:
         """Update existing message and wait for selections."""
-        self.add_accept_cancel_buttons_if_needed()
+        self._add_accept_cancel_buttons_if_needed()
 
         self._message = await message.edit(content=content, view=self)
         self._ephemeral = message.flags.ephemeral
@@ -160,17 +166,17 @@ class DynamicDropdownView(View):
             except NotFound:
                 pass
 
-    def add_dropdown(
+    def _add_dropdown(
         self,
-        options_dict: Dict[str, Dict[str, str]],
+        fields: Dict[str, Dict[str, str]],
         **options,
     ) -> DynamicDropdown:
-        dropdown = DynamicDropdown(options_dict=options_dict, **options)
+        dropdown = DynamicDropdown(fields=fields, **options)
         self._dropdowns.append(dropdown)
         self.add_item(dropdown)
         return dropdown
 
-    def add_accept_cancel_buttons_if_needed(self) -> None:
+    def _add_accept_cancel_buttons_if_needed(self) -> None:
         """Adds accept and cancel buttons to the view."""
         if self._has_buttons:
             logger.warning("Buttons already added to view")

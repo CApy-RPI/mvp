@@ -16,7 +16,7 @@ class DropdownTestCog(commands.Cog):
     async def test_dropdown(self, interaction: Interaction):
         """Test the dropdown base functionality with a single dropdown"""
         view = DynamicDropdownView(ephemeral=False)
-        
+
         view.add_dropdown(
             placeholder="Make your selection",
             max_values=1,
@@ -28,21 +28,21 @@ class DropdownTestCog(commands.Cog):
                     "label": "Option A",
                     "value": "a",
                     "description": "First choice",
-                    "emoji": "🅰️"
+                    "emoji": "🅰️",
                 },
                 {
                     "label": "Option B",
-                    "value": "b", 
+                    "value": "b",
                     "description": "Second choice",
-                    "emoji": "🅱️"
+                    "emoji": "🅱️",
                 },
                 {
                     "label": "Option C",
                     "value": "c",
                     "description": "Third choice",
-                    "emoji": "©️"
+                    "emoji": "©️",
                 },
-            ]
+            ],
         )
 
         selections, message = await view.initiate_from_interaction(
@@ -69,7 +69,7 @@ class DropdownTestCog(commands.Cog):
                 {"label": "Apple", "value": "apple", "emoji": "🍎"},
                 {"label": "Banana", "value": "banana", "emoji": "🍌"},
                 {"label": "Orange", "value": "orange", "emoji": "🍊"},
-            ]
+            ],
         )
         view.add_dropdown(
             placeholder="Choose an animal",
@@ -79,7 +79,7 @@ class DropdownTestCog(commands.Cog):
                 {"label": "Dog", "value": "dog", "emoji": "🐕"},
                 {"label": "Cat", "value": "cat", "emoji": "🐈"},
                 {"label": "Bird", "value": "bird", "emoji": "🐦"},
-            ]
+            ],
         )
         view.add_dropdown(
             placeholder="Choose weather",
@@ -89,7 +89,7 @@ class DropdownTestCog(commands.Cog):
                 {"label": "Sunny", "value": "sun", "emoji": "☀️"},
                 {"label": "Rainy", "value": "rain", "emoji": "🌧️"},
                 {"label": "Cloudy", "value": "cloud", "emoji": "☁️"},
-            ]
+            ],
         )
 
         selections, message = await view.initiate_from_interaction(
@@ -116,19 +116,19 @@ class DropdownTestCog(commands.Cog):
                     "label": "Warm Colors",
                     "value": "warm",
                     "description": "Red, Orange, Yellow family",
-                    "emoji": "🔥"
+                    "emoji": "🔥",
                 },
                 {
                     "label": "Cool Colors",
                     "value": "cool",
                     "description": "Blue, Green, Purple family",
-                    "emoji": "❄️"
+                    "emoji": "❄️",
                 },
                 {
                     "label": "Neutral Colors",
                     "value": "neutral",
                     "description": "Black, White, Gray family",
-                    "emoji": "⚪"
+                    "emoji": "⚪",
                 },
             ],
             placeholder="Select color family",
@@ -144,7 +144,7 @@ class DropdownTestCog(commands.Cog):
 
         # Second dropdown - Specific colors
         view2 = DynamicDropdownView(ephemeral=False)
-        
+
         color_options = {
             "warm": [
                 {"label": "Red", "value": "red", "emoji": "🔴"},
@@ -160,7 +160,7 @@ class DropdownTestCog(commands.Cog):
                 {"label": "Black", "value": "black", "emoji": "⚫"},
                 {"label": "White", "value": "white", "emoji": "⚪"},
                 {"label": "Gray", "value": "gray", "emoji": "⭕"},
-            ]
+            ],
         }
 
         selected_family = primary_selection["color_family"][0]
@@ -172,7 +172,7 @@ class DropdownTestCog(commands.Cog):
             max_values=2,
             row=0,
         )
-        
+
         secondary_selection, message = await view2.initiate_from_message(
             message, f"Step 2: Choose 1-2 colors from the {selected_family} family:"
         )
@@ -185,9 +185,24 @@ class DropdownTestCog(commands.Cog):
         # Finish types dropdown
         view3.add_dropdown(
             fields=[
-                {"label": "Matte", "value": "matte", "description": "Matte finish", "emoji": "🎨"},
-                {"label": "Gloss", "value": "gloss", "description": "Glossy finish", "emoji": "✨"},
-                {"label": "Metallic", "value": "metallic", "description": "Metallic finish", "emoji": "🌟"},
+                {
+                    "label": "Matte",
+                    "value": "matte",
+                    "description": "Matte finish",
+                    "emoji": "🎨",
+                },
+                {
+                    "label": "Gloss",
+                    "value": "gloss",
+                    "description": "Glossy finish",
+                    "emoji": "✨",
+                },
+                {
+                    "label": "Metallic",
+                    "value": "metallic",
+                    "description": "Metallic finish",
+                    "emoji": "🌟",
+                },
             ],
             placeholder="Select 1-2 finishes",
             custom_id="finishes",
@@ -199,9 +214,24 @@ class DropdownTestCog(commands.Cog):
         # Application method dropdown
         view3.add_dropdown(
             fields=[
-                {"label": "Brush", "value": "brush", "description": "Apply with brush", "emoji": "🖌️"},
-                {"label": "Spray", "value": "spray", "description": "Apply with spray", "emoji": "💨"},
-                {"label": "Roll", "value": "roll", "description": "Apply with roller", "emoji": "🎢"},
+                {
+                    "label": "Brush",
+                    "value": "brush",
+                    "description": "Apply with brush",
+                    "emoji": "🖌️",
+                },
+                {
+                    "label": "Spray",
+                    "value": "spray",
+                    "description": "Apply with spray",
+                    "emoji": "💨",
+                },
+                {
+                    "label": "Roll",
+                    "value": "roll",
+                    "description": "Apply with roller",
+                    "emoji": "🎢",
+                },
             ],
             placeholder="Select application method",
             custom_id="application",
