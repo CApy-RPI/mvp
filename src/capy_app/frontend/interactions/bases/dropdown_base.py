@@ -161,7 +161,7 @@ class DynamicDropdownView(View):
         self.ephemeral = ephemeral
         await interaction.response.send_message(content, view=self, ephemeral=ephemeral)
         self.message = await interaction.original_response()
-        return await self.get_data()
+        return await self._get_data()
 
     async def initiate_from_message(
         self,
@@ -174,7 +174,7 @@ class DynamicDropdownView(View):
 
         self.message = await message.edit(content=content, view=self)
         self.ephemeral = message.flags.ephemeral
-        return await self.get_data()
+        return await self._get_data()
 
     async def on_timeout(self) -> None:
         if self.message:
@@ -215,7 +215,7 @@ class DynamicDropdownView(View):
         self.add_item(CancelButton())
         self._has_buttons = True
 
-    async def get_data(self) -> Tuple[Dict[str, List[str]] | None, Message | None]:
+    async def _get_data(self) -> Tuple[Dict[str, List[str]] | None, Message | None]:
         """Wait for user input and return selected values.
 
         Returns:
@@ -253,4 +253,4 @@ class DynamicDropdownView(View):
             except NotFound:
                 logger.warning("Message not found when trying to update status")
 
-        return selections if self.accepted else None
+        return selections if self.accepted else None, self.message
