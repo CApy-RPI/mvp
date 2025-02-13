@@ -88,7 +88,7 @@ class ModalTestCog(commands.Cog):
         if values and message:
             try:
                 await message.edit(
-                    content=f"Submitted values:\n"
+                    content="Submitted values:\n"
                     + "\n".join(f"{k}: {v}" for k, v in values.items())
                 )
             except NotFound:
@@ -106,7 +106,7 @@ class ModalTestCog(commands.Cog):
         if values and message:
             try:
                 await message.edit(
-                    content=f"Survey results:\n"
+                    content="Survey results:\n"
                     + "\n".join(f"{k}: {v}" for k, v in values.items())
                 )
             except NotFound:
