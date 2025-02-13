@@ -8,7 +8,7 @@ dynamic text input fields. It supports:
 - Both interaction and message-based initialization
 """
 
-from typing import Dict, Optional, List, Any, TypeVar
+from typing import Dict, Optional, List, Any, TypeVar, Tuple
 import logging
 from discord import Interaction, Message, ButtonStyle
 from discord.ui import Modal, Button, View
@@ -39,7 +39,7 @@ class DynamicModal(Modal):
 
     def __init__(
         self,
-        fields: Optional[List[Dict[str, Any]]] = [],
+        fields: Optional[List[Dict[str, Any]]] = None,
         **options,
     ) -> None:
         """Initialize the modal dialog."""
@@ -50,8 +50,9 @@ class DynamicModal(Modal):
         self._fields: List[DynamicField[View]] = []
         self._interaction: Optional[Interaction] = None
 
-        for field in fields:
-            self._add_field(**field)
+        if fields is not None:
+            for field in fields:
+                self._add_field(**field)
 
     def _add_field(self, **options) -> DynamicField[View]:
         field: DynamicField[View] = DynamicField(**options)
@@ -101,7 +102,7 @@ class DynamicModalView(View):
 
     def __init__(
         self,
-        modal: Optional[List[Dict[str, Any]]] = [],
+        modal: Optional[Dict[str, Any]] = None,
         ephemeral: bool = True,
         **options,
     ) -> None:
@@ -113,7 +114,8 @@ class DynamicModalView(View):
         self._completed: bool = False
         self._timed_out: bool = False
 
-        self._add_modal(**modal)
+        if modal is not None:
+            self._add_modal(**modal)
 
     def _add_modal(
         self,
@@ -144,7 +146,7 @@ class DynamicModalView(View):
     async def initiate_from_interaction(
         self,
         interaction: Interaction,
-    ) -> tuple[Optional[Dict[str, str]], Optional[Message]]:
+    ) -> Tuple[Optional[Dict[str, str]], Optional[Message]]:
         """Show modal directly from interaction."""
         if self._modal is None:
             raise ValueError("No modal added to view")
@@ -156,21 +158,21 @@ class DynamicModalView(View):
     async def initiate_from_message(
         self,
         message: Message,
-    ) -> tuple[Optional[Dict[str, str]], Optional[Message]]:
+    ) -> Tuple[Optional[Dict[str, str]], Optional[Message]]:
         """Show modal from existing message."""
         if self._modal is None:
             raise ValueError("No modal added to view")
 
-        if self._modal.interaction is None:
+        if self._modal._interaction is None:
             logger.error("Modal has no interaction to send modal from")
             return None, message
 
         self._message = message
         # IDK how modal finds interaction but it works ig
-        await self._modal.interaction.response.send_modal(self._modal)
+        await self._modal._interaction.response.send_modal(self._modal)
         return await self._get_data()
 
-    async def _get_data(self) -> tuple[Optional[Dict[str, str]], Optional[Message]]:
+    async def _get_data(self) -> Tuple[Optional[Dict[str, str]], Optional[Message]]:
         """Wait for user input and return form values and message.
 
         Returns:
@@ -183,10 +185,15 @@ class DynamicModalView(View):
             await self._modal.wait()
             self._completed = True
 
+        return_values: Tuple[Optional[Dict[str, str]], Optional[Message]] = (
+            (self._modal.values, self._message)
+            if self._modal and self._modal.success
+            else (None, self._message)
+        )
+
         if self._modal and self._modal.success:
             logger.debug("Modal submitted successfully")
             await self._send_status_message("Form submitted successfully")
-            return_values = self._modal.values, self._message
         else:
             status = (
                 "Form input timed out"
@@ -195,7 +202,6 @@ class DynamicModalView(View):
             )
             logger.debug(status)
             await self._send_status_message(status)
-            return_values = None, self._message
 
         self.stop()
         return return_values
@@ -243,7 +249,7 @@ class ButtonDynamicModalView(DynamicModalView):
         self,
         interaction: Interaction,
         prompt: Optional[str] = None,
-    ) -> tuple[Optional[Dict[str, str]], Optional[Message]]:
+    ) -> Tuple[Optional[Dict[str, str]], Optional[Message]]:
         """Show button and modal from interaction."""
         if self._modal is None:
             raise ValueError("No modal added to view")
@@ -273,7 +279,7 @@ class ButtonDynamicModalView(DynamicModalView):
         self,
         message: Message,
         prompt: Optional[str] = None,
-    ) -> tuple[Optional[Dict[str, str]], Optional[Message]]:
+    ) -> Tuple[Optional[Dict[str, str]], Optional[Message]]:
         """Update message with button and wait for modal submission."""
         if self._modal is None:
             raise ValueError("No modal added to view")

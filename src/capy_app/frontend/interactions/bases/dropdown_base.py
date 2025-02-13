@@ -8,7 +8,7 @@ dropdown menus with optional accept/cancel buttons. It supports:
 - Message lifecycle management
 """
 
-from typing import Dict, Optional, List, Tuple, Any
+from typing import Dict, Optional, List, Tuple, Any, cast
 import logging
 from discord import SelectOption, Interaction, ButtonStyle, Message
 from discord.ui import Select, View, Button
@@ -68,25 +68,25 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
 
     def __init__(
         self,
-        selections: Optional[List[Dict[str, Any]]] = [],
+        selections: Optional[List[Dict[str, Any]]] = None,
         disable_on_select: bool = False,
         **options,
     ) -> None:
         self.selected_values: List[str] = []
-
         self._disable_on_select = disable_on_select
 
         select_options = []
-        for selection in selections:
-            select_options.append(SelectOption(**selection))
+        if selections is not None:
+            for selection in selections:
+                select_options.append(SelectOption(**selection))
 
-        # Validate and truncate selections if needed
-        if len(selections) > self.MAX_OPTIONS:
-            logger.warning(
-                f"Dropdown options exceeded Discord limit of {self.MAX_OPTIONS}. "
-                f"Truncating from {len(selections)} options."
-            )
-            selections = selections[: self.MAX_OPTIONS]
+            # Validate and truncate selections if needed
+            if len(select_options) > self.MAX_OPTIONS:
+                logger.warning(
+                    f"Dropdown options exceeded Discord limit of {self.MAX_OPTIONS}. "
+                    f"Truncating from {len(select_options)} options."
+                )
+                select_options = select_options[: self.MAX_OPTIONS]
 
         super().__init__(
             options=select_options,
@@ -104,9 +104,10 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
             self.disabled = True
             logger.debug(f"Dropdown {self.custom_id} disabled after selection")
 
-        if not self.view._has_buttons:
-            self.view.accepted = True
-            self.view.stop()
+        view = cast(DynamicDropdownView, self.view)
+        if not view._has_buttons:
+            view.accepted = True
+            view.stop()
 
         await interaction.response.defer()
 
@@ -118,7 +119,7 @@ class DynamicDropdownView(View):
 
     def __init__(
         self,
-        dropdowns: Optional[List[Dict[str, Any]]] = [],
+        dropdowns: Optional[List[Dict[str, Any]]] = None,
         ephemeral: bool = True,
         auto_buttons: bool = True,
         add_buttons: bool = False,
@@ -142,6 +143,7 @@ class DynamicDropdownView(View):
         self._auto_buttons = auto_buttons
         self._add_buttons = add_buttons
 
+        dropdowns = dropdowns or []
         if (
             len(dropdowns) > self.MAX_DROPDOWNS
             or len(dropdowns) > self.MAX_DROPDOWNS - 1
@@ -195,7 +197,7 @@ class DynamicDropdownView(View):
 
     def _add_dropdown(
         self,
-        selections: Dict[str, Dict[str, str]],
+        selections: List[Dict[str, Any]],
         **options,
     ) -> DynamicDropdown:
         dropdown = DynamicDropdown(selections=selections, **options)
