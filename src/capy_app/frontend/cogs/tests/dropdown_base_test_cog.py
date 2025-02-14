@@ -1,9 +1,218 @@
+"""Test cog for dropdown base functionality."""
+
 from discord.ext import commands
 from discord import app_commands, Interaction, Object
-from discord.errors import NotFound
-from frontend.interactions.bases.dropdown_base import MultiSelectorView
+from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 
 from config import settings
+
+DROPDOWN_CONFIGS = {
+    "simple_selection": {
+        "ephemeral": False,
+        "add_buttons": False,
+        "dropdowns": [
+            {
+                "placeholder": "Make your selection",
+                "max_values": 1,
+                "disable_on_select": True,
+                "custom_id": "simple_select",
+                "selections": [
+                    {
+                        "label": "Option A",
+                        "value": "a",
+                        "description": "First choice",
+                        "emoji": "🅰️",
+                    },
+                    {
+                        "label": "Option B",
+                        "value": "b",
+                        "description": "Second choice",
+                        "emoji": "🅱️",
+                    },
+                    {
+                        "label": "Option C",
+                        "value": "c",
+                        "description": "Third choice",
+                        "emoji": "©️",
+                    },
+                ],
+            }
+        ],
+    },
+    "multi_selection": {
+        "ephemeral": False,
+        "add_buttons": True,
+        "dropdowns": [
+            {
+                "placeholder": "Choose a fruit",
+                "custom_id": "fruits",
+                "selections": [
+                    {"label": "Apple", "value": "apple", "emoji": "🍎"},
+                    {"label": "Banana", "value": "banana", "emoji": "🍌"},
+                    {"label": "Orange", "value": "orange", "emoji": "🍊"},
+                ],
+            },
+            {
+                "placeholder": "Choose an animal",
+                "custom_id": "animals",
+                "selections": [
+                    {"label": "Dog", "value": "dog", "emoji": "🐕"},
+                    {"label": "Cat", "value": "cat", "emoji": "🐈"},
+                    {"label": "Bird", "value": "bird", "emoji": "🐦"},
+                ],
+            },
+            {
+                "placeholder": "Choose weather",
+                "custom_id": "weather",
+                "selections": [
+                    {"label": "Sunny", "value": "sun", "emoji": "☀️"},
+                    {"label": "Rainy", "value": "rain", "emoji": "🌧️"},
+                    {"label": "Cloudy", "value": "cloud", "emoji": "☁️"},
+                ],
+            },
+        ],
+    },
+    "paint_step1": {
+        "ephemeral": False,
+        "add_buttons": False,
+        "dropdowns": [
+            {
+                "placeholder": "Select color family",
+                "custom_id": "color_family",
+                "max_values": 1,
+                "selections": [
+                    {
+                        "label": "Warm Colors",
+                        "value": "warm",
+                        "description": "Red, Orange, Yellow family",
+                        "emoji": "🔥",
+                    },
+                    {
+                        "label": "Cool Colors",
+                        "value": "cool",
+                        "description": "Blue, Green, Purple family",
+                        "emoji": "❄️",
+                    },
+                    {
+                        "label": "Neutral Colors",
+                        "value": "neutral",
+                        "description": "Black, White, Gray family",
+                        "emoji": "⚪",
+                    },
+                ],
+            }
+        ],
+    },
+    "paint_step2_warm": {
+        "ephemeral": False,
+        "add_buttons": False,
+        "dropdowns": [
+            {
+                "placeholder": "Select specific colors",
+                "custom_id": "specific_colors",
+                "min_values": 1,
+                "max_values": 2,
+                "selections": [
+                    {"label": "Red", "value": "red", "emoji": "🔴"},
+                    {"label": "Orange", "value": "orange", "emoji": "🟠"},
+                    {"label": "Yellow", "value": "yellow", "emoji": "🟡"},
+                ],
+            }
+        ],
+    },
+    "paint_step2_cool": {
+        "ephemeral": False,
+        "add_buttons": False,
+        "dropdowns": [
+            {
+                "placeholder": "Select specific colors",
+                "custom_id": "specific_colors",
+                "min_values": 1,
+                "max_values": 2,
+                "selections": [
+                    {"label": "Blue", "value": "blue", "emoji": "🔵"},
+                    {"label": "Green", "value": "green", "emoji": "🟢"},
+                    {"label": "Purple", "value": "purple", "emoji": "🟣"},
+                ],
+            }
+        ],
+    },
+    "paint_step2_neutral": {
+        "ephemeral": False,
+        "add_buttons": False,
+        "dropdowns": [
+            {
+                "placeholder": "Select specific colors",
+                "custom_id": "specific_colors",
+                "min_values": 1,
+                "max_values": 2,
+                "selections": [
+                    {"label": "Black", "value": "black", "emoji": "⚫"},
+                    {"label": "White", "value": "white", "emoji": "⚪"},
+                    {"label": "Gray", "value": "gray", "emoji": "⭕"},
+                ],
+            }
+        ],
+    },
+    "paint_step3": {
+        "ephemeral": False,
+        "add_buttons": True,
+        "dropdowns": [
+            {
+                "placeholder": "Select 1-2 finishes",
+                "custom_id": "finishes",
+                "min_values": 1,
+                "max_values": 2,
+                "selections": [
+                    {
+                        "label": "Matte",
+                        "value": "matte",
+                        "description": "Matte finish",
+                        "emoji": "🎨",
+                    },
+                    {
+                        "label": "Gloss",
+                        "value": "gloss",
+                        "description": "Glossy finish",
+                        "emoji": "✨",
+                    },
+                    {
+                        "label": "Metallic",
+                        "value": "metallic",
+                        "description": "Metallic finish",
+                        "emoji": "🌟",
+                    },
+                ],
+            },
+            {
+                "placeholder": "Select application method",
+                "custom_id": "application",
+                "min_values": 1,
+                "max_values": 1,
+                "selections": [
+                    {
+                        "label": "Brush",
+                        "value": "brush",
+                        "description": "Apply with brush",
+                        "emoji": "🖌️",
+                    },
+                    {
+                        "label": "Spray",
+                        "value": "spray",
+                        "description": "Apply with spray",
+                        "emoji": "💨",
+                    },
+                    {
+                        "label": "Roll",
+                        "value": "roll",
+                        "description": "Apply with roller",
+                        "emoji": "🎢",
+                    },
+                ],
+            },
+        ],
+    },
+}
 
 
 class DropdownTestCog(commands.Cog):
@@ -14,206 +223,83 @@ class DropdownTestCog(commands.Cog):
     @app_commands.command(name="test_dropdown")
     async def test_dropdown(self, interaction: Interaction):
         """Test the dropdown base functionality with a single dropdown"""
-        view = MultiSelectorView()
-
-        view.add_dropdown(
-            options_dict={
-                "Option A": {"value": "a", "description": "First choice"},
-                "Option B": {"value": "b", "description": "Second choice"},
-                "Option C": {"value": "c", "description": "Third choice"},
-            },
-            placeholder="Make your selection",
-            max_values=1,
-            disable_on_select=True,
-            custom_id="simple_select",
-            row=0,
+        view = DynamicDropdownView(**DROPDOWN_CONFIGS["simple_selection"])
+        selections, message = await view.initiate_from_interaction(
+            interaction, "Test a simple dropdown selection with emojis:"
         )
 
-        await view.initiate_message_from_interaction(
-            interaction, "Test a simple dropdown selection:"
-        )
-
-        selection, message = await view.get_data()
-        if message:
-            try:
-                await message.edit(
-                    content=f"Selected value: {selection}",
-                    view=None,
-                    delete_after=10,
-                )
-            except NotFound:
-                pass
+        if selections and message:
+            await message.edit(content=f"Selected value: {selections}", view=None)
 
     @app_commands.guilds(Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="test_dropdown_with_buttons")
     async def test_dropdown_with_buttons(self, interaction: Interaction):
         """Test the dropdown base with accept/cancel buttons"""
-        view = MultiSelectorView(timeout=180.0)
+        view = DynamicDropdownView(**DROPDOWN_CONFIGS["multi_selection"])
 
-        # Add dropdowns in different rows
-        view.add_dropdown(
-            options_dict={"Option A": {"value": "a"}},
-            placeholder="Row 0 select",
-            custom_id="row0",
-            row=0,
-        )
-        view.add_dropdown(
-            options_dict={"Option B": {"value": "b"}},
-            placeholder="Row 1 select",
-            custom_id="row1",
-            row=1,
-        )
-        view.add_dropdown(
-            options_dict={"Option C": {"value": "c"}},
-            placeholder="Row 2 select",
-            custom_id="row2",
-            row=2,
-        )
-        view.add_accept_cancel_buttons()
-
-        await view.initiate_message_from_interaction(
-            interaction, "Make your selections and click accept when done:"
+        selections, message = await view.initiate_from_interaction(
+            interaction, "Select from each category:"
         )
 
-        selections, message = await view.get_data()
-        if view.accepted:
-            if message:
-                try:
-                    await message.edit(
-                        content=f"Selected values: {selections}",
-                        view=None,
-                        delete_after=10,
-                    )
-                except NotFound:
-                    pass
-        else:
-            if message:
-                try:
-                    await message.edit(
-                        content="Selection cancelled.", view=None, delete_after=10
-                    )
-                except NotFound:
-                    pass
+        if message:
+            content = (
+                f"Selected values: {selections}"
+                if selections
+                else "Selection cancelled."
+            )
+            await message.edit(content=content, view=None)
 
     @app_commands.guilds(Object(id=settings.DEBUG_GUILD_ID))
-    @app_commands.command(name="test_sequential_dropdowns")
+    @app_commands.command(name="test_dropdown_sequential")
     async def test_sequential_dropdowns(self, interaction: Interaction):
         """Test sequential dropdowns where each appears after the previous is selected"""
-        # First dropdown - single select
-        view1 = MultiSelectorView(timeout=180.0)
-        view1.add_dropdown(
-            options_dict={
-                "Red": {"value": "red", "description": "Primary red"},
-                "Blue": {"value": "blue", "description": "Primary blue"},
-                "Green": {"value": "green", "description": "Primary green"},
-            },
-            placeholder="Select ONE primary color",
-            custom_id="primary_color",
-            max_values=1,
-            row=0,
+        # First dropdown - Color family selection
+        view1 = DynamicDropdownView(**DROPDOWN_CONFIGS["paint_step1"])
+        primary_selection, message = await view1.initiate_from_interaction(
+            interaction, "Step 1: Choose a color family:"
         )
-        message = await view1.initiate_message_from_interaction(
-            interaction, "Step 1: Choose exactly one primary color:"
-        )
-        primary_selection, message = await view1.get_data()
+        if not primary_selection or not message:
+            return
 
-        # Second dropdown - multi select (1-2)
-        view2 = MultiSelectorView(timeout=180.0)
-        view2.add_dropdown(
-            options_dict={
-                "Yellow": {"value": "yellow", "description": "Mix with yellow"},
-                "Purple": {"value": "purple", "description": "Mix with purple"},
-                "Orange": {"value": "orange", "description": "Mix with orange"},
-                "White": {"value": "white", "description": "Mix with white"},
-            },
-            placeholder="Select 1-2 secondary colors",
-            custom_id="secondary_colors",
-            min_values=1,
-            max_values=2,
-            row=0,
+        # Second dropdown - Specific colors based on family
+        selected_family = primary_selection["color_family"][0]
+        view2 = DynamicDropdownView(
+            **DROPDOWN_CONFIGS[f"paint_step2_{selected_family}"]
         )
-        await view2.initiate_message_from_message(
-            message, "Step 2: Choose one or two secondary colors to mix:"
+        secondary_selection, message = await view2.initiate_from_message(
+            message, f"Step 2: Choose 1-2 colors from the {selected_family} family:"
         )
-        secondary_selection, message = await view2.get_data()
+        if not secondary_selection or not message:
+            return
 
-        # Third step - multiple concurrent dropdowns
-        view3 = MultiSelectorView(timeout=180.0)
-
-        # Finish types dropdown
-        view3.add_dropdown(
-            options_dict={
-                "Matte": {"value": "matte", "description": "Matte finish"},
-                "Gloss": {"value": "gloss", "description": "Glossy finish"},
-                "Metallic": {"value": "metallic", "description": "Metallic finish"},
-            },
-            placeholder="Select 1-2 finishes",
-            custom_id="finishes",
-            min_values=1,
-            max_values=2,
-            row=0,
-        )
-
-        # Application method dropdown
-        view3.add_dropdown(
-            options_dict={
-                "Brush": {"value": "brush", "description": "Apply with brush"},
-                "Spray": {"value": "spray", "description": "Apply with spray"},
-                "Roll": {"value": "roll", "description": "Apply with roller"},
-            },
-            placeholder="Select application method",
-            custom_id="application",
-            min_values=1,
-            max_values=1,
-            row=1,
-        )
-
-        # Coating layers dropdown
-        view3.add_dropdown(
-            options_dict={
-                "Single": {"value": "1", "description": "One coat"},
-                "Double": {"value": "2", "description": "Two coats"},
-                "Triple": {"value": "3", "description": "Three coats"},
-            },
-            placeholder="Select number of coats",
-            custom_id="coats",
-            min_values=1,
-            max_values=1,
-            row=2,
-        )
-
-        await view3.initiate_message_from_message(
+        # Final step - Finishes and application method
+        view3 = DynamicDropdownView(**DROPDOWN_CONFIGS["paint_step3"])
+        application_selections, message = await view3.initiate_from_message(
             message,
             "Step 3: Choose your application preferences:\n"
             "• Select 1-2 finish types\n"
-            "• Choose an application method\n"
-            "• Specify number of coats",
+            "• Choose an application method",
         )
-        application_selections, message = await view3.get_data()
+        if not application_selections or not message:
+            return
 
-        # Final view with all results
-        try:
-            combined_results = {
-                "primary": primary_selection.get("primary_color", []),
-                "secondary": secondary_selection.get("secondary_colors", []),
-                "finish_types": application_selections.get("finishes", []),
-                "application_method": application_selections.get("application", []),
-                "coating_layers": application_selections.get("coats", []),
-            }
-            await message.edit(
-                content=(
-                    "Your paint configuration:\n"
-                    f"Primary Color: {combined_results['primary']}\n"
-                    f"Secondary Colors: {combined_results['secondary']}\n"
-                    f"Finish Types: {combined_results['finish_types']}\n"
-                    f"Application Method: {combined_results['application_method']}\n"
-                    f"Number of Coats: {combined_results['coating_layers']}"
-                ),
-                view=None,
-                delete_after=15,
-            )
-        except NotFound:
-            pass
+        combined_results = {
+            "color_family": primary_selection.get("color_family", []),
+            "specific_colors": secondary_selection.get("specific_colors", []),
+            "finish_types": application_selections.get("finishes", []),
+            "application_method": application_selections.get("application", []),
+        }
+
+        await message.edit(
+            content=(
+                "Your paint configuration:\n"
+                f"Color Family: {combined_results['color_family']}\n"
+                f"Specific Colors: {combined_results['specific_colors']}\n"
+                f"Finish Types: {combined_results['finish_types']}\n"
+                f"Application Method: {combined_results['application_method']}"
+            ),
+            view=None,
+        )
 
 
 async def setup(bot: commands.Bot):
