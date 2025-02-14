@@ -33,6 +33,18 @@ class GuildRoles(mongoengine.EmbeddedDocument):
     admin: typing.Optional[str] = mongoengine.StringField()
 
 
+class OfficeHours(mongoengine.EmbeddedDocument):
+    """Represents office hours schedule for a member.
+
+    Attributes:
+        name: Name of the person holding office hours
+        schedule: Dictionary mapping weekdays to time slots
+    """
+
+    name: str = mongoengine.StringField(required=True)
+    schedule: typing.Dict[str, typing.List[str]] = mongoengine.DictField()
+
+
 class Guild(mongoengine.Document):
     """Main guild document representing a Discord server configuration.
 
@@ -44,6 +56,7 @@ class Guild(mongoengine.Document):
         roles: Role configuration for the guild
         created_at: Timestamp when the guild was created
         updated_at: Timestamp of last update
+        office_hours: List of office hours schedules for members
     """
 
     _id: int = mongoengine.IntField(primary_key=True)
@@ -54,6 +67,9 @@ class Guild(mongoengine.Document):
     )
     roles: GuildRoles = mongoengine.EmbeddedDocumentField(
         GuildRoles, default=GuildRoles
+    )
+    office_hours: typing.List[OfficeHours] = mongoengine.EmbeddedDocumentListField(
+        OfficeHours, default=list
     )
     created_at: datetime.datetime = mongoengine.DateTimeField(
         default=datetime.datetime.now
