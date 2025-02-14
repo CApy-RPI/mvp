@@ -480,7 +480,7 @@ class EventCog(commands.Cog):
         if reactions and isinstance(reactions, dict):
             # Increment the "yes" count
             reactions["yes"] += 1
-            print(f"Updated Reactions: {reactions}")
+            self.bot.logger.info(f"Updated Reactions: {reactions}")
 
             # Update the event data with the modified reactions
             event_data.set_value("reactions", reactions)
@@ -558,7 +558,7 @@ class EventCog(commands.Cog):
             )
             if reactions and isinstance(reactions, dict):
                 reactions["yes"] -= 1
-                print(f"Updated Reactions: {reactions}")
+                self.bot.logger.info(f"Updated Reactions: {reactions}")
 
         # Save the updated data back to the database
         self.bot.db.upsert_data(user_data)

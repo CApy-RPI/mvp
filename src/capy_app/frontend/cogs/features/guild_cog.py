@@ -51,7 +51,9 @@ class GuildCog(commands.Cog):
     ) -> None:
         """Handle settings selection and updates."""
         if not isinstance(interaction.guild, discord.Guild):
-            raise TypeError("Interaction must be in a guild.")
+            err = TypeError("Interaction must be in a guild.")
+            self.logger.error(err)
+            raise err
 
         self.logger.info(
             f"Settings update initiated for {interaction.guild} (ID: {interaction.guild.id}), selection: {selection}"
@@ -187,7 +189,9 @@ class GuildCog(commands.Cog):
             interaction: The Discord interaction
         """
         if not isinstance(interaction.guild, discord.Guild):
-            raise TypeError("Interaction must be in a guild.")
+            err = TypeError("Interaction must be in a guild.")
+            self.logger.error(err)
+            raise err
 
         guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
         if not guild_data:
@@ -223,7 +227,9 @@ class GuildCog(commands.Cog):
     async def edit_settings(self, interaction: discord.Interaction) -> None:
         """Edit server settings using views."""
         if not isinstance(interaction.guild, discord.Guild):
-            raise TypeError("Interaction must be in a guild.")
+            err = TypeError("Interaction must be in a guild.")
+            self.logger.error(err)
+            raise err
 
         settings_view = SettingsSelectView()
         await interaction.edit_original_response(
@@ -260,7 +266,9 @@ class GuildCog(commands.Cog):
     async def clear_settings(self, interaction: discord.Interaction) -> None:
         """Clear server settings."""
         if not isinstance(interaction.guild, discord.Guild):
-            raise TypeError("Interaction must be in a guild.")
+            err = TypeError("Interaction must be in a guild.")
+            self.logger.error(err)
+            raise err
 
         clear_view = ClearSettingsView()
         await interaction.edit_original_response(
