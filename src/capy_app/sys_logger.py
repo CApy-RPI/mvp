@@ -6,6 +6,8 @@ import sys
 
 WARNING = "\033[93m"
 FAIL = "\033[91m"
+
+
 def init_logger():
     if not os.path.exists("logs"):
         os.mkdir("logs")
@@ -21,4 +23,3 @@ def init_logger():
         except_logger.exception("Uncaught exception: {0}".format(str(value)), stack_info=True)
 
     sys.excepthook = handler
-
