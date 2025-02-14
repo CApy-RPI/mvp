@@ -60,7 +60,11 @@ class Settings(BaseSettings):
     @field_validator("MONGO_URI")
     def validate_mongo_uri(cls, v):
         """Check if Mongo URI is a valid URI"""
-        if (v is not None and not v.startswith("mongodb://") and not v.startswith("mongodb+srv://")):
+        if (
+            v is not None
+            and not v.startswith("mongodb://")
+            and not v.startswith("mongodb+srv://")
+        ):
             raise ValueError(
                 'MONGO_URI must start with "mongodb://" or "mongodb+srv://"'
             )
@@ -83,14 +87,30 @@ class Settings(BaseSettings):
     @field_validator("ENABLE_CHATBOT")
     def validate_enable_chatbot(cls, v):
         """Check if enable_chatbot variable is a boolean value"""
-        if v != True and v != False:
+        if v is not True and v is not False:
             raise ValueError("ENABLE_CHATBOT must be 'True' or 'False'")
         return v
 
-    @field_validator("BOT_TOKEN", "MONGO_URI", "MONGO_DBNAME", "MONGO_USERNAME", "MONGO_PASSWORD", "MAILJET_API_KEY", "MAILJET_API_SECRET",
-    "MAILJET_API_EMAIL", "TICKET_BUG_REPORT_CHANNEL_ID", "TICKET_FEATURE_REQUEST_CHANNEL_ID", "TICKET_FEEDBACK_CHANNEL_ID", "WHO_DUNNIT",
-    "FAILED_COMMANDS_GUILD_ID", "FAILED_COMMANDS_CHANNEL_ID", "FAILED_COMMANDS_ROLE_ID","ENABLE_CHATBOT",
-    "MODEL_NAME", "DEBUG_GUILD_ID")
+    @field_validator(
+        "BOT_TOKEN",
+        "MONGO_URI",
+        "MONGO_DBNAME",
+        "MONGO_USERNAME",
+        "MONGO_PASSWORD",
+        "MAILJET_API_KEY",
+        "MAILJET_API_SECRET",
+        "MAILJET_API_EMAIL",
+        "TICKET_BUG_REPORT_CHANNEL_ID",
+        "TICKET_FEATURE_REQUEST_CHANNEL_ID",
+        "TICKET_FEEDBACK_CHANNEL_ID",
+        "WHO_DUNNIT",
+        "FAILED_COMMANDS_GUILD_ID",
+        "FAILED_COMMANDS_CHANNEL_ID",
+        "FAILED_COMMANDS_ROLE_ID",
+        "ENABLE_CHATBOT",
+        "MODEL_NAME",
+        "DEBUG_GUILD_ID",
+    )
     def validate_fields(cls, v, info):
         """Check if any of the env variables are empty/missing"""
         if v is None or v == "":
