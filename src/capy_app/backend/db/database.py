@@ -115,34 +115,40 @@ class Database:
         """
         return list(document_class.objects(**(filters or {})))
 
-    @staticmethod
-    def sync_document_with_template(document: T, template: typing.Type[T]) -> None:
-        """Synchronizes document fields with template structure.
+    # @staticmethod
+    # def sync_document_with_template(document: T, template: typing.Type[T]) -> None:
+    #     """Synchronizes document fields with template structure.
 
-        Args:
-            document: Document instance to sync
-            template: Template class to sync against
+    #     Args:
+    #         document: Document instance to sync
+    #         template: Template class to sync against
 
-        Raises:
-            ValueError: If document has fields not in template
-        """
+    #     Raises:
+    #         ValueError: If document has fields not in template
+    #     """
 
-        def sync_fields(doc: typing.Any, tmpl: typing.Any) -> None:
-            """Recursively syncs fields between document and template."""
-            for field in tmpl._fields:
-                if not hasattr(doc, field):
-                    setattr(doc, field, getattr(tmpl, field))
-                else:
-                    value = getattr(doc, field)
-                    if isinstance(value, mongoengine.EmbeddedDocument):
-                        sync_fields(value, getattr(tmpl, field))
-                    else:
-                        setattr(tmpl, field, value)
+    #     def sync_fields(doc: typing.Any, tmpl: typing.Any) -> None:
+    #         """Recursively syncs fields between document and template."""
+    #         if not hasattr(tmpl, "_fields"):
+    #             return
 
-            extra_fields = set(doc._fields) - set(tmpl._fields)
-            if extra_fields:
-                raise ValueError(f"Fields not in template: {', '.join(extra_fields)}")
+    #         for field in tmpl._fields:
+    #             if not hasattr(doc, field):
+    #                 setattr(doc, field, getattr(tmpl, field))
+    #             else:
+    #                 value = getattr(doc, field)
+    #                 if isinstance(value, mongoengine.EmbeddedDocument):
+    #                     sync_fields(value, getattr(tmpl, field))
+    #                 else:
+    #                     setattr(tmpl, field, value)
 
-        template_instance = template()
-        sync_fields(document, template_instance)
-        document.save()
+    #         if hasattr(doc, "_fields"):
+    #             extra_fields = set(doc._fields) - set(tmpl._fields)
+    #             if extra_fields:
+    #                 raise ValueError(
+    #                     f"Fields not in template: {', '.join(extra_fields)}"
+    #                 )
+
+    #     template_instance = template()
+    #     sync_fields(document, template_instance)
+    #     document.save()

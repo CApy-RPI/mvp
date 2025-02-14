@@ -1,7 +1,9 @@
+# third-party imports
 import pytest
 from mongoengine import connect, disconnect
 import mongomock
 
+# local imports
 from src.capy_app.backend.db.database import Database
 from src.capy_app.backend.db.documents.user import User, UserProfile, UserName
 
@@ -81,6 +83,13 @@ def test_update_user(db, user):
 def test_delete_user(db, user):
     db.add_document(user)
     db.delete_document(user)
+    fetched_user = db.get_document(User, 1)
+    assert fetched_user is None
+
+
+def test_delete_user_by_id(db, user):
+    db.add_document(user)
+    db.delete_document_by_id(User, 1)
     fetched_user = db.get_document(User, 1)
     assert fetched_user is None
 
