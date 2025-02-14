@@ -12,7 +12,7 @@ def init_logger():
     if not os.path.exists("logs"):
         os.mkdir("logs")
 
-    logfile = f'logs/{strftime("%Y-%m-%d %H:%M:%S", gmtime())}@{socket.gethostname()}.log'
+    logfile = f'logs/{strftime("%Y-%m-%d_%H-%M-%S", gmtime())}@{socket.gethostname()}.log'
     logging.basicConfig(filename=logfile,
                         level=logging.INFO)
 
