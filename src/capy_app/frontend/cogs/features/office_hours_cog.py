@@ -101,17 +101,11 @@ class OfficeHoursCog(commands.Cog):
             interaction, "Select office hours for Sunday through Wednesday:"
         )
 
-        if not first_half_selections:
-            return
-
         # Collect second half of week (Thu-Sat)
         second_half = DynamicDropdownView(**configs["second_half_week"])
         second_half_selections, msg = await second_half.initiate_from_message(
             msg, "Select office hours for Thursday through Saturday:"
         )
-
-        if not second_half_selections:
-            return
 
         # Combine selections into schedule
         schedule = {

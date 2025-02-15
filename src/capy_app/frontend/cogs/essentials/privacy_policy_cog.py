@@ -33,7 +33,7 @@ class PrivacyPolicyCog(commands.Cog):
         """
         embed = discord.Embed(
             title="Privacy Policy & Data Handling",
-            color=colors.INFO,
+            color=colors.STATUS_INFO,
             description="Here's how we handle your information:",
         )
 
@@ -86,7 +86,8 @@ class PrivacyPolicyCog(commands.Cog):
             name="❌ Data Deletion",
             value=(
                 "You can request data deletion through:\n"
-                "• Contacting the bot administrators\n\n"
+                "• Contacting the bot administrators\n"
+                "• Calling /profile delete\n\n"
                 "Note: Some basic data may be retained for academic records as required."
             ),
             inline=False,
