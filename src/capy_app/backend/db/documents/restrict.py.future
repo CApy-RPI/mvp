@@ -1,4 +1,6 @@
 import datetime
+
+import logging
 import mongoengine
 
 
@@ -6,18 +8,24 @@ class RestrictedBase(mongoengine.Document):
     """Base class for restricted documents with proper type hints."""
 
     meta = {"abstract": True}
+    logger = logging.getLogger(__name__)
 
     def __setattr__(self, name, value):
         if not name.startswith("_") and name not in self._fields:
-            raise AttributeError(
+            err = AttributeError(
                 f"Cannot modify attribute {name} on {self.__class__.__name__} as it does not exist."
             )
+
+            self.logger.exception(err, stack_info=True)
+            raise err
         super().__setattr__(name, value)
 
     def __delattr__(self, name):
-        raise AttributeError(
+        err =  AttributeError(
             f"Deletion of attribute {name} disallowed on {self.__class__.__name__}"
         )
+        self.logger.exception(err, stack_info=True)
+        raise err
 
 
 class RestrictedDocument(RestrictedBase, mongoengine.Document):

@@ -120,7 +120,9 @@ class GuildCog(commands.Cog):
     async def show_settings(self, interaction: discord.Interaction) -> None:
         """Display current server settings."""
         if not isinstance(interaction.guild, discord.Guild):
-            raise TypeError("Interaction must be in a guild.")
+            err = TypeError("Interaction must be in a guild.")
+            self.logger.error(err)
+            raise err
 
         await interaction.response.defer(ephemeral=True)
 
@@ -156,7 +158,9 @@ class GuildCog(commands.Cog):
     async def edit_settings(self, interaction: discord.Interaction) -> None:
         """Edit server settings using the new dropdown framework."""
         if not isinstance(interaction.guild, discord.Guild):
-            raise TypeError("Interaction must be in a guild.")
+            err = TypeError("Interaction must be in a guild.")
+            self.logger.error(err)
+            raise err
 
         try:
             setting_type, message = await self._process_settings_selection(interaction)
