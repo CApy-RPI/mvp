@@ -17,7 +17,7 @@ from discord.errors import NotFound
 from config import settings
 
 # Configure logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(f"discord.interactions.{__name__.lower()}")
 logger.setLevel(settings.LOG_LEVEL)
 
 
@@ -70,15 +70,20 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
         self,
         selections: Optional[List[Dict[str, Any]]] = None,
         disable_on_select: bool = False,
+        default_values: Optional[List[str]] = None,
         **options,
     ) -> None:
         self.selected_values: List[str] = []
         self._disable_on_select = disable_on_select
+        self._default_values = default_values or []
 
         select_options = []
         if selections is not None:
             for selection in selections:
-                select_options.append(SelectOption(**selection))
+                option = SelectOption(**selection)
+                if self._default_values and option.value in self._default_values:
+                    option.default = True
+                select_options.append(option)
 
             # Validate and truncate selections if needed
             if len(select_options) > self.MAX_OPTIONS:
@@ -92,6 +97,10 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
             options=select_options,
             **options,
         )
+
+        # Initialize with default values
+        if self._default_values:
+            self.selected_values = self._default_values.copy()
 
     async def callback(self, interaction: Interaction) -> None:
         """Handle dropdown selection."""
