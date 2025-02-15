@@ -1,7 +1,8 @@
 # stl imports
 import os
 
-from capy_app.sys_logger import init_logger
+from sys_logger import init_logger
+
 # local imports
 from frontend.bot import Bot
 
