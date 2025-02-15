@@ -9,8 +9,7 @@ from backend.db.documents.guild import Guild, OfficeHours
 from backend.db.database import Database
 from config import settings
 from frontend import config_colors as colors
-from frontend.interactions.configs.office_hours_config import (
-    OFFICE_HOURS_CONFIGS,
+from frontend.cogs.features.office_hours_config import (
     get_office_hours_config,
 )
 
@@ -44,7 +43,7 @@ class OfficeHoursCog(commands.Cog):
         self.bot = bot
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
-    @app_commands.command(name="officehours", description="Manage office hours")
+    @app_commands.command(name="office_hours", description="Manage office hours")
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.choices(
         action=[

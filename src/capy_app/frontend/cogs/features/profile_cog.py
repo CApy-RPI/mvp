@@ -11,7 +11,7 @@ from discord.ext import commands
 from config import settings
 from backend.db.database import Database as db
 from backend.db.documents.user import User, UserProfile, UserName
-from frontend.interactions.bases.view_bases import ConfirmDeleteView
+from frontend.interactions.bases.button_base import ConfirmDeleteView
 from frontend.interactions.bases.modal_base import DynamicModalView
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 from frontend.interactions.bases.modal_base import ButtonDynamicModalView

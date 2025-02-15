@@ -17,7 +17,7 @@ from discord.errors import NotFound
 from config import settings
 
 # Configure logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(f"discord.interactions.{__name__.lower()}")
 logger.setLevel(settings.LOG_LEVEL)
 
 

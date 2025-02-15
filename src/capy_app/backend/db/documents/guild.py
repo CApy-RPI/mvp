@@ -25,12 +25,15 @@ class GuildRoles(mongoengine.EmbeddedDocument):
         member: Role identifier for verified members
         eboard: Role identifier for executive board members
         admin: Role identifier for administrators
+        office_hours: Role identifier for office hours
     """
 
     visitor: typing.Optional[str] = mongoengine.StringField()
     member: typing.Optional[str] = mongoengine.StringField()
     eboard: typing.Optional[str] = mongoengine.StringField()
     admin: typing.Optional[str] = mongoengine.StringField()
+    advisor: typing.Optional[str] = mongoengine.StringField()
+    office_hours: typing.Optional[str] = mongoengine.StringField()
 
 
 class OfficeHours(mongoengine.EmbeddedDocument):
