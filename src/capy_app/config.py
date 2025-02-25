@@ -2,6 +2,10 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 from typing import Optional
 from pydantic import field_validator
+import re
+
+# Regex for Email Validation
+regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b'
 
 
 class Settings(BaseSettings):
@@ -73,7 +77,7 @@ class Settings(BaseSettings):
     @field_validator("MAILJET_API_EMAIL")
     def validate_email(cls, v):
         """Check if the MailJet API email is a valid email"""
-        if v and "@" not in v:
+        if not (re.fullmatch(regex, v)):
             raise ValueError("MAILJET_API_EMAIL must be a valid email address")
         return v
 
