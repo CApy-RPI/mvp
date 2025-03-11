@@ -61,8 +61,6 @@ class Email:
         result = self.mailjet.send.create(data=data)
         if result.status_code == 200:
             return result.json()
-        err =  EmailSendError(
+        raise EmailSendError(
             f"Failed to send email: {result.status_code} - {result.json()}"
         )
-        self.logger.exception(err, stack_info=True)
-        raise err
