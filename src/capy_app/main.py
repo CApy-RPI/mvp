@@ -1,6 +1,8 @@
 # stl imports
 import os
 
+from sys_logger import init_logger
+
 # local imports
 from frontend.bot import Bot
 
@@ -9,6 +11,7 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
 def main():
+    init_logger()
     bot = Bot()
     bot.run()
 

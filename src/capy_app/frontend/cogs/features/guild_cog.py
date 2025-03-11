@@ -1,26 +1,19 @@
 """Guild settings management cog."""
 
 import logging
-import typing
 import discord
+from typing import Optional
 from discord import app_commands
 from discord.ext import commands
 
 from backend.db.database import Database as db
-from .guild_views import (
-    ChannelSelectView,
-    RoleSelectView,
-    SettingsSelectView,
-    ClearSettingsView,
-)
-from .guild_handlers import (
-    handle_channel_update,
-    handle_role_update,
-)
+from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 from frontend.cogs.handlers.guild_handler_cog import GuildHandlerCog
 from frontend import config_colors as colors
 from frontend.interactions.checks.scopes import is_guild
+from frontend.cogs.features.guild_config import ConfigConstructor
 from config import settings
+from frontend.interactions.bases.button_base import ConfirmDeleteView
 
 
 @app_commands.guild_only()
@@ -30,147 +23,91 @@ class GuildCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         super().__init__()
         self.bot = bot
-        self.logger = logging.getLogger("discord.guild")
+        self.logger = logging.getLogger(
+            f"discord.cog.{self.__class__.__name__.lower()}"
+        )
+        self.config = ConfigConstructor()
 
-        # Define configuration categories
-        self.channels = {
-            "reports": "Channel for report submissions",
-            "announcements": "Channel for announcements",
-            "moderator": "Channel for moderator communications",
-        }
-
-        self.roles = {
-            "visitor": "Role for visitors",
-            "member": "Role for verified members",
-            "eboard": "Role for executive board members",
-            "admin": "Role for administrators",
-        }
-
-    async def _handle_settings_select(
-        self, interaction: discord.Interaction, selection: str, guild_data: typing.Any
-    ) -> None:
-        """Handle settings selection and updates."""
+    async def _verify_guild_access(
+        self, interaction: discord.Interaction, require_manage: bool = False
+    ) -> tuple[bool, str]:
+        """Verify guild access and permissions."""
         if not isinstance(interaction.guild, discord.Guild):
-            raise TypeError("Interaction must be in a guild.")
+            return False, "This command can only be used in a server."
 
-        self.logger.info(
-            f"Settings update initiated for {interaction.guild} (ID: {interaction.guild.id}), selection: {selection}"
+        if require_manage and not interaction.user.guild_permissions.manage_guild:
+            return False, "You need 'Manage Server' permission to modify settings."
+
+        guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
+        if not guild_data:
+            return False, "Failed to access guild settings."
+
+        return True, ""
+
+    async def _process_settings_selection(
+        self, interaction: discord.Interaction
+    ) -> tuple[Optional[str], Optional[discord.Message]]:
+        """Process settings type selection."""
+        settings_view = DynamicDropdownView(**self.config.get_settings_type_dropdown())
+        selections, message = await settings_view.initiate_from_interaction(
+            interaction, "Select what you'd like to edit:"
         )
 
-        if selection in ["channels", "all"]:
-            channel_view = ChannelSelectView(self.channels)
-            await interaction.edit_original_response(
-                content="Select channels for each category:", view=channel_view
-            )
-            await channel_view.wait()
+        if not selections or "settings_type" not in selections:
+            return None, None
 
-            if channel_view.value is False:
-                self.logger.info(
-                    f"Channel settings update cancelled for {interaction.guild}"
-                )
-                await interaction.edit_original_response(
-                    content="Cancelled channel settings update.", embed=None, view=None
-                )
-                return
+        return selections["settings_type"][0], message
 
-            if not channel_view.value or not await handle_channel_update(
-                interaction, channel_view, guild_data, self.channels
-            ):
-                self.logger.error(
-                    f"Failed to update channel settings for {interaction.guild}"
-                )
-                await interaction.edit_original_response(
-                    content="Failed to update channel settings.", embed=None, view=None
-                )
-                return
+    async def _process_configuration(
+        self, setting_type: str, message: discord.Message, guild: discord.Guild
+    ) -> Optional[dict]:
+        """Process configuration selection."""
+        dropdowns = (
+            await self.config.create_channel_dropdown(guild)
+            if setting_type == "channels"
+            else await self.config.create_role_dropdown(guild)
+        )
 
-            self.logger.info(
-                f"Successfully updated channel settings for {interaction.guild}"
-            )
+        config_view = DynamicDropdownView(
+            dropdowns=dropdowns, **self.config.get_config_view_settings()
+        )
 
-        if selection in ["roles", "all"]:
-            role_view = RoleSelectView(self.roles)
-            await interaction.edit_original_response(
-                content="Select roles for each category:", view=role_view
-            )
-            await role_view.wait()
+        selections, message = await config_view.initiate_from_message(
+            message, f"Select {setting_type} for each category:"
+        )
 
-            if role_view.value is False:
-                self.logger.info(
-                    f"Role settings update cancelled for {interaction.guild}"
-                )
-                await interaction.edit_original_response(
-                    content="Cancelled role settings update.", embed=None, view=None
-                )
-                return
+        if not selections:
+            await message.edit(content="Configuration cancelled.", view=None)
+            return None
 
-            if not role_view.value or not await handle_role_update(
-                interaction, role_view, guild_data, self.roles
-            ):
-                self.logger.error(
-                    f"Failed to update role settings for {interaction.guild}"
-                )
-                await interaction.edit_original_response(
-                    content="Failed to update role settings.", embed=None, view=None
-                )
-                return
-
-            self.logger.info(
-                f"Successfully updated role settings for {interaction.guild}"
-            )
-
-        await self.show_settings(interaction)
+        return {
+            f"{category}s__{name}": int(values[0]) if values else None
+            for key, values in selections.items()
+            for category, name in [key.split("_")]
+        }
 
     @is_guild()
-    @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="server", description="Manage server settings")
+    @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.describe(action="The action to perform with server settings")
     @app_commands.choices(
         action=[app_commands.Choice(name=n, value=n) for n in ["show", "edit", "clear"]]
     )
     async def server(self, interaction: discord.Interaction, action: str) -> None:
         """Handle server setting actions."""
-        await interaction.response.defer(ephemeral=True)
-        self.logger.info(
-            f"Server settings {action} requested by {interaction.user} in {interaction.guild}"
+        access_ok, error_msg = await self._verify_guild_access(
+            interaction, require_manage=(action in ["edit", "clear"])
         )
-
-        if not isinstance(interaction.user, discord.Member):
-            self.logger.warning(
-                f"Non-member {interaction.user} attempted to use server command"
-            )
-            await interaction.edit_original_response(
-                content="This command can only be used in a server."
-            )
-            return
-
-        if (
-            action in ["edit", "clear"]
-            and not interaction.user.guild_permissions.manage_guild
-        ):
-            await interaction.edit_original_response(
-                content="You need 'Manage Server' permission to modify settings."
-            )
+        if not access_ok:
+            await interaction.edit_original_response(content=error_msg)
             return
 
         try:
-            if not isinstance(interaction.guild, discord.Guild):
-                await interaction.edit_original_response(
-                    content="This command can only be used in a server."
-                )
-                return
-
             guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
-            if not guild_data:
-                await interaction.edit_original_response(
-                    content="Failed to access guild settings."
-                )
-                return
-
             actions = {
                 "show": self.show_settings,
                 "edit": self.edit_settings,
-                "clear": self.clear_settings,
+                "clear": lambda i: self.clear_settings(i, guild_data),
             }
             await actions[action](interaction)
 
@@ -181,27 +118,23 @@ class GuildCog(commands.Cog):
             )
 
     async def show_settings(self, interaction: discord.Interaction) -> None:
-        """Display current server settings.
-
-        Args:
-            interaction: The Discord interaction
-        """
+        """Display current server settings."""
         if not isinstance(interaction.guild, discord.Guild):
             raise TypeError("Interaction must be in a guild.")
 
+        await interaction.response.defer(ephemeral=True)
+
         guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
         if not guild_data:
-            await interaction.edit_original_response(
-                content="No settings configured.", embed=None, view=None
-            )
+            await interaction.edit_original_response(content="No settings configured.")
             return
 
         embed = discord.Embed(title="Server Settings", color=colors.GUILD)
 
         # Show channels
         channel_text = "\n".join(
-            f"{name.title()}: {f'<#{getattr(guild_data.channels, name)}>' if getattr(guild_data.channels, name) else 'Not Set'}"
-            for name in self.channels
+            f"{prompt['label']}: {f'<#{getattr(guild_data.channels, name)}>' if getattr(guild_data.channels, name) else 'Not Set'}"
+            for name, prompt in self.config.get_channel_prompts().items()
         )
         embed.add_field(
             name="Channels",
@@ -211,110 +144,66 @@ class GuildCog(commands.Cog):
 
         # Show roles
         role_text = "\n".join(
-            f"{name.title()}: {f'<@&{getattr(guild_data.roles, name)}>' if getattr(guild_data.roles, name) else 'Not Set'}"
-            for name in self.roles
+            f"{prompt['label']}: {f'<@&{getattr(guild_data.roles, name)}>' if getattr(guild_data.roles, name) else 'Not Set'}"
+            for name, prompt in self.config.get_role_prompts().items()
         )
         embed.add_field(
             name="Roles", value=role_text or "No roles configured", inline=False
         )
 
-        await interaction.edit_original_response(content=None, embed=embed, view=None)
+        await interaction.edit_original_response(embed=embed)
 
     async def edit_settings(self, interaction: discord.Interaction) -> None:
-        """Edit server settings using views."""
+        """Edit server settings using the new dropdown framework."""
         if not isinstance(interaction.guild, discord.Guild):
             raise TypeError("Interaction must be in a guild.")
 
-        settings_view = SettingsSelectView()
-        await interaction.edit_original_response(
-            content="Select what you'd like to edit:", view=settings_view
-        )
-        await settings_view.wait()
-
-        if not settings_view.selected_setting:
-            await interaction.edit_original_response(
-                content="Settings editing cancelled.", embed=None, view=None
-            )
-            return
-
         try:
-            guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
-            if not guild_data:
-                await interaction.edit_original_response(
-                    content="Failed to access guild settings.", embed=None, view=None
-                )
+            setting_type, message = await self._process_settings_selection(interaction)
+            if not setting_type or not message:
                 return
 
-            await self._handle_settings_select(
-                interaction, settings_view.selected_setting, guild_data
+            updates = await self._process_configuration(
+                setting_type, message, interaction.guild
             )
-
-        except Exception as e:
-            self.logger.error(f"Failed to handle settings edit: {e}")
-            await interaction.edit_original_response(
-                content="An error occurred while editing settings.",
-                embed=None,
-                view=None,
-            )
-
-    async def clear_settings(self, interaction: discord.Interaction) -> None:
-        """Clear server settings."""
-        if not isinstance(interaction.guild, discord.Guild):
-            raise TypeError("Interaction must be in a guild.")
-
-        clear_view = ClearSettingsView()
-        await interaction.edit_original_response(
-            content="Select what you'd like to clear:", view=clear_view
-        )
-        await clear_view.wait()
-
-        if not clear_view.selected_setting:
-            self.logger.info(f"Settings clearing cancelled for {interaction.guild}")
-            await interaction.edit_original_response(
-                content="Settings clearing cancelled.", embed=None, view=None
-            )
-            return
-
-        try:
-            guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
-            if not guild_data:
-                self.logger.error(
-                    f"Failed to access guild settings for {interaction.guild}"
-                )
-                await interaction.edit_original_response(
-                    content="Failed to access guild settings.", embed=None, view=None
-                )
+            if not updates:
                 return
 
-            updates: dict[str, None] = {}
-            if clear_view.selected_setting in ["channels", "all"]:
-                updates.update(
-                    {f"channels__{channel}": None for channel in self.channels}
-                )
-            if clear_view.selected_setting in ["roles", "all"]:
-                updates.update({f"roles__{role}": None for role in self.roles})
+            guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
+            if not guild_data:
+                await message.edit(content="Failed to access guild data.", view=None)
+                return
 
             db.update_document(guild_data, updates)
-            self.logger.info(
-                f"Successfully cleared {clear_view.selected_setting} settings for {interaction.guild}"
-            )
-            await interaction.edit_original_response(
-                content=f"Successfully cleared {clear_view.selected_setting} settings!",
-                embed=None,
-                view=None,
-            )
+            await self.show_settings(interaction)
 
         except Exception as e:
-            self.logger.error(f"Failed to clear settings for {interaction.guild}: {e}")
-            await interaction.edit_original_response(
-                content="Failed to clear settings.", embed=None, view=None
-            )
+            self.logger.error(f"Error during settings edit: {e}")
+            error_msg = "An error occurred during settings configuration."
+            if message:
+                await message.edit(content=error_msg, view=None)
+            else:
+                await interaction.followup.send(error_msg, view=None)
+
+    async def clear_settings(
+        self, interaction: discord.Interaction, guild_data
+    ) -> None:
+        """Clear all server settings."""
+        view = ConfirmDeleteView()
+        value, message = await view.initiate_from_interaction(
+            interaction,
+            self.config.get_clear_settings_prompt(),
+        )
+
+        if value:
+            # Clear all settings
+            updates = {
+                "channels": {},
+                "roles": {},
+            }
+            db.update_document(guild_data, updates)
 
 
 async def setup(bot: commands.Bot) -> None:
-    """Set up the Guild cog.
-
-    Args:
-        bot: The Discord bot instance
-    """
+    """Set up the Guild cog."""
     await bot.add_cog(GuildCog(bot))

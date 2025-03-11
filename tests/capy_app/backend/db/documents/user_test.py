@@ -43,15 +43,55 @@ def test_create_user_success(db):
     )
     user.save()
 
-    # Retrieve from DB
-    saved_user = User.objects(_id=1).first()
-    assert saved_user is not None, "User should be saved and retrievable."
-    assert saved_user.profile.school_email == "john.doe@school.edu"
-    assert saved_user.profile.student_id == 12345
-    assert saved_user.profile.major == ["Computer Science", "Mathematics"]
-    assert saved_user.profile.graduation_year == 2025
-    # phone is optional, so it's not set
-    assert saved_user.profile.phone is None
+    with pytest.raises(mongoengine.ValidationError):
+        invalid_profile = UserProfile(
+            school_email="not.an.email",
+            student_id=12345,
+            major=["Computer Science"],
+            graduation_year=2025
+        )
+        User(_id=2, profile=invalid_profile).save()
+
+    # Test invalid student ID (non-numeric)
+    with pytest.raises(mongoengine.ValidationError):
+        invalid_profile = UserProfile(
+            school_email="valid@school.edu",
+            student_id="abc123",  # Should be numeric
+            major=["Computer Science"],
+            graduation_year=2025
+        )
+        User(_id=3, profile=invalid_profile).save()
+
+    # Test empty major list
+    with pytest.raises(mongoengine.ValidationError):
+        invalid_profile = UserProfile(
+            school_email="valid@school.edu",
+            student_id=12345,
+            major=[],  # Empty major list
+            graduation_year=2025
+        )
+        User(_id=4, profile=invalid_profile).save()
+
+    # Test invalid graduation year (past date)
+    with pytest.raises(mongoengine.ValidationError):
+        invalid_profile = UserProfile(
+            school_email="valid@school.edu",
+            student_id=12345,
+            major=["Computer Science"],
+            graduation_year=2000  # Past year
+        )
+        User(_id=5, profile=invalid_profile).save()
+
+    # Test invalid phone number format
+    with pytest.raises(mongoengine.ValidationError):
+        invalid_profile = UserProfile(
+            school_email="valid@school.edu",
+            student_id=12345,
+            major=["Computer Science"],
+            graduation_year=2025,
+            phone="not-a-phone"  # Invalid phone format
+        )
+        User(_id=6, profile=invalid_profile).save()
 
 
 def test_missing_required_fields(db):

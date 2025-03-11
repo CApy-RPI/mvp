@@ -4,7 +4,7 @@ from typing import Any, Optional, Dict, cast, Callable, Coroutine
 import discord
 from discord import ui
 from discord.interactions import Interaction
-from frontend.interactions.bases.view_bases import BaseDropdownView
+from frontend.interactions.bases.button_base import BaseDropdownView
 
 
 class ChannelSelectView(BaseDropdownView):
