@@ -1,0 +1,9 @@
+repos:
+  -   repo: https://github.com/pre-commit/mirrors-mypy
+      rev: '1.15.0'
+      hooks:
+      -   id: mypy
+          args: [ --strict, --ignore-missing-imports ]
+default_stages: [pre-commit, pre-push]
+default_language_version:
+    python: python3.12
