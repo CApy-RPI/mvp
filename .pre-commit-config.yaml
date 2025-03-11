@@ -4,6 +4,10 @@ repos:
       hooks:
       -   id: mypy
           args: [ --strict, --ignore-missing-imports ]
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.2
+    hooks:
+      - id: flake8
 default_stages: [pre-commit, pre-push]
 default_language_version:
     python: python3.12
