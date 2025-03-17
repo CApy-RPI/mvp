@@ -1,7 +1,7 @@
 """Utility classes for Discord views."""
 
 import logging
-from typing import Optional, Any, Dict, Tuple
+from typing import Optional, Any, Tuple
 import discord
 from discord import Message, Interaction, ButtonStyle
 from discord.errors import NotFound
@@ -105,3 +105,20 @@ class ConfirmDeleteView(AcceptCancelView):
         self.accept.label = "Confirm Delete"  # type: ignore
         self.accept.style = ButtonStyle.danger  # type: ignore
         self.cancel.style = ButtonStyle.secondary  # type: ignore
+
+
+class ConfirmView(AcceptCancelView):
+    """Customizable confirmation view with configurable button labels and styles."""
+    def __init__(
+        self,
+        confirm_text: str = "Confirm",
+        confirm_style: ButtonStyle = ButtonStyle.primary,
+        cancel_text: str = "Cancel",
+        cancel_style: ButtonStyle = ButtonStyle.secondary,
+        **options
+    ) -> None:
+        super().__init__(**options)
+        self.accept.label = confirm_text  # type: ignore
+        self.accept.style = confirm_style  # type: ignore
+        self.cancel.label = cancel_text  # type: ignore
+        self.cancel.style = cancel_style  # type: ignore
