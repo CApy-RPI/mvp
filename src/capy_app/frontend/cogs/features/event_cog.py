@@ -459,6 +459,131 @@ class EventCog(commands.Cog):
                 content="Event deletion cancelled.",
                 view=None
             )
+            
+    async def announce_event_selection(self, interaction: discord.Interaction) -> None:
+        """Announce a specific event selected from dropdown."""
+        event = await self.get_event_selection(interaction, "announce")
+        if not event:
+            return
+            
+        # Get the message from the dropdown response
+        message = await interaction.original_response()
+        
+        # Use the regular ConfirmView for confirmation (instead of ConfirmDeleteView)
+        view = ConfirmView(**self.config["confirm_announce"])
+        
+        await message.edit(
+            content=f"Are you sure you want to announce the event '{event.details.name}' in the announcements channel?",
+            view=view,
+            embed=None
+        )
+        
+        await view.wait()
+        if not view.value:
+            await message.edit(
+                content="Event announcement cancelled.",
+                view=None
+            )
+            return
+            
+        # Find or create announcements channel
+        announcement_channel = discord.utils.get(interaction.guild.text_channels, name="announcements")
+        if announcement_channel is None:
+            try:
+                announcement_channel = await interaction.guild.create_text_channel("announcements")
+                await announcement_channel.set_permissions(interaction.guild.default_role, send_messages=False)
+                await announcement_channel.set_permissions(interaction.guild.me, send_messages=True)
+            except discord.Forbidden:
+                await message.edit(
+                    content="Error: I don't have permission to create or access an announcements channel.",
+                    view=None
+                )
+                return
+                
+        # Create announcement embed
+        config = self.config["announce_message"]
+        embed = discord.Embed(
+            title=config["title"],
+            description=(
+                f"**Event:** {event.details.name}\n"
+                f"**Date/Time:** {self.format_datetime(event.details.time)}\n"
+                f"**Location:** {event.details.location}\n\n"
+                f"**Description:** {event.details.description}"
+            ),
+            color=config["color"]
+        )
+        embed.set_footer(text=config["footer"])
+        
+        try:
+            # Send the announcement
+            announcement = await announcement_channel.send(embed=embed)
+            
+            # Add reactions for attendance
+            for reaction in self.allowed_reactions:
+                await announcement.add_reaction(reaction)
+                
+            # Save message ID to event
+            event.message_id = announcement.id
+            db.update_document(event, {"message_id": announcement.id})
+            
+            await message.edit(
+                content=f"Event announced in #{announcement_channel.name}!",
+                view=None
+            )
+        except discord.Forbidden:
+            await message.edit(
+                content="Error: I don't have permission to send messages or add reactions in the announcements channel.",
+                view=None
+            )
+
+
+    async def my_events(self, interaction: discord.Interaction) -> None:
+        """Show events the user is registered for."""
+        user = db.get_document(User, interaction.user.id)
+        if not user or not hasattr(user, 'events') or not user.events:
+            await interaction.followup.send(
+                "You're not registered for any events.",
+                ephemeral=True
+            )
+            return
+            
+        # Get all events the user is registered for
+        user_events = []
+        for event_id in user.events:
+            event = db.get_document(Event, event_id)
+            if event and hasattr(event, 'details'):
+                user_events.append(event)
+                
+        if not user_events:
+            await interaction.followup.send(
+                "You're not registered for any valid events.",
+                ephemeral=True
+            )
+            return
+            
+        # Sort events by datetime
+        user_events.sort(key=lambda e: e.details.time)
+        
+        # Create an embed to display the events
+        embed = discord.Embed(
+            title="Your Events",
+            description=f"You are registered for {len(user_events)} events",
+            color=discord.Color.green()
+        )
+        
+        for event in user_events:
+            # Format date for display
+            localized_time = self.format_datetime(event.details.time)
+            
+            # Add field for each event
+            embed.add_field(
+                name=event.details.name,
+                value=f"**When:** {localized_time}\n**Where:** {event.details.location}",
+                inline=False
+            )
+            
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
 
 
 
