@@ -327,6 +327,139 @@ class EventCog(commands.Cog):
             )
             
         await interaction.followup.send(embed=embed, ephemeral=True)
+        
+        async def get_event_selection(self, interaction: discord.Interaction, action: str) -> Optional[Event]:
+        """Get event selection from dropdown."""
+        # Get all events for this guild
+        guild = db.get_document(Guild, interaction.guild_id)
+        if not guild or not hasattr(guild, 'events') or not guild.events:
+            await interaction.response.send_message("No events found for this server.", ephemeral=True)
+            return None
+            
+        # Get all upcoming events
+        current_time = self.now()
+        guild_events = []
+        
+        for event_id in guild.events:
+            event = db.get_document(Event, event_id)
+            if event and hasattr(event, 'details'):
+                event_time = event.details.time
+                # Ensure event time is offset-aware (defaulting to UTC if not)
+                if event_time.tzinfo is None:
+                    event_time = pytz.UTC.localize(event_time)
+                if action == "delete" or event_time >= current_time:
+                    guild_events.append(event)
+                    
+        if not guild_events:
+            await interaction.response.send_message("No upcoming events found.", ephemeral=True)
+            return None
+            
+        # Create dropdown options for events
+        options = []
+        for event in guild_events:
+            options.append({
+                "label": f"{event.details.name}",
+                "description": self.format_datetime(event.details.time)[:25],  # Truncate if needed
+                "value": str(event._id)
+            })
+            
+        # Create dropdown config using "options"
+        dropdown_config = {
+            "ephemeral": True,
+            "add_buttons": True,
+            "dropdowns": [{
+                "custom_id": "event_selection",
+                "placeholder": f"Select an event to {action}",
+                "min_values": 1,
+                "max_values": 1,
+                "options": options
+            }]
+        }
+        
+        # Convert "options" key to "selections" in dropdown configuration
+        if "dropdowns" in dropdown_config:
+            new_dropdowns = []
+            for dropdown in dropdown_config["dropdowns"]:
+                if "options" in dropdown:
+                    dropdown["selections"] = dropdown.pop("options")
+                new_dropdowns.append(dropdown)
+            dropdown_config["dropdowns"] = new_dropdowns
+
+        # Create dropdown view
+        view = DynamicDropdownView(**dropdown_config)
+        values, message = await view.initiate_from_interaction(
+            interaction, 
+            f"Please select an event to {action}:"
+        )
+        
+        if not values or not message:
+            return None
+            
+        # Get the selected event ID
+        selected_id = values.get("event_selection", [None])[0]
+        if not selected_id:
+            return None
+            
+        # Return the event document
+        return db.get_document(Event, int(selected_id))
+
+    async def show_event_selection(self, interaction: discord.Interaction) -> None:
+        """Show details of a specific event selected from dropdown."""
+        event = await self.get_event_selection(interaction, "view")
+        if not event:
+            return
+            
+        # Get the message from the dropdown response
+        message = await interaction.original_response()
+        
+        # Display the event details
+        await self.show_event_embed(message, event)
+
+    async def delete_event_selection(self, interaction: discord.Interaction) -> None:
+        """Delete a specific event selected from dropdown."""
+        event = await self.get_event_selection(interaction, "delete")
+        if not event:
+            return
+            
+        # Get the message from the dropdown response
+        message = await interaction.original_response()
+        
+        # Show confirmation dialog
+        view = ConfirmDeleteView(**self.config["confirm_delete"])
+        await message.edit(
+            content=f"⚠️ Are you sure you want to delete the event '{event.details.name}'?",
+            view=view,
+            embed=None
+        )
+        
+        await view.wait()
+        if view.value:
+            # Delete the event
+            guild = db.get_document(Guild, interaction.guild_id)
+            if guild and hasattr(guild, 'events') and event._id in guild.events:
+                guild.events.remove(event._id)
+                db.update_document(guild)
+                
+            db.delete_document(event)
+            
+            # Notify creator and all attendees by removing from their events list
+            if event.users:
+                for user_id in event.users:
+                    user = db.get_document(User, user_id)
+                    if user and hasattr(user, 'events') and event._id in user.events:
+                        user.events.remove(event._id)
+                        db.update_document(user)
+            
+            await message.edit(
+                content=f"Event '{event.details.name}' has been deleted.",
+                view=None
+            )
+        else:
+            await message.edit(
+                content="Event deletion cancelled.",
+                view=None
+            )
+
 
 
     async def handle_attendance_add(self, user_id: int, message_id: int):
