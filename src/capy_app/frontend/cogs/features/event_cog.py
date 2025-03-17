@@ -115,113 +115,219 @@ class EventCog(commands.Cog):
 
 
 
-    @commands.group(name="events", invoke_without_command=True, help="Event commands.")
-    async def events(self, ctx):
-        """Lists all guild events or shows available commands if no subcommand is given."""
-        if ctx.invoked_subcommand is None:
-            self.logger.info(f"User {ctx.author} requested the list of events.")
-            guild = db.get_document(Guild, ctx.guild.id)
-            guild_events = []
-            
-            if guild and hasattr(guild, 'events'):
-                for event_id in guild.events[:10]:
-                    event = db.get_document(Event, event_id)
-                    if event:
-                        guild_events.append(event)
+   @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
+    @app_commands.command(name="event", description="Manage events")
+    @app_commands.describe(action="The action to perform with events")
+    @app_commands.choices(
+        action=[
+            app_commands.Choice(name="create", value="create"),
+            app_commands.Choice(name="list", value="list"),
+            app_commands.Choice(name="show", value="show"),
+            app_commands.Choice(name="delete", value="delete"),
+            app_commands.Choice(name="announce", value="announce"),
+            app_commands.Choice(name="myevents", value="myevents"),
+        ]
+    )
+    async def event(self, interaction: discord.Interaction, action: str) -> None:
+        """Handle event actions."""
+        if action == "create":
+            await self.create_event(interaction)
+        elif action == "list":
+            await interaction.response.defer(ephemeral=True)
+            await self.list_events(interaction)
+        elif action == "show":
+            await self.show_event_selection(interaction)
+        elif action == "delete":
+            await self.delete_event_selection(interaction)
+        elif action == "announce":
+            await self.announce_event_selection(interaction)
+        elif action == "myevents":
+            await interaction.response.defer(ephemeral=True)
+            await self.my_events(interaction)
 
-            if not guild_events:
-                self.logger.info(f"No events found for guild {ctx.guild.id}.")
-                await self.send_no_events_embed(ctx)
+    async def create_event(self, interaction: discord.Interaction) -> None:
+        """Handle event creation."""
+        self.logger.info(f"Event creation requested by {interaction.user}")
+
+        try:
+            # Get event data from modal
+            self.logger.info("Creating modal view")
+            modal_view = DynamicModalView(**self.config["event_modal"])
+            self.logger.info("Initiating modal interaction")
+            event_data, modal_message = await modal_view.initiate_from_interaction(interaction)
+
+            self.logger.info(f"Modal result: data={event_data is not None}, message exists={modal_message is not None}")
+
+            # Check if event data was submitted
+            if not event_data:
+                self.logger.info("No event data received, returning early")
                 return
 
-            self.logger.info(f"Found {len(guild_events)} events for guild {ctx.guild.id}.")
-            embed = self.create_events_embed(guild_events)
-            await ctx.send(embed=embed)
+            # If modal view didn't return a message, create one using followup
+            if not modal_message:
+                modal_message = await interaction.followup.send(
+                    "Processing event creation...", ephemeral=True, wait=True
+                )
 
-    def create_events_embed(self, guild_events):
-        """Creates an embed with the list of upcoming events."""
+            # Validate the form data
+            self.logger.info("Validating form data")
+            if not self._validate_event_form(event_data):
+                self.logger.info("Invalid form data")
+                await modal_message.edit(
+                    content="Invalid event data. Please check date/time formats and try again.",
+                    view=None
+                )
+                return
+
+            self.logger.info("Form data validated successfully")
+
+            # Prepare the timezone dropdown configuration.
+            # Remove invalid keys and convert "options" to "selections"
+            timezone_config = self.config["timezone_dropdown"].copy()
+            timezone_config.pop("placeholder", None)
+
+            if "dropdowns" in timezone_config:
+                new_dropdowns = []
+                for dropdown in timezone_config["dropdowns"]:
+                    if "options" in dropdown:
+                        dropdown["selections"] = dropdown.pop("options")
+                    new_dropdowns.append(dropdown)
+                timezone_config["dropdowns"] = new_dropdowns
+
+            # Get timezone selection with dropdown
+            self.logger.info("Creating timezone dropdown")
+            timezone_view = DynamicDropdownView(**timezone_config)
+            timezone_data, dropdown_message = await timezone_view.initiate_from_message(
+                modal_message, "Please select a timezone for the event:"
+            )
+
+            # If no timezone selection is returned, try to get the default from configuration.
+            if not timezone_data or not timezone_data.get("timezone_selection"):
+                self.logger.info("No timezone data received, attempting to use default from config")
+                default_timezone = None
+                for dropdown in self.config["timezone_dropdown"].get("dropdowns", []):
+                    for option in dropdown.get("options", []):
+                        if option.get("default"):
+                            default_timezone = option.get("value")
+                            break
+                    if default_timezone:
+                        break
+                if not default_timezone:
+                    default_timezone = "US/Eastern"
+                timezone_data = {"timezone_selection": [default_timezone]}
+
+            # Get timezone or use default
+            timezone = timezone_data.get("timezone_selection", ["US/Eastern"])[0]
+
+            # Convert timezone string to a pytz timezone object
+            tz = pytz.timezone(timezone)
+
+            # Parse the date and time into a datetime object
+            event_time = self.parse_datetime(
+                event_data["event_date"],
+                event_data["event_time"],
+                timezone
+            )
+
+            # Create a unique event ID using the provided timezone
+            event_id = int(datetime.now(tz).timestamp() * 1000)
+
+            # Create the event document
+            new_event = Event(
+                _id=event_id,
+                guild_id=interaction.guild_id,
+                users=[],
+                message_id=0,  # Will be updated if/when announced
+                details=EventDetails(
+                    name=event_data["event_name"],
+                    description=event_data["event_description"],
+                    time=event_time,
+                    location=event_data["event_location"],
+                    reactions=EventReactions(yes=0, no=0, maybe=0)
+                )
+            )
+
+            # Save the event to the database
+            db.add_document(new_event)
+            self.logger.info(f"Event saved to database with ID {event_id}")
+
+            # Update the guild document to include this event
+            guild = db.get_document(Guild, interaction.guild_id)
+            if not guild:
+                guild = Guild(_id=interaction.guild_id, events=[])
+                db.add_document(guild)
+            else:
+                if not hasattr(guild, 'events'):
+                    guild.events = []
+
+            guild.events.append(event_id)
+            db.update_document(guild, {"events": guild.events})
+            self.logger.info(f"Guild document updated with event ID {event_id}")
+
+            # Show the event details
+            await self.show_event_embed(dropdown_message, new_event)
+            self.logger.info(f"Event '{event_data['event_name']}' created with ID {event_id}")
+
+        except Exception as e:
+            self.logger.error(f"Exception in create_event: {e}", exc_info=True)
+            if interaction.response.is_done():
+                await interaction.followup.send(f"Error creating event: {str(e)}", ephemeral=True)
+            else:
+                await interaction.response.send_message(f"Error creating event: {str(e)}", ephemeral=True)
+
+    async def list_events(self, interaction: discord.Interaction) -> None:
+        """List all upcoming events for the guild."""
+        self.logger.info(f"Listing events for guild {interaction.guild_id}")
+        
+        guild = db.get_document(Guild, interaction.guild_id)
+        if not guild or not hasattr(guild, 'events') or not guild.events:
+            self.logger.info(f"No events found for guild {interaction.guild_id}")
+            await interaction.followup.send("No events found for this server.", ephemeral=True)
+            return
+            
+        # Get all upcoming events from guild's event list
+        current_time = self.now()
+        guild_events = []
+        
+        self.logger.info(f"Found {len(guild.events)} events for guild {interaction.guild_id}")
+        for event_id in guild.events:
+            event = db.get_document(Event, event_id)
+            if event and hasattr(event, 'details'):
+                event_time = event.details.time
+                # If the event time is offset-naive, assume it's in UTC (or use another default timezone)
+                if event_time.tzinfo is None:
+                    event_time = pytz.UTC.localize(event_time)
+                if event_time >= current_time:
+                    guild_events.append(event)
+                    
+        if not guild_events:
+            self.logger.info("No upcoming events found")
+            await interaction.followup.send("No upcoming events found.", ephemeral=True)
+            return
+            
+        # Sort events by datetime
+        guild_events.sort(key=lambda e: e.details.time)
+        
+        # Create an embed to display the events
         embed = discord.Embed(
             title="Upcoming Events",
-            color=discord.Color.green(),
+            description=f"Found {len(guild_events)} upcoming events",
+            color=discord.Color.blue()
         )
-
+        
         for event in guild_events:
-            event_details = (
-                f"{self.localize_datetime(event.datetime, event.timezone)} \n"
-                f"Event ID: {event.id}"
+            # Format date for display
+            localized_time = self.format_datetime(event.details.time)
+            
+            # Add field for each event
+            embed.add_field(
+                name=f"{event.details.name} (ID: {event._id})",
+                value=f"**When:** {localized_time}\n**Where:** {event.details.location}\n**Attendees:** {len(event.users)}",
+                inline=False
             )
-            embed.add_field(name=event.name, value=event_details, inline=False)
-
-        self.logger.info(f"Created events embed with {len(guild_events)} events.")
-        return embed
-
-    @events.command(name="add", help="Add a new event.")
-    async def add_event(self, ctx):
-        """Guides the user through creating a new event."""
-        self.logger.info(f"User {ctx.author} is adding a new event.")
-
-        # Collect event details
-        name = await self.ask_event_name(ctx)
-        if name is None:
-            return
             
-        event_description = await self.ask_event_description(ctx)
-        if event_description is None:
-            return
-            
-        date = await self.ask_event_date(ctx)
-        if date is None:
-            return
-            
-        time = await self.ask_event_time(ctx)
-        if time is None:
-            return
-            
-        location = await self.ask_event_location(ctx)
-        if location is None:
-            return
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
-        # Process and save event
-        event_timezone = self.get_timezone(time)
-        time_str = self.format_time(f"{date} {time}")
-        new_event_id = int(datetime.now(timezone.utc).timestamp() * 1000)
-
-        # Create new event
-        new_event = Event(
-            _id=new_event_id,
-            name=name,
-            description=event_description,
-            datetime=time_str,
-            location=location,
-            timezone=event_timezone,
-            guild_id=ctx.guild.id,
-            reactions={"yes": 0, "no": 0, "maybe": 0},
-            users=[]
-        )
-        db.add_document(new_event)
-
-        # Update guild
-        guild = db.get_document(Guild, ctx.guild.id)
-        if not guild:
-            guild = Guild(_id=ctx.guild.id, events=[])
-            db.add_document(guild)
-        
-        if not hasattr(guild, 'events'):
-            guild.events = []
-        
-        guild.events.append(new_event_id)
-        db.update_document(guild)
-
-        # Send confirmation
-        embed = self.create_confirmation_embed(
-            name,
-            event_description,
-            self.localize_datetime(time_str, event_timezone),
-            location,
-            new_event_id,
-        )
-        await ctx.send(embed=embed)
-        self.logger.info(f"Event '{name}' added with ID {new_event_id}.")
 
     async def handle_attendance_add(self, user_id: int, message_id: int):
         """Handles adding a user to event attendance."""
