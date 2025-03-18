@@ -1,5 +1,3 @@
-# mypy: ignore-errors
-# TODO Remove on rewrite ^
 """Bug report command cog.
 
 This module handles bug report submissions through a modal interface.
@@ -8,8 +6,13 @@ Reports are sent to a designated channel for developer review.
 
 import logging
 import discord
-from discord import app_commands
 from discord.ext import commands
+from discord import app_commands, Interaction, Object, TextStyle, ButtonStyle
+from discord.errors import NotFound
+from frontend.interactions.bases.modal_base import (
+    DynamicModalView,
+    ButtonDynamicModalView,
+)
 
 from config import settings
 from frontend.config_colors import (
@@ -19,27 +22,33 @@ from frontend.config_colors import (
     STATUS_IGNORED,
 )
 
-
-class BugReportModal(discord.ui.Modal, title="Report a Bug"):
-    title = discord.ui.TextInput(
-        label="Bug Title",
-        placeholder="Brief description of the bug",
-        required=True,
-        max_length=100,
-    )
-    description = discord.ui.TextInput(
-        label="Bug Description",
-        placeholder="Please provide detailed steps to reproduce the bug...",
-        required=True,
-        style=discord.TextStyle.paragraph,
-        max_length=1000,
-    )
-
-    async def on_submit(self, interaction: discord.Interaction) -> None:
-        await interaction.response.defer(ephemeral=True)
-
-        self.interaction = interaction
-
+MODAL_CONFIGS = {
+    "button_modal": {
+        "ephemeral": False,
+        "button_label": "Open Survey",
+        "button_style": ButtonStyle.success,
+        "message_prompt": "📝 Ready to submit a bug report? Click the button below!",
+        "modal": {
+            "title": "Feedback Form",
+            "fields": [
+                {
+                    "label": "Bug Title",
+                    "placeholder": "Brief description of the bug",
+                    "style": TextStyle.short,
+                    "required": True,
+                    "max_length": 100,
+                },
+                {
+                    "label": "Bug Description",
+                    "placeholder": "Please provide detailed steps to reproduce the bug...",
+                    "style": TextStyle.paragraph,
+                    "required": True,
+                    "max_length": 1000,
+                },
+            ],
+        },
+    }
+}
 
 class BugReportCog(commands.Cog):
     """Cog for handling bug report submissions."""
@@ -70,24 +79,13 @@ class BugReportCog(commands.Cog):
             interaction: The Discord interaction instance
         """
         try:
-            modal = BugReportModal()
-            await interaction.response.send_modal(modal)
+            modal = ButtonDynamicModalView(**MODAL_CONFIGS["button_modal"])
+            values, message = await modal.initiate_from_interaction(interaction, prompt="Click below to start the survey!")
 
-            try:
-                await modal.wait()
-            except TimeoutError:
-                self.logger.warning(
-                    f"Bug report timed out from user {interaction.user.id}"
-                )
-                # Don't try to send a followup for timeout
-                return
-
-            if not modal.title or not modal.description:
+            if not values or not message or len(values.items()) != 2:
                 self.logger.warning(
                     f"Bug report missing required fields from user {interaction.user.id}"
                 )
-                # Modal was closed without submission
-                return
 
             channel = self.bot.get_channel(settings.TICKET_BUG_REPORT_CHANNEL_ID)
             if not channel:
@@ -99,8 +97,8 @@ class BugReportCog(commands.Cog):
                 return
 
             embed = discord.Embed(
-                title="🐛 Bug Report:",
-                description=modal.description,
+                title="🐛 Bug Report: " + values.get("bug_title"),
+                description = values.get("bug_description"),
                 color=STATUS_ERROR,
             )
             embed.add_field(name="Submitted by", value=interaction.user.mention)
@@ -116,7 +114,7 @@ class BugReportCog(commands.Cog):
                 "Bug report submitted successfully!", ephemeral=True
             )
             self.logger.info(
-                f"Bug report '{modal.title}' submitted by user {interaction.user.id}"
+                f"Bug report '{values.get("bug_title")}' submitted by user {interaction.user.id}"
             )
 
         except discord.HTTPException as e:
@@ -175,7 +173,6 @@ class BugReportCog(commands.Cog):
         )
         await message.edit(embed=embed)
 
-
-async def setup(bot: commands.Bot) -> None:
-    """Set up the Bug Report cog."""
+async def setup(bot: commands.Bot):
     await bot.add_cog(BugReportCog(bot))
+
