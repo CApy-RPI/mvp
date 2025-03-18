@@ -3,7 +3,7 @@ import mongoengine
 import mongomock
 from mongoengine.errors import ValidationError, NotUniqueError
 
-from src.capy_app.backend.db.documents.user import User, UserProfile, UserName
+from capy_app.backend.db.documents.user import User, UserProfile, UserName
 
 
 @pytest.fixture(scope="module")
@@ -201,7 +201,7 @@ def test_optional_phone(db):
         graduation_year=2026,
         phone=1234567890,
     )
-    user = User(_id=7, profile=profile).save()
+    User(_id=7, profile=profile).save()
 
     saved_user = User.objects(_id=7).first()
     assert saved_user.profile.phone == 1234567890

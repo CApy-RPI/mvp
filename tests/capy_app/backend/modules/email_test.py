@@ -1,8 +1,8 @@
 import typing
 from unittest.mock import Mock, patch
 import pytest
-from src.capy_app.backend.modules.email import Email, EmailError, EmailSendError
-from src.capy_app.config import settings
+from capy_app.backend.modules.email import Email, EmailError, EmailSendError
+from capy_app.config import settings
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def expected_data() -> typing.Dict[str, typing.Any]:
         "Messages": [
             {
                 "From": {
-                    "Email": settings.MAILJET_EMAIL_ADDRESS,
+                    "Email": settings.MAILJET_API_EMAIL,
                     "Name": "CApy Verification",
                 },
                 "To": [

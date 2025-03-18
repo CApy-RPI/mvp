@@ -4,8 +4,8 @@ from mongoengine import connect, disconnect
 import mongomock
 
 # local imports
-from src.capy_app.backend.db.database import Database
-from src.capy_app.backend.db.documents.user import User, UserProfile, UserName
+from capy_app.backend.db.database import Database
+from capy_app.backend.db.documents.user import User, UserProfile, UserName
 
 
 @pytest.fixture(scope="module")
