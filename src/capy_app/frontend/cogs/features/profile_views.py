@@ -9,7 +9,6 @@ from backend.db.documents.user import User
 from frontend.interactions.bases.modal_base import (
     DynamicModal,
     DynamicModalView,
-    create_modal_view,
 )
 from frontend.interactions.bases.dropdown_base import MultiSelectorView
 
