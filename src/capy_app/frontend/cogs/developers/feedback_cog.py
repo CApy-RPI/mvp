@@ -1,6 +1,3 @@
-# mypy: ignore-errors
-# TODO Remove on rewrite ^
-
 """Feedback command cog.
 
 This module handles feedback submissions through a modal interface.
@@ -9,8 +6,13 @@ Feedback is sent to a designated channel for developer review.
 
 import logging
 import discord
-from discord import app_commands
 from discord.ext import commands
+from discord import app_commands, Interaction, Object, TextStyle, ButtonStyle
+from discord.errors import NotFound
+from frontend.interactions.bases.modal_base import (
+    DynamicModalView,
+    ButtonDynamicModalView,
+)
 
 from config import settings
 from frontend.config_colors import (
@@ -19,26 +21,33 @@ from frontend.config_colors import (
     STATUS_IGNORED,
 )
 
-
-class FeedbackModal(discord.ui.Modal, title="Submit Feedback"):
-    title = discord.ui.TextInput(
-        label="Feedback Title",
-        placeholder="Brief summary of your feedback",
-        required=True,
-        max_length=100,
-    )
-    description = discord.ui.TextInput(
-        label="Feedback Description",
-        placeholder="Please provide your detailed feedback...",
-        required=True,
-        style=discord.TextStyle.paragraph,
-        max_length=1000,
-    )
-
-    async def on_submit(self, interaction: discord.Interaction) -> None:
-        await interaction.response.defer(ephemeral=True)
-
-        self.interaction = interaction
+MODAL_CONFIGS = {
+    "button_modal": {
+        "ephemeral": False,
+        "button_label": "Open Survey",
+        "button_style": ButtonStyle.success,
+        "message_prompt": "📝 Ready to submit a bug report? Click the button below!",
+        "modal": {
+            "title": "Feedback Form",
+            "fields": [
+                {
+                    "label": "Feedback Title",
+                    "placeholder": "Brief summary of your feedback",
+                    "style": TextStyle.short,
+                    "required": True,
+                    "max_length": 100,
+                },
+                {
+                    "label": "Feedback Description",
+                    "placeholder": "Please provide your detailed feedback...",
+                    "style": TextStyle.paragraph,
+                    "required": True,
+                    "max_length": 1000,
+                },
+            ],
+        },
+    }
+}
 
 
 class FeedbackCog(commands.Cog):
@@ -69,22 +78,13 @@ class FeedbackCog(commands.Cog):
             interaction: The Discord interaction instance
         """
         try:
-            modal = FeedbackModal()
-            await interaction.response.send_modal(modal)
+            modal = ButtonDynamicModalView(**MODAL_CONFIGS["button_modal"])
+            values, message = await modal.initiate_from_interaction(interaction, prompt="Click below to start the survey!")
 
-            try:
-                await modal.wait()
-            except TimeoutError:
+            if not values or not message or len(values.items()) != 2:
                 self.logger.warning(
-                    f"Feedback timed out from user {interaction.user.id}"
+                    f"Bug report missing required fields from user {interaction.user.id}"
                 )
-                return
-
-            if not modal.title or not modal.description:
-                self.logger.warning(
-                    f"Feedback missing required fields from user {interaction.user.id}"
-                )
-                return
 
             channel = self.bot.get_channel(settings.TICKET_FEEDBACK_CHANNEL_ID)
             if not channel:
@@ -96,8 +96,8 @@ class FeedbackCog(commands.Cog):
                 return
 
             embed = discord.Embed(
-                title="📝 Feedback:",
-                description=modal.description,
+                title="📝 Feedback: " + values.get("feedback_title"),
+                description=values.get("feedback_description"),
                 color=STATUS_INFO,
             )
             embed.add_field(name="Submitted by", value=interaction.user.mention)
@@ -113,7 +113,7 @@ class FeedbackCog(commands.Cog):
                 "Feedback submitted successfully!", ephemeral=True
             )
             self.logger.info(
-                f"Feedback '{modal.title}' submitted by user {interaction.user.id}"
+                f"Feedback '{values.get("feedback_title")}' submitted by user {interaction.user.id}"
             )
 
         except discord.HTTPException as e:
