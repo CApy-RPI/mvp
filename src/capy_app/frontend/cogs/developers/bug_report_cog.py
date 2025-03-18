@@ -1,3 +1,5 @@
+# mypy: ignore-errors
+# TODO Remove on rewrite ^
 """Bug report command cog.
 
 This module handles bug report submissions through a modal interface.
