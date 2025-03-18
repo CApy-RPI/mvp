@@ -1,6 +1,3 @@
-# mypy: ignore-errors
-# TODO Remove on rewrite ^
-
 """Feature request command cog.
 
 This module handles feature request submissions through a modal interface.
@@ -9,38 +6,49 @@ Requests are sent to a designated channel for developer review.
 
 import logging
 import discord
-from discord import app_commands
 from discord.ext import commands
+from discord import app_commands, Interaction, Object, TextStyle, ButtonStyle
+from discord.errors import NotFound
+from frontend.interactions.bases.modal_base import (
+    DynamicModalView,
+    ButtonDynamicModalView,
+)
 
 from config import settings
 from frontend.config_colors import (
     STATUS_UNMARKED,
-    STATUS_RESOLVED,
     STATUS_IMPORTANT,
+    STATUS_RESOLVED,
     STATUS_IGNORED,
 )
 
-
-class FeatureRequestModal(discord.ui.Modal, title="Request a Feature"):
-    title = discord.ui.TextInput(
-        label="Feature Title",
-        placeholder="Brief description of the feature",
-        required=True,
-        max_length=100,
-    )
-    description = discord.ui.TextInput(
-        label="Feature Description",
-        placeholder="Please describe the feature you'd like to see in detail...",
-        required=True,
-        style=discord.TextStyle.paragraph,
-        max_length=1000,
-    )
-
-    async def on_submit(self, interaction: discord.Interaction) -> None:
-        await interaction.response.defer(ephemeral=True)
-
-        self.interaction = interaction
-
+MODAL_CONFIGS = {
+    "button_modal": {
+        "ephemeral": False,
+        "button_label": "Open Survey",
+        "button_style": ButtonStyle.success,
+        "message_prompt": "📝 Ready to submit a bug report? Click the button below!",
+        "modal": {
+            "title": "Feedback Form",
+            "fields": [
+                {
+                    "label": "Feature Title",
+                    "placeholder": "Brief description of the feature",
+                    "style": TextStyle.short,
+                    "required": True,
+                    "max_length": 100,
+                },
+                {
+                    "label": "Feature Description",
+                    "placeholder": "Please describe the feature you'd like to see in detail...",
+                    "style": TextStyle.paragraph,
+                    "required": True,
+                    "max_length": 1000,
+                },
+            ],
+        },
+    }
+}
 
 class FeatureRequestCog(commands.Cog):
     """Cog for handling feature request submissions."""
@@ -71,22 +79,13 @@ class FeatureRequestCog(commands.Cog):
             interaction: The Discord interaction instance
         """
         try:
-            modal = FeatureRequestModal()
-            await interaction.response.send_modal(modal)
+            modal = ButtonDynamicModalView(**MODAL_CONFIGS["button_modal"])
+            values, message = await modal.initiate_from_interaction(interaction, prompt="Click below to start the survey!")
 
-            try:
-                await modal.wait()
-            except TimeoutError:
+            if not values or not message or len(values.items()) != 2:
                 self.logger.warning(
-                    f"Feature request timed out from user {interaction.user.id}"
+                    f"Bug report missing required fields from user {interaction.user.id}"
                 )
-                return
-
-            if not modal.title or not modal.description:
-                self.logger.warning(
-                    f"Feature request missing required fields from user {interaction.user.id}"
-                )
-                return
 
             channel = self.bot.get_channel(settings.TICKET_FEATURE_REQUEST_CHANNEL_ID)
             if not channel:
@@ -98,8 +97,8 @@ class FeatureRequestCog(commands.Cog):
                 return
 
             embed = discord.Embed(
-                title="💡 Feature Request:",
-                description=modal.description,
+                title="💡 Feature Request: " + values.get("feature_title"),
+                description=values.get("feature_description"),
                 color=STATUS_UNMARKED,
             )
             embed.add_field(name="Submitted by", value=interaction.user.mention)
@@ -115,7 +114,7 @@ class FeatureRequestCog(commands.Cog):
                 "Feature request submitted successfully!", ephemeral=True
             )
             self.logger.info(
-                f"Feature request '{modal.title}' submitted by user {interaction.user.id}"
+                f"Feature request '{values.get("feature_title")}' submitted by user {interaction.user.id}"
             )
 
         except discord.HTTPException as e:
