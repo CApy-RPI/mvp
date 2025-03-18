@@ -13,7 +13,7 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 def main():
     init_logger()
     bot = Bot()
-    bot.run()
+    bot.run_bot()
 
 
 if __name__ == "__main__":
