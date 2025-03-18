@@ -1,3 +1,6 @@
+# mypy: ignore-errors
+# TODO Remove on rewrite ^
+
 """Handles major-related operations and grouping logic."""
 
 import logging

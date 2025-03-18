@@ -1,3 +1,6 @@
+# mypy: ignore-errors
+# TODO Remove on rewrite ^
+
 """Configuration for office hours dropdown menus."""
 
 TIME_SLOTS = [
