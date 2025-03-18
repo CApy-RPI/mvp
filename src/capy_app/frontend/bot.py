@@ -152,6 +152,6 @@ class Bot(commands.AutoShardedBot):
             f"Command from {ctx.author} in disallowed channel {ctx.channel}"
         )
 
-    def run(self) -> None:
+    def run_bot(self) -> None:
         """Run the bot instance."""
         super().run(settings.BOT_TOKEN, reconnect=True)

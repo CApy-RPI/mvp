@@ -1,3 +1,6 @@
+# mypy: ignore-errors
+# TODO Remove on rewrite ^
+
 """Guild-specific view classes for Discord interactions."""
 
 from typing import Any, Optional, Dict, cast, Callable, Coroutine

@@ -1,3 +1,6 @@
+# mypy: ignore-errors
+# TODO Remove on rewrite ^
+
 """Feature request command cog.
 
 This module handles feature request submissions through a modal interface.

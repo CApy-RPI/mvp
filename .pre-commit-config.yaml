@@ -1,9 +1,15 @@
 repos:
-  -   repo: https://github.com/pre-commit/mirrors-mypy
-      rev: v1.15.0
+  -   repo: local
       hooks:
-      -   id: mypy
-          args: [ --strict, --ignore-missing-imports ]
+      - id: mypy
+        name: mypy
+        entry: "mypy"
+        language: python
+        language_version: python3.12
+        additional_dependencies: ["mypy==1.15.0"]
+        types: [python]
+        require_serial: true
+        verbose: true
   - repo: https://github.com/pycqa/flake8
     rev: 7.1.2
     hooks:

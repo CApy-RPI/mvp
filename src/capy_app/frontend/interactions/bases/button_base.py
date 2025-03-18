@@ -1,7 +1,7 @@
 """Utility classes for Discord views."""
 
 import logging
-from typing import Optional, Any, Dict, Tuple
+from typing import Optional, Any, Tuple
 import discord
 from discord import Message, Interaction, ButtonStyle
 from discord.errors import NotFound

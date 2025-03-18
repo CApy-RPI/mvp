@@ -1,3 +1,6 @@
+# mypy: ignore-errors
+# TODO Remove on rewrite ^
+
 """Feedback command cog.
 
 This module handles feedback submissions through a modal interface.

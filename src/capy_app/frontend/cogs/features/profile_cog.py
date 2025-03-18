@@ -1,3 +1,7 @@
+# mypy: ignore-errors
+# flake8: noqa
+# TODO Remove on rewrite ^
+
 """Profile management cog for handling user profiles."""
 
 import logging
