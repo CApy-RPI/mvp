@@ -84,7 +84,7 @@ class FeatureRequestCog(commands.Cog):
 
             if not values or not message or len(values.items()) != 2:
                 self.logger.warning(
-                    f"Bug report missing required fields from user {interaction.user.id}"
+                f"Feature request missing required fields from user {interaction.user.id}"
                 )
 
             channel = self.bot.get_channel(settings.TICKET_FEATURE_REQUEST_CHANNEL_ID)
