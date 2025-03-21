@@ -84,7 +84,7 @@ class Settings(BaseSettings):
     @field_validator("MONGO_DBNAME")
     def validate_mongo_dbname(cls, v):
         """Check if the Mongo DB name is a valid database name"""
-        if " " in v:
+        if v is not None and " " in v:
             raise ValueError("MONGO_DBNAME must not contain spaces.")
         return v
 
