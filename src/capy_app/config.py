@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import field_validator
 import re
 
+
 class Settings(BaseSettings):
     # Logging settings
     LOG_LEVEL: Optional[str] = "DEBUG"
@@ -72,7 +73,7 @@ class Settings(BaseSettings):
 
     @field_validator("MAILJET_API_EMAIL")
     def validate_email(cls, v):
-      
+
         # Regex for Email Validation
         regex = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b"
         """Check if the MailJet API email is a valid email"""
