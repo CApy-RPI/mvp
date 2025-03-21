@@ -254,9 +254,8 @@ class EventCog(commands.Cog):
             if not guild:
                 guild = Guild(_id=interaction.guild_id, events=[])
                 db.add_document(guild)
-            else:
-                if not hasattr(guild, 'events'):
-                    guild.events = []
+            elif not hasattr(guild, 'events'):
+                guild.events = []
 
             guild.events.append(event_id)
             db.update_document(guild, {"events": guild.events})
