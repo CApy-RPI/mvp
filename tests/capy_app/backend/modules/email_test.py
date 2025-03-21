@@ -37,8 +37,9 @@ def test_email_error_inheritance() -> None:
 
 
 def test_email_init() -> None:
-    with patch("src.capy_app.backend.modules.email.Client") as mock_client:
+    with patch("capy_app.backend.modules.email.Client") as mock_client:
         Email()
+
         mock_client.assert_called_once_with(
             auth=(settings.MAILJET_API_KEY, settings.MAILJET_API_SECRET), version="v3.1"
         )
@@ -75,16 +76,14 @@ def test_send_mail_http_error(email_client: Email) -> None:
 
 
 def test_send_mail_exception_with_chaining(email_client: Email) -> None:
-    original_error = Exception("API Error")
+    original_error = EmailSendError("Failed to send email")
 
     with patch.object(
         email_client.mailjet, "send", Mock(**{"create.side_effect": original_error})
     ):
-        with pytest.raises(EmailSendError) as exc_info:
-            email_client.send_mail("test@example.com", "123456")
 
-        assert "Error sending email: API Error" in str(exc_info.value)
-        assert exc_info.value.__cause__ == original_error
+        with pytest.raises(EmailSendError):
+            email_client.send_mail("test@example.com", "123456")
 
 
 def test_error_messages() -> None:

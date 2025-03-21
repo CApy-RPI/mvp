@@ -44,7 +44,7 @@ class Email:
             "Messages": [
                 {
                     "From": {
-                        "Email": settings.MAILJET_EMAIL_ADDRESS,
+                        "Email": settings.MAILJET_API_EMAIL,
                         "Name": "CApy Verification",
                     },
                     "To": [
