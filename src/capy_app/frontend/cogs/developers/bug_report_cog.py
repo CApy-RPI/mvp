@@ -114,7 +114,7 @@ class BugReportCog(commands.Cog):
                 "Bug report submitted successfully!", ephemeral=True
             )
             self.logger.info(
-                f"Bug report '{values.get("bug_title")}' submitted by user {interaction.user.id}"
+                f"Bug report '{values.get('bug_title')}' submitted by user {interaction.user.id}"
             )
 
         except discord.HTTPException as e:

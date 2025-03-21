@@ -113,7 +113,7 @@ class FeedbackCog(commands.Cog):
                 "Feedback submitted successfully!", ephemeral=True
             )
             self.logger.info(
-                f"Feedback '{values.get("feedback_title")}' submitted by user {interaction.user.id}"
+                f"Feedback '{values.get('feedback_title')}' submitted by user {interaction.user.id}"
             )
 
         except discord.HTTPException as e:
