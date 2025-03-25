@@ -3,7 +3,7 @@ import datetime
 import logging
 from typing import Any, Dict
 
-import mongoengine
+from mongoengine import EmbeddedDocument, Document, DateTimeField
 from mongoengine.base import BaseDocument
 
 
@@ -31,16 +31,16 @@ class RestrictedBase(BaseDocument):
         raise err
 
 
-class RestrictedDocument(RestrictedBase, mongoengine.Document):
-    created_at = mongoengine.DateTimeField(
+class RestrictedDocument(RestrictedBase, Document):
+    created_at = DateTimeField(
         default=lambda: datetime.datetime.now(datetime.timezone.utc)
     )
-    updated_at = mongoengine.DateTimeField(
+    updated_at = DateTimeField(
         default=lambda: datetime.datetime.now(datetime.timezone.utc), auto_now=True
     )
 
     meta: Dict[str, Any] = {"abstract": True}
 
 
-class RestrictedEmbeddedDocument(RestrictedBase, mongoengine.EmbeddedDocument):
+class RestrictedEmbeddedDocument(RestrictedBase, EmbeddedDocument):
     pass
