@@ -3,7 +3,7 @@ import mongoengine
 import mongomock
 from datetime import datetime
 
-from src.capy_app.backend.db.documents.event import Event, EventDetails, EventReactions
+from capy_app.backend.db.documents.event import Event, EventDetails, EventReactions
 
 
 @pytest.fixture(scope="module")
@@ -55,7 +55,8 @@ def test_event_reactions_defaults(db):
     details = EventDetails(
         name="Event With Reactions", time=datetime(2030, 5, 5, 10, 0)
     )
-    event = Event(_id=200, details=details).save()
+
+    Event(_id=200, details=details).save()
 
     retrieved = Event.objects(_id=200).first()
     assert retrieved.details.reactions.yes == 0
