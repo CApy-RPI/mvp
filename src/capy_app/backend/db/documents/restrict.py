@@ -10,7 +10,7 @@ from mongoengine.base import BaseDocument
 class RestrictedBase(BaseDocument):
     """Base class for restricted documents with proper type hints."""
 
-    meta: Dict[str, Any] = {"abstract": True}
+    meta: Dict[str, Any] = {"abstract": True, "allow_inheritance": True}
     logger = logging.getLogger(__name__)
 
     def __setattr__(self, name, value):
@@ -43,4 +43,4 @@ class RestrictedDocument(RestrictedBase, mongoengine.Document):
 
 
 class RestrictedEmbeddedDocument(RestrictedBase, mongoengine.EmbeddedDocument):
-    meta: Dict[str, Any] = {"allow_inheritance": True}
+    pass

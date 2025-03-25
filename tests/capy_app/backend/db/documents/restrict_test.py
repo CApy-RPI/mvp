@@ -1,16 +1,18 @@
+from typing import Dict, Any
+
 import pytest
 import mongoengine
 import time
 from datetime import datetime, timezone
 from mongomock import MongoClient
-from src.capy_app.backend.db.documents.restrict import (
+from capy_app.backend.db.documents.restrict import (
     RestrictedDocument,
     RestrictedEmbeddedDocument,
 )
 
 
 class ConcreteRestrictedDocument(RestrictedDocument):
-    meta = {"collection": "test_restricted_document"}
+    meta: Dict[str, Any] = {"collection": "test_restricted_document"}
 
 
 @pytest.fixture(scope="module")
