@@ -2,7 +2,7 @@ import typing
 import datetime
 import mongoengine
 
-from capy_app.backend.db.documents.restrict import RestrictedEmbeddedDocument, RestrictedDocument
+from backend.db.documents.restrict import RestrictedEmbeddedDocument, RestrictedDocument
 
 
 class EventReactions(RestrictedEmbeddedDocument):
