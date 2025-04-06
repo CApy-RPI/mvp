@@ -42,14 +42,6 @@ EVENT_CONFIG = {
             ],
         },
     },
-    "confirm_delete": {
-        "ephemeral": True,
-        "timeout": 60.0,
-        "confirm_text": "Delete",
-        "confirm_style": ButtonStyle.danger,
-        "cancel_text": "Cancel",
-        "cancel_style": ButtonStyle.secondary,
-    },
     "confirm_announce": {
         "ephemeral": True,
         "timeout": 60.0,
