@@ -2,7 +2,10 @@ import typing
 import datetime
 import mongoengine
 
-from capy_app.backend.db.documents.restrict import RestrictedDocument, RestrictedEmbeddedDocument
+from backend.db.documents.restrict import (
+    RestrictedDocument,
+    RestrictedEmbeddedDocument,
+)
 
 
 class UserName(RestrictedEmbeddedDocument):
@@ -64,7 +67,10 @@ class User(RestrictedDocument):
         default=datetime.datetime.now
     )
 
-    meta: typing.Dict[str, typing.Any] = {"collection": "users", "indexes": ["created_at", "updated_at"]}
+    meta: typing.Dict[str, typing.Any] = {
+        "collection": "users",
+        "indexes": ["created_at", "updated_at"],
+    }
 
     def save(self, *args: typing.Any, **kwargs: typing.Any) -> "User":
         """Override save to update the updated_at timestamp."""
