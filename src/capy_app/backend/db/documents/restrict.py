@@ -1,13 +1,16 @@
 import datetime
 
 import logging
-import mongoengine
+from typing import Any, Dict
+
+from mongoengine import EmbeddedDocument, Document, DateTimeField
+from mongoengine.base import BaseDocument
 
 
-class RestrictedBase(mongoengine.Document):
+class RestrictedBase(BaseDocument):
     """Base class for restricted documents with proper type hints."""
 
-    meta = {"abstract": True}
+    meta: Dict[str, Any] = {"abstract": True, "allow_inheritance": True}
     logger = logging.getLogger(__name__)
 
     def __setattr__(self, name, value):
@@ -21,23 +24,23 @@ class RestrictedBase(mongoengine.Document):
         super().__setattr__(name, value)
 
     def __delattr__(self, name):
-        err =  AttributeError(
+        err = AttributeError(
             f"Deletion of attribute {name} disallowed on {self.__class__.__name__}"
         )
         self.logger.exception(err, stack_info=True)
         raise err
 
 
-class RestrictedDocument(RestrictedBase, mongoengine.Document):
-    created_at = mongoengine.DateTimeField(
+class RestrictedDocument(RestrictedBase, Document):
+    created_at = DateTimeField(
         default=lambda: datetime.datetime.now(datetime.timezone.utc)
     )
-    updated_at = mongoengine.DateTimeField(
+    updated_at = DateTimeField(
         default=lambda: datetime.datetime.now(datetime.timezone.utc), auto_now=True
     )
 
-    meta = {"abstract": True}
+    meta: Dict[str, Any] = {"abstract": True}
 
 
-class RestrictedEmbeddedDocument(RestrictedBase, mongoengine.EmbeddedDocument):
+class RestrictedEmbeddedDocument(RestrictedBase, EmbeddedDocument):
     pass

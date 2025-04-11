@@ -2,8 +2,13 @@ import typing
 import datetime
 import mongoengine
 
+from backend.db.documents.restrict import (
+    RestrictedDocument,
+    RestrictedEmbeddedDocument,
+)
 
-class UserName(mongoengine.EmbeddedDocument):
+
+class UserName(RestrictedEmbeddedDocument):
     """Represents a user's name with first, middle, and last components.
 
     Attributes:
@@ -17,7 +22,7 @@ class UserName(mongoengine.EmbeddedDocument):
     last: str = mongoengine.StringField(required=True)
 
 
-class UserProfile(mongoengine.EmbeddedDocument):
+class UserProfile(RestrictedEmbeddedDocument):
     """Represents detailed user profile information.
 
     Attributes:
@@ -39,7 +44,7 @@ class UserProfile(mongoengine.EmbeddedDocument):
     phone: int = mongoengine.IntField()
 
 
-class User(mongoengine.Document):
+class User(RestrictedDocument):
     """Main user document storing core user data and relationships.
 
     Attributes:
@@ -62,7 +67,10 @@ class User(mongoengine.Document):
         default=datetime.datetime.now
     )
 
-    meta = {"collection": "users", "indexes": ["created_at", "updated_at"]}
+    meta: typing.Dict[str, typing.Any] = {
+        "collection": "users",
+        "indexes": ["created_at", "updated_at"],
+    }
 
     def save(self, *args: typing.Any, **kwargs: typing.Any) -> "User":
         """Override save to update the updated_at timestamp."""

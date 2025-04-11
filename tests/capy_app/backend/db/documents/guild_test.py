@@ -1,7 +1,7 @@
 import pytest
 import mongoengine
 from mongomock import MongoClient
-from src.capy_app.backend.db.documents.guild import Guild, GuildChannels, GuildRoles
+from capy_app.backend.db.documents.guild import Guild, GuildChannels, GuildRoles
 
 
 @pytest.fixture(scope="module")
@@ -9,7 +9,6 @@ def db():
     """
     Set up a mock MongoDB instance for testing using mongomock.
     """
-    mongo_client = MongoClient()  # Create a mongomock instance
     mongoengine.connect(
         db="test_guild_db",
         alias="default",

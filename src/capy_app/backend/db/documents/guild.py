@@ -2,8 +2,10 @@ import typing
 import datetime
 import mongoengine
 
+from backend.db.documents.restrict import RestrictedEmbeddedDocument, RestrictedDocument
 
-class GuildChannels(mongoengine.EmbeddedDocument):
+
+class GuildChannels(RestrictedEmbeddedDocument):
     """Represents Discord channel configuration for a guild.
 
     Attributes:
@@ -17,7 +19,7 @@ class GuildChannels(mongoengine.EmbeddedDocument):
     moderator: typing.Optional[int] = mongoengine.IntField()
 
 
-class GuildRoles(mongoengine.EmbeddedDocument):
+class GuildRoles(RestrictedEmbeddedDocument):
     """Represents role configuration for a guild.
 
     Attributes:
@@ -36,7 +38,7 @@ class GuildRoles(mongoengine.EmbeddedDocument):
     office_hours: typing.Optional[str] = mongoengine.StringField()
 
 
-class OfficeHours(mongoengine.EmbeddedDocument):
+class OfficeHours(RestrictedEmbeddedDocument):
     """Represents office hours schedule for a member.
 
     Attributes:
@@ -48,7 +50,7 @@ class OfficeHours(mongoengine.EmbeddedDocument):
     schedule: typing.Dict[str, typing.List[str]] = mongoengine.DictField()
 
 
-class Guild(mongoengine.Document):
+class Guild(RestrictedDocument):
     """Main guild document representing a Discord server configuration.
 
     Attributes:

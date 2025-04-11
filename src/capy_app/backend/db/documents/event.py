@@ -2,8 +2,10 @@ import typing
 import datetime
 import mongoengine
 
+from backend.db.documents.restrict import RestrictedEmbeddedDocument, RestrictedDocument
 
-class EventReactions(mongoengine.EmbeddedDocument):
+
+class EventReactions(RestrictedEmbeddedDocument):
     """Tracks reaction counts for an event.
 
     Attributes:
@@ -17,7 +19,7 @@ class EventReactions(mongoengine.EmbeddedDocument):
     no: int = mongoengine.IntField(default=0)
 
 
-class EventDetails(mongoengine.EmbeddedDocument):
+class EventDetails(RestrictedEmbeddedDocument):
     """Stores detailed information about an event.
 
     Attributes:
@@ -37,7 +39,7 @@ class EventDetails(mongoengine.EmbeddedDocument):
     )
 
 
-class Event(mongoengine.Document):
+class Event(RestrictedDocument):
     """Main event document storing event data and relationships.
 
     Attributes:
