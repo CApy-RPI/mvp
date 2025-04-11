@@ -85,10 +85,9 @@ class ModalTestCog(commands.Cog):
         view = DynamicModalView(**MODAL_CONFIGS["direct_modal"])
 
         values, message = await view.initiate_from_interaction(interaction)
-        #! Not sending submitted values
         if values and message:
             try:
-                view._send_status_message(
+                await message.edit(
                     content="Submitted values:\n"
                     + "\n".join(f"{k}: {v}" for k, v in values.items())
                 )
