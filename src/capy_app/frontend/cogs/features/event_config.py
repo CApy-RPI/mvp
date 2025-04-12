@@ -29,7 +29,7 @@ EVENT_CONFIG = {
                 },
                 {
                     "label": "Event Time",
-                    "placeholder": "HH:MM AM/PM TZ (e.g., 03:30 PM EDT)",
+                    "placeholder": "HH:MM AM/PM (e.g., 03:30 PM)",
                     "required": True,
                     "custom_id": "event_time",
                 },
