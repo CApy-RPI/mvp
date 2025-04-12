@@ -185,12 +185,6 @@ class DynamicModalView(View):
             await self._modal.wait()
             self._completed = True
 
-        return_values: Tuple[Optional[Dict[str, str]], Optional[Message]] = (
-            (self._modal.values, self._message)
-            if self._modal and self._modal.success
-            else (None, self._message)
-        )
-
         if self._modal and self._modal.success:
             logger.debug("Modal submitted successfully")
             await self._send_status_message("Form submitted successfully")
@@ -204,6 +198,12 @@ class DynamicModalView(View):
             await self._send_status_message(status)
 
         self.stop()
+
+        return_values: Tuple[Optional[Dict[str, str]], Optional[Message]] = (
+            (self._modal.values, self._message)
+            if self._modal and self._modal.success
+            else (None, self._message)
+        )
         return return_values
 
     async def on_timeout(self) -> None:
