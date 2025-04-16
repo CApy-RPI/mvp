@@ -21,3 +21,5 @@ pydantic_settings==2.7.1
 pre-commit==4.1.0
 
 audioop-lts; python_version>='3.13'
+
+types-pytx==2025.2.0.20250326
