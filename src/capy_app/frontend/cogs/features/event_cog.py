@@ -661,7 +661,7 @@ class EventCog(commands.Cog):
                 pass
 
     async def my_events(self, interaction: discord.Interaction) -> None:
-        """Show events the user is registered for."""
+        """Show events the user is registered for with registration status."""
         user = db.get_document(User, interaction.user.id)
         if not user or not hasattr(user, 'events') or not user.events:
             await interaction.followup.send(
@@ -672,14 +672,21 @@ class EventCog(commands.Cog):
 
         # Get all events the user is registered for
         user_events = []
+        current_time = self.now()
+
         for event_id in user.events:
             event = db.get_document(Event, event_id)
             if event and hasattr(event, 'details'):
-                user_events.append(event)
+                event_time = event.details.time
+                # If the event time is offset-naive, assume it's in UTC
+                if event_time.tzinfo is None:
+                    event_time = pytz.UTC.localize(event_time)
+                if event_time >= current_time:
+                    user_events.append(event)
 
         if not user_events:
             await interaction.followup.send(
-                "You're not registered for any valid events.",
+                "You're not registered for any upcoming events.",
                 ephemeral=True
             )
             return
@@ -690,7 +697,7 @@ class EventCog(commands.Cog):
         # Create an embed to display the events
         embed = discord.Embed(
             title="Your Events",
-            description=f"You are registered for {len(user_events)} events",
+            description=f"You are registered for {len(user_events)} upcoming events",
             color=discord.Color.green()
         )
 
@@ -698,10 +705,17 @@ class EventCog(commands.Cog):
             # Format date for display
             localized_time = self.format_datetime(event.details.time)
 
+            # Determine registration status
+            status = "Unknown"
+            if interaction.user.id in event.yes_users:
+                status = "✅ Attending"
+            elif interaction.user.id in event.maybe_users:
+                status = "❔ Maybe"
+
             # Add field for each event
             embed.add_field(
                 name=event.details.name,
-                value=f"**When:** {localized_time}\n**Where:** {event.details.location}",
+                value=f"**When:** {localized_time}\n**Where:** {event.details.location}\n**Your Status:** {status}",
                 inline=False
             )
 
@@ -925,6 +939,76 @@ class EventCog(commands.Cog):
             user.events.append(event._id)
             user.save()
             self.logger.info(f"Updated user {user_id} for event {event._id} with 'maybe' response.")
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload) -> None:
+        """Handle reaction removal from event announcements."""
+        # Ignore bot reactions
+        if payload.user_id == self.bot.user.id:
+            return
+
+        # Check if this is a reaction to an event announcement
+        channel = self.bot.get_channel(payload.channel_id)
+        if not channel:
+            return
+
+        try:
+            # Find the event by message ID
+            event = Event.objects(message_id=payload.message_id).first()
+            if not event:
+                return
+        except Exception as e:
+            self.logger.error(f"Error finding event by message_id {payload.message_id}: {e}")
+            return
+
+        # Handle different reactions being removed
+        emoji = str(payload.emoji)
+        user_id = payload.user_id
+        modified = False
+
+        # Process the removal of reaction based on which emoji was removed
+        if emoji == "✅":
+            # Remove from yes list
+            if user_id in event.yes_users:
+                event.yes_users.remove(user_id)
+                if event.details and event.details.reactions:
+                    event.details.reactions.yes = max(0, event.details.reactions.yes - 1)
+                modified = True
+
+                # Remove event from user's list
+                user = db.get_document(User, user_id)
+                if user and hasattr(user, 'events') and event._id in user.events:
+                    user.events.remove(event._id)
+                    user.save()
+                    self.logger.info(f"Removed event {event._id} from user {user_id}'s event list after reaction removal.")
+
+        elif emoji == "❌":
+            # Remove from no list
+            if user_id in event.no_users:
+                event.no_users.remove(user_id)
+                if event.details and event.details.reactions:
+                    event.details.reactions.no = max(0, event.details.reactions.no - 1)
+                modified = True
+
+        elif emoji == "❔":
+            # Remove from maybe list
+            if user_id in event.maybe_users:
+                event.maybe_users.remove(user_id)
+                if event.details and event.details.reactions:
+                    event.details.reactions.maybe = max(0, event.details.reactions.maybe - 1)
+                modified = True
+
+                # Remove event from user's list
+                user = db.get_document(User, user_id)
+                if user and hasattr(user, 'events') and event._id in user.events:
+                    user.events.remove(event._id)
+                    user.save()
+                    self.logger.info(f"Removed event {event._id} from user {user_id}'s event list after maybe reaction removal.")
+
+        # Save the event document if modified
+        if modified:
+            event.save()
+            self.logger.info(f"Updated event {event._id} for user {user_id} after reaction removal.")
 
 
 async def setup(bot: commands.Bot) -> None:
