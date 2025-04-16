@@ -44,7 +44,9 @@ class Event(RestrictedDocument):
 
     Attributes:
         _id: Unique identifier for the event
-        users: List of user IDs attending the event
+        yes_users: List of user IDs who responded "yes" to the event
+        maybe_users: List of user IDs who responded "maybe" to the event
+        no_users: List of user IDs who responded "no" to the event
         guild_id: ID of the hosting guild
         message_id: Discord message ID for the event
         details: Detailed event information
@@ -53,7 +55,9 @@ class Event(RestrictedDocument):
     """
 
     _id: int = mongoengine.IntField(primary_key=True)
-    users: typing.List[int] = mongoengine.ListField(mongoengine.IntField())
+    yes_users: typing.List[int] = mongoengine.ListField(mongoengine.IntField(), default=list)
+    maybe_users: typing.List[int] = mongoengine.ListField(mongoengine.IntField(), default=list)
+    no_users: typing.List[int] = mongoengine.ListField(mongoengine.IntField(), default=list)
     guild_id: int = mongoengine.IntField()
     message_id: int = mongoengine.IntField()
     details: EventDetails = mongoengine.EmbeddedDocumentField(
