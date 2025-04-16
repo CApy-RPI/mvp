@@ -3,7 +3,7 @@ import mongoengine
 import mongomock
 from datetime import datetime
 
-from backend.db.documents.event import Event, EventDetails, EventReactions
+from capy_app.backend.db.documents.event import Event, EventDetails, EventReactions
 
 
 @pytest.fixture(scope="module")
