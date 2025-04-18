@@ -10,15 +10,17 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+
 from config import settings
 from backend.db.database import Database as db
 from backend.db.documents.user import User
 from backend.db.documents.guild import Guild
 from backend.db.documents.event import Event, EventDetails, EventReactions
 from frontend.interactions.bases.button_base import ConfirmDeleteView
-from frontend.interactions.bases.modal_base import DynamicModalView
+from frontend.interactions.bases.modal_base import DynamicModalView, ButtonDynamicModalView
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 from frontend.interactions.bases.button_base import ConfirmView
+
 
 from .event_config import EVENT_CONFIG
 
@@ -124,12 +126,13 @@ class EventCog(commands.Cog):
             app_commands.Choice(name="delete", value="delete"),
             app_commands.Choice(name="announce", value="announce"),
             app_commands.Choice(name="myevents", value="myevents"),
+            app_commands.Choice(name="edit", value="edit"),  # Add the edit option
         ]
     )
     async def event(self, interaction: discord.Interaction, action: str) -> None:
         """Handle event actions."""
-        should_defer = action in ["list", "show", "announce", "myevents"]
-        is_ephemeral = action in ["list", "show", "delete", "announce", "myevents"]
+        should_defer = action in ["list", "show", "announce", "myevents", "edit"]  # Add edit to defer list
+        is_ephemeral = action in ["list", "show", "delete", "announce", "myevents", "edit"]  # Add edit to ephemeral list
 
         if should_defer:
             await interaction.response.defer(ephemeral=is_ephemeral)
@@ -166,6 +169,8 @@ class EventCog(commands.Cog):
             await self.announce_event_selection(interaction)
         elif action == "myevents":
             await self.my_events(interaction)
+        elif action == "edit":
+            await self.edit_event_selection(interaction)  # Add handling for edit action
 
     async def create_event(self, interaction: discord.Interaction) -> None:
         """Handle event creation."""
@@ -1009,6 +1014,293 @@ class EventCog(commands.Cog):
         if modified:
             event.save()
             self.logger.info(f"Updated event {event._id} for user {user_id} after reaction removal.")
+
+    async def edit_event_selection(self, interaction: discord.Interaction) -> None:
+
+        # Interaction already deferred
+        event, message = await self.get_event_selection(interaction, "edit")
+        if not event or not message:  # Check both event and message
+            # Error/cancel message already handled within get_event_selection if possible
+            return
+
+        # At this point, we have both the event and the message
+        # Let's modify edit_event to go straight to showing the modal
+        await self.edit_event(interaction, event, message)
+
+        # Get all events for this guild
+        guild = db.get_document(Guild, interaction.guild_id)
+        if not guild or not hasattr(guild, 'events') or not guild.events:
+            await interaction.response.send_message("No events found for this server.", ephemeral=True)
+            return
+
+        # Get all upcoming events
+        current_time = self.now()
+        guild_events = []
+
+        for event_id in guild.events:
+            event = db.get_document(Event, event_id)
+            if event and hasattr(event, 'details'):
+                event_time = event.details.time
+                if event_time.tzinfo is None:
+                    event_time = pytz.UTC.localize(event_time)
+                if event_time >= current_time:
+                    guild_events.append(event)
+
+        if not guild_events:
+            await interaction.response.send_message("No upcoming events found.", ephemeral=True)
+            return
+
+        # Create dropdown options
+        options = []
+        for event in guild_events:
+            options.append({
+                "label": f"{event.details.name}",
+                "description": self.format_datetime(event.details.time)[:99],
+                "value": str(event._id)
+            })
+
+        # Create dropdown config
+        dropdown_config = {
+            "ephemeral": True,
+            "add_buttons": True,
+            "timeout": 180,
+            "dropdowns": [{
+                "custom_id": "event_selection",
+                "placeholder": "Select an event to edit",
+                "min_values": 1,
+                "max_values": 1,
+                "selections": options
+            }]
+        }
+
+        # Create dropdown view
+        view = DynamicDropdownView(**dropdown_config)
+
+        # Send the dropdown message
+        await interaction.response.send_message(
+            "Please select an event to edit:",
+            view=view,
+            ephemeral=True
+        )
+
+        # Wait for selection
+        await view.wait()
+
+        # Get selected values
+        selections = {}
+        for dropdown in view._dropdowns:
+            if dropdown.selected_values:
+                selections[dropdown.custom_id] = dropdown.selected_values
+
+        values = selections if view.accepted else None
+
+        # Get the message for later use
+        try:
+            message = await interaction.original_response()
+        except (discord.NotFound, discord.HTTPException):
+            return  # Can't proceed if message is gone
+
+        # Check if a selection was made
+        if not view.accepted or not values or not message:
+            # User cancelled, timed out, or interaction failed
+            try:
+                await message.edit(content="Event selection cancelled or timed out.", view=None, embed=None)
+            except (discord.NotFound, discord.HTTPException):
+                pass  # Ignore if message is already gone
+            return
+
+        # Get the selected event ID
+        selected_id_str = values.get("event_selection", [None])[0]
+        if not selected_id_str:
+            return
+
+        # Convert ID to int
+        try:
+            selected_id = int(selected_id_str)
+        except ValueError:
+            self.logger.error(f"Invalid event ID selected: {selected_id_str}")
+            await message.edit(content=f"Error: Invalid event ID selected ({selected_id_str}).", view=None, embed=None)
+            return
+
+        # Fetch the event document
+        selected_event = db.get_document(Event, selected_id)
+        if not selected_event:
+            self.logger.warning(f"Selected event ID {selected_id} not found in database.")
+            await message.edit(content=f"Error: Event with ID {selected_id} not found.", view=None, embed=None)
+            return
+
+        # At this point we have the event and the message, so call edit_event
+        await self.edit_event(interaction, selected_event, message)
+
+    async def edit_event(self, interaction: discord.Interaction, event: Event, message: discord.Message) -> None:
+        """Edit a specific event."""
+        self.logger.info(f"Event edit requested for event {event._id} by {interaction.user}")
+
+        try:
+            # Prepare initial data for the modal
+            init_data = {
+                "event_name": event.details.name,
+                "event_description": event.details.description or "",
+                "event_location": event.details.location or "",
+            }
+
+            # Format date and time for the modal
+            event_time = event.details.time
+            if event_time.tzinfo is None:
+                # If time has no timezone, assume it's UTC
+                event_time = pytz.UTC.localize(event_time)
+
+            # Convert the time to Eastern Time for display since you're in EST
+            eastern_tz = pytz.timezone('US/Eastern')
+            eastern_time = event_time.astimezone(eastern_tz)
+
+            # Format date as MM/DD/YY using the Eastern time
+            init_data["event_date"] = eastern_time.strftime("%m/%d/%y")
+
+            # Format time as HH:MM AM/PM using the Eastern time
+            init_data["event_time"] = eastern_time.strftime("%I:%M %p")
+
+            # Edit message to show editing status
+            await message.edit(
+                content=f"Editing event '{event.details.name}'...",
+                embed=None,
+                view=None
+            )
+
+            # Create the button modal view
+            button_modal_view = ButtonDynamicModalView(
+                button_label="Edit Event Details",
+                message_prompt=f"Click the button below to edit event '{event.details.name}'",
+                modal=self.config["edit_event_modal"]["modal"],
+                ephemeral=True
+            )
+
+            # Set default values for fields
+            for field in button_modal_view._modal.children:
+                if field.custom_id in init_data:
+                    field.default = init_data[field.custom_id]
+
+            # Show the button that will trigger the modal
+            event_data, modal_message = await button_modal_view.initiate_from_message(message)
+
+            # If modal was cancelled or timed out
+            if not event_data:
+                await message.edit(content="Event edit cancelled.", embed=None, view=None)
+                return
+
+            # Validate the form data
+            if not self._validate_event_form(event_data):
+                await modal_message.edit(
+                    content="Invalid event data. Please check date/time formats and try again.",
+                    view=None
+                )
+                return
+
+            # Prepare the timezone dropdown configuration
+            timezone_config = self.config["timezone_dropdown"].copy()
+            timezone_config.pop("placeholder", None)
+
+            if "dropdowns" in timezone_config:
+                new_dropdowns = []
+                for dropdown in timezone_config["dropdowns"]:
+                    if "options" in dropdown:
+                        dropdown["selections"] = dropdown.pop("options")
+                    new_dropdowns.append(dropdown)
+                timezone_config["dropdowns"] = new_dropdowns
+
+            # Get timezone selection with dropdown
+            timezone_view = DynamicDropdownView(**timezone_config)
+            timezone_data, dropdown_message = await timezone_view.initiate_from_message(
+                modal_message or message,
+                "Please select a timezone for the event:"
+            )
+
+            # If no timezone selection is returned, use default
+            if not timezone_data or not timezone_data.get("timezone_selection"):
+                # Find default from configuration
+                default_timezone = None
+                for dropdown in self.config["timezone_dropdown"].get("dropdowns", []):
+                    for option in dropdown.get("options", []):
+                        if option.get("default"):
+                            default_timezone = option.get("value")
+                            break
+                    if default_timezone:
+                        break
+                if not default_timezone:
+                    default_timezone = "US/Eastern"
+                timezone_data = {"timezone_selection": [default_timezone]}
+
+            # Get timezone or use default
+            timezone = timezone_data.get("timezone_selection", ["US/Eastern"])[0]
+
+            # Parse the date and time into a datetime object
+            event_time = self.parse_datetime(
+                event_data["event_date"],
+                event_data["event_time"],
+                timezone
+            )
+
+            # Create a new EventDetails object with updated values
+            new_details = EventDetails(
+                name=event_data["event_name"],
+                description=event_data["event_description"],
+                time=event_time,
+                location=event_data["event_location"],
+                reactions=event.details.reactions  # Keep the existing reactions
+            )
+
+            # Update the entire details field
+            event.details = new_details
+            event.save()
+
+            self.logger.info(f"Event {event._id} updated successfully")
+
+            # Show the updated event details
+            message_to_update = dropdown_message or modal_message or message
+
+            # Update the message channel if the event has been announced
+            if event.message_id > 0:
+                try:
+                    # Find the announcement message
+                    for guild in self.bot.guilds:
+                        for channel in guild.text_channels:
+                            try:
+                                announcement = await channel.fetch_message(event.message_id)
+                                if announcement:
+                                    # Update the announcement embed
+                                    embed = announcement.embeds[0]
+                                    embed.title = f"📅 Event: {event.details.name}"
+                                    embed.description = event.details.description
+
+                                    # Clear existing fields and add updated ones
+                                    embed.clear_fields()
+
+                                    localized_time = self.format_datetime(event.details.time)
+                                    embed.add_field(name="Date/Time", value=localized_time, inline=True)
+                                    embed.add_field(name="Location", value=event.details.location, inline=True)
+
+                                    # Add footer with instructions
+                                    embed.set_footer(text="React with ✅ to attend, ❌ if you can't make it, or ❔ if you're unsure.")
+
+                                    # Update the message
+                                    await announcement.edit(embed=embed)
+                                    self.logger.info(f"Announcement for event {event._id} updated")
+                                    break
+                            except (discord.NotFound, discord.Forbidden, Exception) as e:
+                                continue
+                except Exception as e:
+                    self.logger.error(f"Error updating announcement for event {event._id}: {e}")
+
+            # Show the updated event details to the user
+            await self.show_event_embed(message_to_update, event)
+
+        except Exception as e:
+            self.logger.error(f"Exception in edit_event: {e}", exc_info=True)
+            await message.edit(
+                content=f"Error editing event: {str(e)}",
+                embed=None,
+                view=None
+            )
 
 
 async def setup(bot: commands.Bot) -> None:
