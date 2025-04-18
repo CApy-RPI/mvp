@@ -1017,6 +1017,13 @@ class EventCog(commands.Cog):
 
     async def edit_event_selection(self, interaction: discord.Interaction) -> None:
 
+        if not await self._check_edit_permission(interaction):
+            await interaction.followup.send(
+                "You don't have permission to edit events. Only server administrators, event creators, or members with appropriate roles can edit events.",
+                ephemeral=True
+            )
+            return
+    
         # Interaction already deferred
         event, message = await self.get_event_selection(interaction, "edit")
         if not event or not message:  # Check both event and message
