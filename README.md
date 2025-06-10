@@ -1,6 +1,10 @@
+
+
 # CAPY - Club Assistant in Python  
 
 [![Tests](https://github.com/CApy-RPI/mvp/actions/workflows/tests.yml/badge.svg)](https://github.com/CApy-RPI/mvp/actions/workflows/tests.yml)
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)]
 
 ## **Overview**  
 
