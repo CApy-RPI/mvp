@@ -35,6 +35,7 @@ Welcome to **CAPY** — an all-in-one club managerial software built for efficie
 - **Thomas Doherty** ([dohert7@rpi.edu](mailto:dohert7@rpi.edu))
 
 ## **Past Project Contributors**
+
 - **Vincent Shi** ([shiv@rpi.edu](mailto:shiv@rpi.edu))
 - **Pradeep Giri** ([girip@rpi.edu](mailto:girip@rpi.edu))
 - **Zane Brotherton** ([brothz@rpi.edu](mailto:brothz@rpi.edu))
