@@ -137,6 +137,7 @@ class EventCog(commands.Cog):
             app_commands.Choice(name="create", value="create"),
             app_commands.Choice(name="list", value="list"),
             app_commands.Choice(name="show", value="show"),
+            app_commands.Choice(name="edit", value="edit"),
             app_commands.Choice(name="delete", value="delete"),
             app_commands.Choice(name="announce", value="announce"),
             app_commands.Choice(name="myevents", value="myevents"),
@@ -156,6 +157,8 @@ class EventCog(commands.Cog):
             await self.list_events(interaction)
         elif action == "show":
             await self.show_event_selection(interaction)
+        elif action == "edit":
+            await self.edit_event_selection(interaction)
         elif action == "delete":
             # This ensures we always respond to the interaction before it expires
             guild = db.get_document(Guild, interaction.guild_id)
@@ -609,6 +612,14 @@ class EventCog(commands.Cog):
 
         # Pass the message object to show_event_embed
         await self.show_event_embed(message, event)
+
+    async def edit_event_selection(self, interaction: discord.Interaction) -> None:
+        """Edit a specific event selected from dropdown."""
+        # Get both event and the message from the dropdown interaction
+        event, message = await self.get_event_selection(interaction, "edit")
+        if not event or not message:  # Check both
+            # Error/cancel message already handled within get_event_selection if possible
+            return
 
     async def delete_event_selection(self, interaction: discord.Interaction) -> None:
         """Delete a specific event selected from dropdown."""
