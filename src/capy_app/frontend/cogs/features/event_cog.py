@@ -5,6 +5,7 @@ import re
 from typing import Union, Dict, Optional, Any, cast
 from datetime import datetime, timezone
 import pytz
+import asyncio
 
 import discord
 from discord import app_commands
@@ -615,11 +616,390 @@ class EventCog(commands.Cog):
 
     async def edit_event_selection(self, interaction: discord.Interaction) -> None:
         """Edit a specific event selected from dropdown."""
-        # Get both event and the message from the dropdown interaction
-        event, message = await self.get_event_selection(interaction, "edit")
-        if not event or not message:  # Check both
-            # Error/cancel message already handled within get_event_selection if possible
+        # Original interaction is the command. It's not deferred by the main /event handler for "edit".
+        self.logger.info(f"Event edit process started by {interaction.user.id}")
+
+        # 1. Get Event to Edit
+        selected_event, event_selection_message = await self.get_event_selection(
+            interaction, "edit"
+        )
+
+        if not selected_event:
+            self.logger.info("Event selection for edit failed or was cancelled.")
+            if not event_selection_message and not interaction.response.is_done():
+                try:
+                    await interaction.response.send_message(
+                        "Failed to select an event for editing.", ephemeral=True
+                    )
+                except discord.HTTPException:
+                    self.logger.warning(
+                        "Failed to send fallback message for event selection failure."
+                    )
             return
+
+        if not event_selection_message:
+            self.logger.error(
+                "get_event_selection returned an event but no message. Aborting edit."
+            )
+            try:
+                await interaction.followup.send(
+                    "An internal error occurred while selecting the event for editing. Please try again.",
+                    ephemeral=True,
+                )
+            except discord.HTTPException:
+                self.logger.warning(
+                    "Failed to send followup for internal error in event selection message."
+                )
+            return
+
+        self.logger.info(
+            f"Event {selected_event._id} ('{selected_event.details.name}') selected for editing."
+        )
+
+        # 2. Attribute Selection Dropdown
+        current_event_time = selected_event.details.time
+        attribute_map = {
+            "name": {"label": "Name", "current_val": selected_event.details.name},
+            "description": {
+                "label": "Description",
+                "current_val": selected_event.details.description,
+            },
+            "location": {
+                "label": "Location",
+                "current_val": selected_event.details.location,
+            },
+            "date": {
+                "label": "Date (MM/DD/YY)",
+                "current_val": current_event_time.strftime("%m/%d/%y"),
+            },
+            "time": {
+                "label": "Time (HH:MM AM/PM)",
+                "current_val": current_event_time.strftime("%I:%M %p"),
+            },
+            "timezone": {
+                "label": "Timezone",
+                "current_val": str(current_event_time.tzinfo),
+            },
+        }
+        dropdown_options = [
+            {"label": data["label"], "value": key}
+            for key, data in attribute_map.items()
+        ]
+
+        attribute_dropdown_config = {
+            "ephemeral": True,
+            "add_buttons": True,
+            "timeout": 180.0,
+            "dropdowns": [
+                {
+                    "custom_id": "attribute_to_edit",
+                    "placeholder": "Select an attribute to edit",
+                    "min_values": 1,
+                    "max_values": 1,
+                    "selections": dropdown_options,
+                }
+            ],
+        }
+        attribute_view = DynamicDropdownView(**attribute_dropdown_config)
+
+        self.logger.debug(
+            f"Presenting attribute selection dropdown for event {selected_event._id}"
+        )
+        selected_attribute_data, attribute_selection_message_edited = (
+            await attribute_view.initiate_from_message(
+                event_selection_message,
+                content=f"Editing event: **{selected_event.details.name}**\nSelect an attribute to change:",
+            )
+        )
+
+        if not attribute_selection_message_edited:
+            self.logger.error(
+                "Attribute selection dropdown failed to produce a message after editing."
+            )
+            try:
+                await interaction.followup.send(
+                    "An error occurred displaying attribute choices. Please try again.",
+                    ephemeral=True,
+                )
+            except discord.HTTPException:
+                self.logger.warning(
+                    "Failed to send followup for attribute dropdown message failure."
+                )
+            return
+
+        current_message_being_edited = attribute_selection_message_edited
+
+        if not selected_attribute_data or not attribute_view.accepted:
+            self.logger.info("Attribute selection cancelled or timed out.")
+            await current_message_being_edited.edit(
+                content="Event editing cancelled: No attribute selected or selection cancelled.",
+                view=None,
+                embed=None,
+            )
+            return
+
+        selected_attribute_key = selected_attribute_data.get("attribute_to_edit")[0]
+        attr_info = attribute_map[selected_attribute_key]
+        self.logger.info(
+            f"Attribute '{selected_attribute_key}' selected for editing event {selected_event._id}."
+        )
+
+        # 3. Get New Value
+        new_value_str = None
+
+        if selected_attribute_key == "timezone":
+            prompt_message_content = (
+                f"Editing **{attr_info['label']}** for event **{selected_event.details.name}**.\n"
+                f"Current value: `{attr_info['current_val']}`\n\n"
+                "Please select the new **Timezone** from the dropdown below:"
+            )
+
+            # Prepare timezone dropdown options from self.config
+            timezone_options_from_config = []
+            raw_tz_config_dropdowns = self.config.get("timezone_dropdown", {}).get(
+                "dropdowns", []
+            )
+
+            if (
+                raw_tz_config_dropdowns
+                and isinstance(raw_tz_config_dropdowns, list)
+                and len(raw_tz_config_dropdowns) > 0
+            ):
+                # Assuming the first dropdown in the config is the one we want for timezone options
+                first_tz_dropdown_config = raw_tz_config_dropdowns[0]
+                if isinstance(first_tz_dropdown_config, dict):
+                    options_key = (
+                        "selections"
+                        if "selections" in first_tz_dropdown_config
+                        else "options"
+                    )
+                    timezone_options_from_config = first_tz_dropdown_config.get(
+                        options_key, []
+                    )
+
+            if (
+                not timezone_options_from_config
+            ):  # Fallback if config is missing/empty or malformed
+                self.logger.warning(
+                    "Timezone dropdown config missing or empty for edit. Using fallback options."
+                )
+                timezone_options_from_config = [
+                    {"label": "US/Eastern", "value": "US/Eastern", "default": True},
+                    {"label": "US/Central", "value": "US/Central"},
+                    {"label": "US/Mountain", "value": "US/Mountain"},
+                    {"label": "US/Pacific", "value": "US/Pacific"},
+                    {"label": "UTC", "value": "UTC"},
+                    {"label": "Europe/London", "value": "Europe/London"},
+                ]
+
+            edit_timezone_dropdown_config = {
+                "ephemeral": True,  # Keep ephemeral nature of the edit flow
+                "add_buttons": True,  # Standard confirm/cancel
+                "timeout": 120.0,
+                "dropdowns": [
+                    {
+                        "custom_id": "edit_event_new_timezone",  # Unique custom_id for this context
+                        "placeholder": "Select new timezone",
+                        "min_values": 1,
+                        "max_values": 1,
+                        "selections": timezone_options_from_config,  # Use options from config or fallback
+                    }
+                ],
+            }
+            timezone_edit_view = DynamicDropdownView(**edit_timezone_dropdown_config)
+
+            # Edit the message that was previously showing the text prompt, now to show this dropdown
+            selected_tz_data, final_message_after_tz_dropdown = (
+                await timezone_edit_view.initiate_from_message(
+                    current_message_being_edited,  # This is the message to edit
+                    content=prompt_message_content,
+                )
+            )
+
+            # Update current_message_being_edited to the latest version if it was changed by initiate_from_message
+            if final_message_after_tz_dropdown:
+                current_message_being_edited = final_message_after_tz_dropdown
+
+            if not timezone_edit_view.accepted or not selected_tz_data:
+                self.logger.info(
+                    f"Timezone selection timed out or cancelled for event edit (event ID: {selected_event._id})."
+                )
+                # Ensure the message reflects cancellation if it's still editable
+                try:
+                    await current_message_being_edited.edit(
+                        content="Event editing timed out or cancelled: No new timezone selected.",
+                        view=None,
+                        embed=None,
+                    )
+                except (discord.NotFound, discord.HTTPException):
+                    pass  # Message might be gone
+                return
+
+            new_value_str = selected_tz_data.get("edit_event_new_timezone", [None])[0]
+            # The message `current_message_being_edited` will be further edited by success/failure/embed logic later.
+
+        else:
+            # --- Existing direct message reply logic for other attributes ---
+            prompt_message_content = (
+                f"Editing **{attr_info['label']}** for event **{selected_event.details.name}**.\n"
+                f"Current value: `{attr_info['current_val']}`\n\n"
+            )
+            if selected_attribute_key == "date":
+                prompt_message_content += "Please type the new **Date** in `MM/DD/YY` format (e.g., `07/04/25`):"
+            elif selected_attribute_key == "time":
+                prompt_message_content += "Please type the new **Time** in `HH:MM AM/PM` format (e.g., `03:30 PM`):"
+            # No 'timezone' here anymore as it's handled above
+            else:  # For name, description, location
+                prompt_message_content += f"Please type the new value for **{attr_info['label']}** in the chat and press Enter:"
+
+            await current_message_being_edited.edit(
+                content=prompt_message_content, view=None, embed=None
+            )  # Ensure view is cleared
+
+            try:
+                reply_message = await self.bot.wait_for(
+                    "message",
+                    check=lambda m: m.author.id == interaction.user.id
+                    and m.channel.id == current_message_being_edited.channel.id,
+                    timeout=180.0,
+                )
+                new_value_str = reply_message.content.strip()
+                try:
+                    await reply_message.delete()
+                except discord.HTTPException:
+                    self.logger.warning(
+                        f"Failed to delete user's reply message (ID: {reply_message.id}) for event edit."
+                    )
+            except asyncio.TimeoutError:
+                self.logger.info(
+                    f"User input timed out for event edit (event ID: {selected_event._id})."
+                )
+                await current_message_being_edited.edit(
+                    content="Event editing timed out: No new value provided.",
+                    view=None,
+                    embed=None,
+                )
+                return
+            except Exception as e:
+                self.logger.error(
+                    f"Error waiting for or processing reply for event edit (event ID: {selected_event._id}): {e}",
+                    exc_info=True,
+                )
+                await current_message_being_edited.edit(
+                    content="An error occurred while getting your input. Please try again.",
+                    view=None,
+                    embed=None,
+                )
+                return
+
+        if not new_value_str:
+            self.logger.info(
+                f"User provided/selected empty value for event edit (event ID: {selected_event._id})."
+            )
+            await current_message_being_edited.edit(
+                content="Event editing cancelled: No new value provided/selected.",
+                view=None,
+                embed=None,
+            )
+            return
+
+        # 4. Validate and Update Event
+        try:
+            original_event_name_for_confirmation = selected_event.details.name
+            current_dt = selected_event.details.time
+
+            if selected_attribute_key == "name":
+                if not new_value_str:
+                    raise ValueError("Name cannot be empty.")
+                selected_event.details.name = new_value_str
+            elif selected_attribute_key == "description":
+                if not new_value_str:
+                    raise ValueError("Description cannot be empty.")
+                selected_event.details.description = new_value_str
+            elif selected_attribute_key == "location":
+                if not new_value_str:
+                    raise ValueError("Location cannot be empty.")
+                selected_event.details.location = new_value_str
+            elif selected_attribute_key == "date":
+                date_regex = r"^(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/\d{2}$"
+                if not re.match(date_regex, new_value_str):
+                    raise ValueError(
+                        "Invalid Date format. Please use `MM/DD/YY` (e.g., `07/04/25`)."
+                    )
+                time_part = current_dt.strftime("%I:%M %p")
+                tz_part = str(current_dt.tzinfo)
+                selected_event.details.time = self.parse_datetime(
+                    new_value_str, time_part, tz_part
+                )
+            elif selected_attribute_key == "time":
+                time_regex = r"^(0?[1-9]|1[0-2]):([0-5][0-9])\s+(AM|PM)$"
+                if not re.match(time_regex, new_value_str, re.IGNORECASE):
+                    raise ValueError(
+                        "Invalid Time format. Please use `HH:MM AM/PM` (e.g., `03:30 PM`)."
+                    )
+                date_part = current_dt.strftime("%m/%d/%y")
+                tz_part = str(current_dt.tzinfo)
+                selected_event.details.time = self.parse_datetime(
+                    date_part, new_value_str, tz_part
+                )
+            elif selected_attribute_key == "timezone":
+                try:
+                    new_tz = pytz.timezone(new_value_str)
+                    selected_event.details.time = current_dt.astimezone(new_tz)
+                except pytz.exceptions.UnknownTimeZoneError:
+                    raise ValueError(
+                        f"Invalid timezone: '{new_value_str}'. Please use a valid Olson timezone name (e.g., US/Eastern, UTC, Europe/London)."
+                    )
+                except Exception as e_tz:
+                    self.logger.error(
+                        f"Error processing timezone '{new_value_str}': {e_tz}"
+                    )
+                    raise ValueError(
+                        f"Could not process timezone: {new_value_str}. Please ensure it's a valid format."
+                    )
+
+            selected_event.save()
+            self.logger.info(
+                f"Event '{original_event_name_for_confirmation}' (ID: {selected_event._id}) updated. Attribute: {selected_attribute_key}."
+            )
+
+            # 5. Show Updated Embed
+            await self.show_event_embed(current_message_being_edited, selected_event)
+
+            await interaction.followup.send(
+                f"Event **{selected_event.details.name}** has been updated successfully!",
+                ephemeral=True,
+            )
+            self.logger.info(
+                f"Successfully updated and displayed event {selected_event._id}"
+            )
+
+        except ValueError as e:
+            self.logger.warning(
+                f"Validation error during event edit (event ID: {selected_event._id}): {e}"
+            )
+            await current_message_being_edited.edit(
+                content=f"Invalid input: {e}\nPlease try editing the event again.",
+                view=None,
+                embed=None,
+            )
+        except Exception as e:
+            self.logger.error(
+                f"Error updating event {selected_event._id} in database: {e}",
+                exc_info=True,
+            )
+            await current_message_being_edited.edit(
+                content="An error occurred while updating the event in the database. Please try again.",
+                view=None,
+                embed=None,
+            )
+            try:
+                await interaction.followup.send(
+                    "An error occurred while saving your event changes. Please try again.",
+                    ephemeral=True,
+                )
+            except discord.HTTPException:
+                pass
 
     async def delete_event_selection(self, interaction: discord.Interaction) -> None:
         """Delete a specific event selected from dropdown."""
