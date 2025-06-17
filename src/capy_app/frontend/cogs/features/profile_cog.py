@@ -142,9 +142,13 @@ class ProfileCog(commands.Cog):
         if not values:
             return False
 
-        return self.email_verifier.verify_code(
+        if not self.email_verifier.verify_code(
             message.author.id, values["verification_code"]
-        )
+        ):
+            await message.edit(content="Invalid verification code!")
+            return False
+        else:
+            return True
 
     async def handle_profile(
         self, interaction: discord.Interaction, action: str
@@ -187,7 +191,7 @@ class ProfileCog(commands.Cog):
         # Verify email if needed using previous message
         if not await self.verify_email(message, profile_data["school_email"], user):
             return
-
+        
         # Create user profile data
         profile_data = {
             "name": UserName(
