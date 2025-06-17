@@ -1,6 +1,6 @@
 # CAPY - Club Assistant in Python  
 
-[![Tests](https://github.com/CApy-RPI/mvp/actions/workflows/tests.yml/badge.svg)](https://github.com/CApy-RPI/mvp/actions/workflows/tests.yml)
+[![Tests](https://github.com/CApy-RPI/mvp/actions/workflows/tests.yml/badge.svg)](https://github.com/CApy-RPI/mvp/actions/workflows/tests.yml)      ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
 ## **Overview**  
 
@@ -25,7 +25,16 @@ Welcome to **CAPY** — an all-in-one club managerial software built for efficie
 - **Jason Zhang** ([zhangy96@rpi.edu](mailto:zhangy96@rpi.edu))
 - **Shamik Karkhanis** ([karkhs@rpi.edu](mailto:karkhs@rpi.edu))
 
-## **Project Contributors**  
+## **Current Project Contributors**  
+
+- **Kaylee Xie** ([xiek@rpi.edu](mailto:xiek@rpi.edu))
+- **Sayed Imtiazuddin** ([imtias@rpi.edu](mailto:imtias@rpi.edu))
+- **Brian Ng** ([ngb4@rpi.edu](mailto:ngb4@rpi.edu))
+- **Elias Cueto** ([cuetoe@rpi.edu](mailto:cuetoe@rpi.edu))
+- **Daniel Aube** ([aubed@rpi.edu](mailto:aubed@rpi.edu))
+- **Thomas Doherty** ([dohert7@rpi.edu](mailto:dohert7@rpi.edu))
+
+## **Past Project Contributors**
 
 - **Vincent Shi** ([shiv@rpi.edu](mailto:shiv@rpi.edu))
 - **Pradeep Giri** ([girip@rpi.edu](mailto:girip@rpi.edu))

@@ -15,7 +15,6 @@ from discord.ext import commands
 from discord import app_commands
 from frontend.utils.embed_statuses import success_embed, error_embed
 from config import settings
-from frontend.interactions.checks.owners import is_owner
 
 
 class SyncCog(commands.Cog):
@@ -48,10 +47,12 @@ class SyncCog(commands.Cog):
         self.logger.info("Syncing application commands...")
         if debug_guild:
             self.logger.info(f"Connected to debug guild: {debug_guild.name}")
-        return await self.bot.tree.sync(guild=debug_guild)
+        synced_commands: list[discord.app_commands.AppCommand] = (
+            await self.bot.tree.sync(guild=debug_guild)
+        )
+        return synced_commands
 
     @commands.command(name="sync", hidden=True)
-    @commands.is_owner()
     async def sync(self, ctx: commands.Context[commands.Bot]) -> None:
         """Sync commands manually (owner only)."""
         try:
@@ -70,7 +71,6 @@ class SyncCog(commands.Cog):
                 embed=error_embed("Sync Commands", f"❌ Failed to sync commands: {e}")
             )
 
-    @is_owner()
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="sync", description="Sync application commands")
     async def sync_slash(self, interaction: discord.Interaction) -> None:
