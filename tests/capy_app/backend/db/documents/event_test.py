@@ -23,18 +23,18 @@ def db():
 
 
 def test_event_creation(db):
-    """
-    Create an Event with a custom primary key (_id).
-    If your Event model defines an auto _id, you can omit _id=123.
-    """
     details = EventDetails(
         name="Test Event",
         time=datetime(2025, 1, 1, 12, 0),
+        location="Zoom",
+        description="Testing event creation",
     )
 
     event = Event(
-        _id=123,  # or any unique value
-        users=[123, 456],
+        _id=123,
+        yes_users=[101],
+        maybe_users=[102],
+        no_users=[],
         guild_id=789,
         message_id=111,
         details=details,
@@ -45,13 +45,14 @@ def test_event_creation(db):
     assert saved_event is not None
     assert saved_event.details.name == "Test Event"
     assert saved_event.details.time == datetime(2025, 1, 1, 12, 0)
-    assert saved_event.users == [123, 456]
+    assert saved_event.yes_users == [101]
+    assert saved_event.maybe_users == [102]
+    assert saved_event.no_users == []
     assert saved_event.guild_id == 789
     assert saved_event.message_id == 111
 
 
 def test_event_reactions_defaults(db):
-    # If your Event requires an _id, specify it:
     details = EventDetails(
         name="Event With Reactions", time=datetime(2030, 5, 5, 10, 0)
     )
@@ -65,63 +66,66 @@ def test_event_reactions_defaults(db):
 
 
 def test_event_required_name(db):
-    """
-    Test that 'name' is required in EventDetails.
-    """
     from mongoengine import ValidationError
 
     details = EventDetails(
-        # missing name
-        time=datetime(2025, 1, 1, 12, 0),
+        # name missing
+        time=datetime(2025, 1, 1, 12, 0)
     )
     event = Event(_id=201, details=details)
 
     with pytest.raises(ValidationError) as excinfo:
         event.save()
+
     assert "Field is required" in str(excinfo.value)
     assert "name" in str(excinfo.value)
 
 
 def test_event_required_time(db):
-    """
-    Test that 'time' is required in EventDetails.
-    """
     from mongoengine import ValidationError
 
     details = EventDetails(
-        name="Event Missing Date"
-        # missing time
+        name="Missing Time"
+        # time missing
     )
     event = Event(_id=202, details=details)
 
     with pytest.raises(ValidationError) as excinfo:
         event.save()
+
     assert "Field is required" in str(excinfo.value)
     assert "time" in str(excinfo.value)
 
 
 def test_add_users_after_creation(db):
-    details = EventDetails(name="Event to Update", time=datetime(2025, 1, 1, 12, 0))
-    event = Event(_id=203, users=[111], guild_id=222, message_id=333, details=details)
+    details = EventDetails(name="Modifiable Event", time=datetime(2025, 1, 1, 12, 0))
+    event = Event(
+        _id=203,
+        yes_users=[111],
+        maybe_users=[],
+        no_users=[],
+        guild_id=222,
+        message_id=333,
+        details=details,
+    )
     event.save()
 
-    event.users.append(444)
+    event.yes_users.append(444)
     event.save()
 
     retrieved = Event.objects(_id=203).first()
-    assert retrieved.users == [111, 444]
+    assert retrieved.yes_users == [111, 444]
 
 
-def test_set_reactions(db):
-    reactions = EventReactions(yes=10, maybe=2, no=1)
+def test_set_reactions_explicitly(db):
+    reactions = EventReactions(yes=5, maybe=3, no=2)
     details = EventDetails(
-        name="Event With Custom Reactions",
-        time=datetime(2030, 6, 6, 12, 0),
-        reactions=reactions,
+        name="Custom Reactions", time=datetime(2031, 6, 6, 15, 0), reactions=reactions
     )
+
     Event(_id=204, details=details).save()
 
     event = Event.objects(_id=204).first()
-    assert event.details.reactions.yes == 10
-    assert event.details.reactions.maybe == 2
-    assert event.details.reactions.no == 1
+    assert event.details.reactions.yes == 5
+    assert event.details.reactions.maybe == 3
+    assert event.details.reactions.no == 2
