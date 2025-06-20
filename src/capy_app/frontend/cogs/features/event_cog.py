@@ -633,7 +633,37 @@ class EventCog(commands.Cog):
         await view.wait()
         try:
             if view.value:  # Confirmed delete
-                # ... (rest of your deletion logic) ...
+                # Remove event from guild's events list
+                guild = db.get_document(Guild, interaction.guild_id)
+                if guild and hasattr(guild, "events") and event._id in guild.events:
+                    guild.events.remove(event._id)
+                    db.update_document(guild, {"events": guild.events})
+                    self.logger.info(
+                        f"Removed event {event._id} from guild {interaction.guild_id}"
+                    )
+
+                # Remove event from users' event lists
+                # Combine all users who had any type of response
+                all_users = set()
+                if hasattr(event, "yes_users"):
+                    all_users.update(event.yes_users)
+                if hasattr(event, "maybe_users"):
+                    all_users.update(event.maybe_users)
+                if hasattr(event, "no_users"):
+                    all_users.update(event.no_users)
+
+                for user_id in all_users:
+                    user = db.get_document(User, user_id)
+                    if user and hasattr(user, "events") and event._id in user.events:
+                        user.events.remove(event._id)
+                        user.save()
+                        self.logger.info(
+                            f"Removed event {event._id} from user {user_id}'s events"
+                        )
+
+                # Delete the event from the database
+                db.delete_document(event)
+                self.logger.info(f"Event {event._id} '{event.details.name}' deleted")
 
                 await message.edit(
                     content=f"Event '{event.details.name}' has been deleted.",
