@@ -17,9 +17,10 @@ from backend.db.documents.user import User
 from backend.db.documents.guild import Guild
 from backend.db.documents.event import Event, EventDetails, EventReactions
 from frontend.interactions.bases.button_base import ConfirmDeleteView
+from frontend.interactions.bases.button_base import ConfirmView
+from frontend.interactions.bases.button_base import EditView
 from frontend.interactions.bases.modal_base import DynamicModalView
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
-from frontend.interactions.bases.button_base import ConfirmView
 
 from .event_config import EVENT_CONFIG
 
@@ -621,161 +622,149 @@ class EventCog(commands.Cog):
         if not event or not message:
             return
 
-        class EditButtonView(discord.ui.View):
-            def __init__(self, cog, event_obj):
-                super().__init__(timeout=120)
-                self.cog = cog
-                self.event = event_obj
+        # Define the edit callback function with access to event and self (cog)
+        async def handle_edit_button(button_interaction: discord.Interaction) -> None:
+            # Create modal configuration with pre-filled values
+            modal_config = self.config["edit_event_modal"].copy()
 
-            @discord.ui.button(label="Edit Event", style=discord.ButtonStyle.primary)
-            async def edit_button(
-                self,
-                button_interaction: discord.Interaction,
-                button: discord.ui.Button,
-            ):
-                # Create modal configuration with pre-filled values
-                modal_config = self.cog.config["edit_event_modal"].copy()
+            # Pre-fill the fields with current event values
+            for field in modal_config["modal"]["fields"]:
+                if field["custom_id"] == "event_name":
+                    field["default"] = event.details.name
+                elif field["custom_id"] == "event_description":
+                    field["default"] = event.details.description
+                elif field["custom_id"] == "event_date":
+                    field["default"] = event.details.time.strftime("%m/%d/%y")
+                elif field["custom_id"] == "event_time":
+                    field["default"] = event.details.time.strftime("%I:%M %p")
+                elif field["custom_id"] == "event_location":
+                    field["default"] = event.details.location
 
-                # Pre-fill the fields with current event values
-                for field in modal_config["modal"]["fields"]:
-                    if field["custom_id"] == "event_name":
-                        field["default"] = self.event.details.name
-                    elif field["custom_id"] == "event_description":
-                        field["default"] = self.event.details.description
-                    elif field["custom_id"] == "event_date":
-                        field["default"] = self.event.details.time.strftime("%m/%d/%y")
-                    elif field["custom_id"] == "event_time":
-                        field["default"] = self.event.details.time.strftime("%I:%M %p")
-                    elif field["custom_id"] == "event_location":
-                        field["default"] = self.event.details.location
+            # Create and show the modal using DynamicModalView
+            modal_view = DynamicModalView(**modal_config)
+            form_data, modal_response = await modal_view.initiate_from_interaction(
+                button_interaction
+            )
 
-                # Create and show the modal using DynamicModalView
-                modal_view = DynamicModalView(**modal_config)
-                form_data, modal_response = await modal_view.initiate_from_interaction(
-                    button_interaction
+            if not form_data:
+                return
+
+            # Validate form data
+            if not self._validate_event_form(form_data):
+                if modal_response:
+                    await modal_response.edit(
+                        content="Invalid event data. Please check the format of date and time fields.",
+                        view=None,
+                    )
+                else:
+                    await button_interaction.followup.send(
+                        "Invalid event data. Please check the format of date and time fields.",
+                        ephemeral=True,
+                    )
+                return
+
+            try:
+                # Prepare the timezone dropdown configuration
+                timezone_config = self.config["timezone_dropdown"].copy()
+                timezone_config.pop("placeholder", None)
+
+                dropdowns = timezone_config.get("dropdowns", [])
+                if isinstance(dropdowns, list):
+                    for dropdown in dropdowns:
+                        if isinstance(dropdown, dict) and "options" in dropdown:
+                            # Get current timezone if possible
+                            current_tz = "US/Eastern"  # Default
+                            if event.details.time.tzinfo:
+                                try:
+                                    current_tz = event.details.time.tzinfo.zone
+                                except AttributeError:
+                                    pass
+
+                            # Clone the options
+                            options = dropdown.pop("options", [])
+                            selections = []
+
+                            # Set the correct default based on current timezone
+                            for option in options:
+                                option_copy = option.copy()
+                                option_copy["default"] = (
+                                    option_copy.get("value") == current_tz
+                                )
+                                selections.append(option_copy)
+
+                            dropdown["selections"] = selections
+                timezone_config["dropdowns"] = dropdowns
+
+                # Get timezone selection with dropdown
+                timezone_view = DynamicDropdownView(**timezone_config)
+                timezone_data, dropdown_message = (
+                    await timezone_view.initiate_from_message(
+                        (
+                            modal_response
+                            if modal_response
+                            else await button_interaction.original_response()
+                        ),
+                        "Please select a timezone for the event:",
+                    )
                 )
 
-                if not form_data:
-                    return
+                # If no timezone selection is returned, try to use current timezone
+                timezone = None
+                if not timezone_data or not timezone_data.get("timezone_selection"):
+                    # Use current timezone if available
+                    if event.details.time.tzinfo:
+                        try:
+                            timezone = event.details.time.tzinfo.zone
+                        except AttributeError:
+                            timezone = "UTC"  # Default fallback
+                else:
+                    timezone = timezone_data.get("timezone_selection", ["UTC"])[0]
 
-                # Validate form data
-                if not self.cog._validate_event_form(form_data):
-                    if modal_response:
-                        await modal_response.edit(
-                            content="Invalid event data. Please check the format of date and time fields.",
-                            view=None,
-                        )
-                    else:
-                        await button_interaction.followup.send(
-                            "Invalid event data. Please check the format of date and time fields.",
-                            ephemeral=True,
-                        )
-                    return
+                # Parse the new date and time with the selected timezone
+                event_time = self.parse_datetime(
+                    form_data["event_date"],
+                    form_data["event_time"],
+                    timezone,
+                )
 
-                try:
-                    # Prepare the timezone dropdown configuration
-                    timezone_config = self.cog.config["timezone_dropdown"].copy()
-                    timezone_config.pop("placeholder", None)
+                # Update the event details
+                event.details.name = form_data["event_name"]
+                event.details.description = form_data["event_description"]
+                event.details.time = event_time
+                event.details.location = form_data["event_location"]
 
-                    dropdowns = timezone_config.get("dropdowns", [])
-                    if isinstance(dropdowns, list):
-                        for dropdown in dropdowns:
-                            if isinstance(dropdown, dict) and "options" in dropdown:
-                                # Get current timezone if possible
-                                current_tz = "US/Eastern"  # Default
-                                if self.event.details.time.tzinfo:
-                                    try:
-                                        current_tz = self.event.details.time.tzinfo.zone
-                                    except AttributeError:
-                                        pass
+                # Save to database
+                db.update_document(
+                    event,
+                    {"details": event.details},
+                )
 
-                                # Clone the options
-                                options = dropdown.pop("options", [])
-                                selections = []
-
-                                # Set the correct default based on current timezone
-                                for option in options:
-                                    option_copy = option.copy()
-                                    option_copy["default"] = (
-                                        option_copy.get("value") == current_tz
-                                    )
-                                    selections.append(option_copy)
-
-                                dropdown["selections"] = selections
-                        timezone_config["dropdowns"] = dropdowns
-
-                    # Get timezone selection with dropdown
-                    timezone_view = DynamicDropdownView(**timezone_config)
-                    timezone_data, dropdown_message = (
-                        await timezone_view.initiate_from_message(
-                            (
-                                modal_response
-                                if modal_response
-                                else await button_interaction.original_response()
-                            ),
-                            "Please select a timezone for the event:",
-                        )
+                success_message = "Event updated successfully!"
+                if dropdown_message:
+                    await dropdown_message.edit(content=success_message, view=None)
+                elif modal_response:
+                    await modal_response.edit(content=success_message, view=None)
+                else:
+                    await button_interaction.followup.send(
+                        content=success_message, ephemeral=True
                     )
 
-                    # If no timezone selection is returned, try to use current timezone
-                    timezone = None
-                    if not timezone_data or not timezone_data.get("timezone_selection"):
-                        # Use current timezone if available
-                        if self.event.details.time.tzinfo:
-                            try:
-                                timezone = self.event.details.time.tzinfo.zone
-                            except AttributeError:
-                                timezone = "US/Eastern"  # Default fallback
-                    else:
-                        timezone = timezone_data.get(
-                            "timezone_selection", ["US/Eastern"]
-                        )[0]
+                # Update the event display
+                await self.show_event_embed(message, event)
 
-                    # Parse the new date and time with the selected timezone
-                    event_time = self.cog.parse_datetime(
-                        form_data["event_date"],
-                        form_data["event_time"],
-                        timezone,
+            except Exception as e:
+                self.logger.error(f"Failed to update event: {e}", exc_info=True)
+                error_message = f"Failed to update event: {str(e)}"
+
+                if modal_response:
+                    await modal_response.edit(content=error_message, view=None)
+                else:
+                    await button_interaction.followup.send(
+                        content=error_message, ephemeral=True
                     )
 
-                    # Update the event details
-                    self.event.details.name = form_data["event_name"]
-                    self.event.details.description = form_data["event_description"]
-                    self.event.details.time = event_time
-                    self.event.details.location = form_data["event_location"]
-
-                    # Save to database
-                    db.update_document(
-                        self.event,
-                        {"details": self.event.details},
-                    )
-
-                    success_message = "Event updated successfully!"
-                    if dropdown_message:
-                        await dropdown_message.edit(content=success_message, view=None)
-                    elif modal_response:
-                        await modal_response.edit(content=success_message, view=None)
-                    else:
-                        await button_interaction.followup.send(
-                            content=success_message, ephemeral=True
-                        )
-
-                    # Update the event display
-                    await self.cog.show_event_embed(message, self.event)
-
-                except Exception as e:
-                    self.cog.logger.error(f"Failed to update event: {e}", exc_info=True)
-                    error_message = f"Failed to update event: {str(e)}"
-
-                    if modal_response:
-                        await modal_response.edit(content=error_message, view=None)
-                    else:
-                        await button_interaction.followup.send(
-                            content=error_message, ephemeral=True
-                        )
-
-        # Send the button view
-        view = EditButtonView(self, event)
+        # Create and send the button view
+        view = EditView(handle_edit_button, ephemeral=True)
         await message.edit(
             content="Click the button below to edit this event:", view=view
         )
