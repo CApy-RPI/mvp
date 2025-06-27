@@ -377,7 +377,11 @@ class EventCog(commands.Cog):
             # Add field for each event
             embed.add_field(
                 name=f"{event.details.name} (ID: {event._id})",
-                value=f"**When:** {localized_time}\n**Where:** {event.details.location}\n**Attendees:** {total_attendees}",
+                value=(
+                    f"**When:** {localized_time}\n"
+                    f"**Where:** {event.details.location}\n"
+                    f"**Attendees:** {total_attendees}"
+                ),
                 inline=False,
             )
 
@@ -698,7 +702,10 @@ class EventCog(commands.Cog):
 
         try:
             await message.edit(  # Edit the message from the dropdown
-                content=f"Are you sure you want to announce the event '{event.details.name}' in the announcements channel?",
+                content=(
+                    f"Are you sure you want to announce the event '{event.details.name}' "
+                    "in the announcements channel?"
+                ),
                 view=view,
                 embed=None,
             )
@@ -782,11 +789,17 @@ class EventCog(commands.Cog):
             )
         except discord.Forbidden:
             self.logger.error(
-                f"Permission error announcing event {event._id} in channel {announcement_channel.id}"
+                (
+                    f"Permission error announcing event {event._id} "
+                    f"in channel {announcement_channel.id}"
+                )
             )
             try:
                 await message.edit(
-                    content="Error: I don't have permission to send messages or add reactions in the announcements channel.",
+                    content=(
+                        "Error: I don't have permission to send messages or add reactions "
+                        "in the announcements channel."
+                    ),
                     view=None,
                     embed=None,  # Clear embed
                 )
@@ -854,7 +867,11 @@ class EventCog(commands.Cog):
             # Add field for each event
             embed.add_field(
                 name=event.details.name,
-                value=f"**When:** {localized_time}\n**Where:** {event.details.location}\n**Your Status:** {status}",
+                value=(
+                    f"**When:** {localized_time}\n"
+                    f"**Where:** {event.details.location}\n"
+                    f"**Your Status:** {status}"
+                ),
                 inline=False,
             )
 
@@ -1036,7 +1053,8 @@ class EventCog(commands.Cog):
             event.save()
             self.logger.info(f"Updated event {event._id} for user {user_id} with 'no' response.")
 
-        # Handle user document updates - a "no" response means removing the event from the user's list
+        # Handle user document updates
+        # A "no" response means removing the event from the user's list
         if hasattr(user, "events") and event._id in user.events:
             user.events.remove(event._id)
             user.save()
@@ -1127,7 +1145,8 @@ class EventCog(commands.Cog):
                     user.events.remove(event._id)
                     user.save()
                     self.logger.info(
-                        f"Removed event {event._id} from user {user_id}'s event list after reaction removal."
+                        f"Removed event {event._id} "
+                        f"from user {user_id}'s event list after reaction removal."
                     )
 
         elif emoji == "❌":
@@ -1152,7 +1171,8 @@ class EventCog(commands.Cog):
                     user.events.remove(event._id)
                     user.save()
                     self.logger.info(
-                        f"Removed event {event._id} from user {user_id}'s event list after maybe reaction removal."
+                        f"Removed event {event._id}"
+                        f"from user {user_id}'s event list after maybe reaction removal."
                     )
 
         # Save the event document if modified
