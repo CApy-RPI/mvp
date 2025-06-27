@@ -27,4 +27,4 @@ no_implicit_reexport = true
 explicit_package_bases = true
 
 [tool.black]
-line-length = 88
+line-length = 100
