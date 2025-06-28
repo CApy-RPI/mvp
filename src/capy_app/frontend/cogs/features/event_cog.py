@@ -611,83 +611,71 @@ class EventCog(commands.Cog):
             return  # Can't proceed if message is gone
 
         await view.wait()
-        try:
-            if view.value:  # Confirmed delete
-                # Remove event from guild's events list
+        if view.value:  # Confirmed delete
+            # Remove event from guild's events list
+            try:
                 guild = db.get_document(Guild, interaction.guild_id)
                 if guild and hasattr(guild, "events") and event._id in guild.events:
                     guild.events.remove(event._id)
                     db.update_document(guild, {"events": guild.events})
                     self.logger.info(f"Removed event {event._id} from guild {interaction.guild_id}")
+            except Exception as e:
+                self.logger.error(f"Error removing event {event._id} from guild: {e}")
 
-                # Remove event from users' event lists
-                # Combine all users who had any type of response
-                all_users = set()
-                if hasattr(event, "yes_users"):
-                    all_users.update(event.yes_users)
-                if hasattr(event, "maybe_users"):
-                    all_users.update(event.maybe_users)
-                if hasattr(event, "no_users"):
-                    all_users.update(event.no_users)
+            # Remove event from users' event lists
+            all_users = set()
+            if hasattr(event, "yes_users"):
+                all_users.update(event.yes_users)
+            if hasattr(event, "maybe_users"):
+                all_users.update(event.maybe_users)
+            if hasattr(event, "no_users"):
+                all_users.update(event.no_users)
 
-                for user_id in all_users:
-                    try:
-                        user = db.get_document(User, user_id)
-                        if user and hasattr(user, "events") and event._id in user.events:
-                            user.events.remove(event._id)
-                            user.save()
-                            self.logger.info(
-                                f"Removed event {event._id} from user {user_id}'s events"
-                            )
-                    except Exception as e:
-                        self.logger.error(
-                            f"Error removing event {event._id} from user {user_id}: {e}"
-                        )
-
-                # Delete the event from the database
+            for user_id in all_users:
                 try:
-                    db.delete_document(event)
-                    self.logger.info(f"Event {event._id} '{event.details.name}' deleted")
+                    user = db.get_document(User, user_id)
+                    if user and hasattr(user, "events") and event._id in user.events:
+                        user.events.remove(event._id)
+                        user.save()
+                        self.logger.info(f"Removed event {event._id} from user {user_id}'s events")
                 except Exception as e:
-                    self.logger.error(f"Error deleting event {event._id}: {e}")
-                    try:
-                        await message.edit(
-                            content=f"Error deleting event '{event.details.name}': {e}",
-                            view=None,
-                            embed=None,
-                        )
-                    except (discord.NotFound, discord.HTTPException):
-                        pass
-                    return
+                    self.logger.error(f"Error removing event {event._id} from user {user_id}: {e}")
 
-                try:
+            # Delete the event from the database
+            delete_error = None
+            try:
+                db.delete_document(event)
+                self.logger.info(f"Event {event._id} '{event.details.name}' deleted")
+            except Exception as e:
+                self.logger.error(f"Error deleting event {event._id}: {e}")
+                delete_error = e
+
+            # Edit message based on delete result
+            try:
+                if delete_error:
+                    await message.edit(
+                        content=f"Error deleting event '{event.details.name}': {delete_error}",
+                        view=None,
+                        embed=None,
+                    )
+                else:
                     await message.edit(
                         content=f"Event '{event.details.name}' has been deleted.",
                         view=None,
                         embed=None,  # Ensure embed is cleared
                     )
-                except (discord.NotFound, discord.HTTPException) as e:
-                    self.logger.warning(f"Failed to edit message after event deletion: {e}")
-            else:  # Cancelled delete
-                try:
-                    await message.edit(
-                        content="Event deletion cancelled.",
-                        view=None,
-                        embed=None,  # Ensure embed is cleared
-                    )
-                except (discord.NotFound, discord.HTTPException) as e:
-                    self.logger.warning(
-                        f"Failed to edit message after event deletion cancelled: {e}"
-                    )
-        except (discord.NotFound, discord.HTTPException) as e:
-            self.logger.warning(f"Failed to edit message after delete confirmation: {e}")
-            # Log deletion status if possible
-            if view.value:
-                self.logger.info(f"Event {event._id} was deleted, but confirmation message failed.")
-            else:
-                self.logger.info(
-                    f"Event {event._id} deletion was cancelled, but cancellation message failed."
+            except (discord.NotFound, discord.HTTPException) as e:
+                self.logger.warning(f"Failed to edit message after event deletion: {e}")
+
+        else:  # Cancelled delete
+            try:
+                await message.edit(
+                    content="Event deletion cancelled.",
+                    view=None,
+                    embed=None,  # Ensure embed is cleared
                 )
+            except (discord.NotFound, discord.HTTPException) as e:
+                self.logger.warning(f"Failed to edit message after event deletion cancelled: {e}")
 
     async def announce_event_selection(self, interaction: discord.Interaction) -> None:
         """Announce a specific event selected from dropdown."""
