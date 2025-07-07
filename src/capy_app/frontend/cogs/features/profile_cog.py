@@ -191,7 +191,7 @@ class ProfileCog(commands.Cog):
         # Verify email if needed using previous message
         if not await self.verify_email(message, profile_data["school_email"], user):
             return
-        
+
         # Create user profile data
         profile_data = {
             "name": UserName(
