@@ -12,6 +12,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+import time
 from config import settings
 from backend.db.database import Database as db
 from backend.db.documents.user import User, UserProfile, UserName
@@ -23,7 +24,15 @@ from .profile_handlers import EmailVerifier
 from .major_handler import MajorHandler
 from .profile_config import PROFILE_CONFIG
 
+class TryAgainView(discord.ui.View):
+    def __init__(self, parent_cog):
+        super().__init__(timeout=60)
+        self.parent_cog = parent_cog
 
+    @discord.ui.button(label="Try Again", style=discord.ButtonStyle.primary)
+    async def retry_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.parent_cog.handle_profile(interaction, "create")
+        
 class ProfileCog(commands.Cog):
     """Profile management cog for handling user profiles."""
 
@@ -79,7 +88,7 @@ class ProfileCog(commands.Cog):
                 await self.delete_profile(interaction)
             elif action == "show":
                 await self.show_profile(interaction)
-
+   
     async def get_profile_data(
         self, interaction: discord.Interaction, action: str, user: User | None
     ) -> tuple[Dict[str, str] | None, discord.Message | None]:
@@ -142,14 +151,6 @@ class ProfileCog(commands.Cog):
         if not values:
             return False
 
-        if not self.email_verifier.verify_code(
-            message.author.id, values["verification_code"]
-        ):
-            await message.edit(content="Invalid verification code!")
-            return False
-        else:
-            return True
-
     async def handle_profile(
         self, interaction: discord.Interaction, action: str
     ) -> None:
@@ -184,14 +185,32 @@ class ProfileCog(commands.Cog):
         if not profile_data or not message:
             self.logger.info(f"Profile {action} cancelled by {interaction.user}")
             return
-
+        trycheck=False
+        content=""
+        if not (profile_data["first_name"].isalpha() and profile_data["last_name"].isalpha()):
+            content+="Names cannot consist of numbers or special characters.\n"
+            trycheck=True
+        if not (profile_data["graduation_year"].isdigit()):
+            content+="Graduation year must be a number.\n"
+            trycheck=True
+        if not (profile_data["student_id"].isdigit()):
+            content+="Student id must be a number.\n"
+            trycheck=True
+        if (profile_data["graduation_year"].isdigit()) and not (int(profile_data["graduation_year"])>2000 and int(profile_data["graduation_year"]) <2100):
+            content+="Graduation year outside of acceptable bounds.\n"
+            trycheck=True
+        if trycheck==True:
+            view = TryAgainView(self)
+            await message.edit(content=content, view=view)
+            return
+            
         # Get major selection with dropdown using previous message
         selected_majors, message = await self.get_majors(message, user)
 
         # Verify email if needed using previous message
         if not await self.verify_email(message, profile_data["school_email"], user):
             return
-        
+
         # Create user profile data
         profile_data = {
             "name": UserName(
