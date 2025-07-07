@@ -154,7 +154,9 @@ class ProfileCog(commands.Cog):
 
         if not values:
             return False
-
+        return self.email_verifier.verify_code(
+            message.author.id, values["verification_code"]
+        )
     async def handle_profile(
         self, interaction: discord.Interaction, action: str
     ) -> None:
@@ -200,7 +202,7 @@ class ProfileCog(commands.Cog):
             content += "Graduation year must be a number.\n"
             trycheck = True
         if not (profile_data["student_id"].isdigit()):
-            content += "Student id must be a number.\n"
+            content += "Student ID must be a number.\n"
             trycheck = True
         if (profile_data["graduation_year"].isdigit()) and not (
             int(profile_data["graduation_year"]) > 2000
