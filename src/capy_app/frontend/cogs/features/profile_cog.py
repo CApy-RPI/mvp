@@ -26,15 +26,15 @@ from .profile_config import PROFILE_CONFIG
 
 
 class TryAgainView(discord.ui.View):
-    def __init__(self, parent_cog):
+    def __init__(self, parent_cog, action):
         super().__init__(timeout=60)
         self.parent_cog = parent_cog
-
+        self.action = action
     @discord.ui.button(label="Try Again", style=discord.ButtonStyle.primary)
     async def retry_button(
         self, interaction: discord.Interaction, button: discord.ui.Button
     ):
-        await self.parent_cog.handle_profile(interaction, "create")
+        await self.parent_cog.handle_profile(interaction, self.action)
 
 
 class ProfileCog(commands.Cog):
@@ -211,7 +211,7 @@ class ProfileCog(commands.Cog):
             content += "Graduation year outside of acceptable bounds.\n"
             trycheck = True
         if trycheck == True:
-            view = TryAgainView(self)
+            view = TryAgainView(self, action)
             await message.edit(content=content, view=view)
             return
 
