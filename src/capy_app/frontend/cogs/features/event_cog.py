@@ -611,6 +611,16 @@ class EventCog(commands.Cog):
             return  # Can't proceed if message is gone
 
         await view.wait()
+        if view.value is None:  # Timed out
+            try:
+                await message.edit(
+                    content="Event deletion timed out.",
+                    view=None,
+                    embed=None,
+                )
+            except (discord.NotFound, discord.HTTPException):
+                pass
+            return
         if view.value:  # Confirmed delete
             # Remove event from guild's events list
             try:
@@ -623,14 +633,11 @@ class EventCog(commands.Cog):
                 self.logger.error(f"Error removing event {event._id} from guild: {e}")
 
             # Remove event from users' event lists
-            all_users = set()
-            if hasattr(event, "yes_users"):
-                all_users.update(event.yes_users)
-            if hasattr(event, "maybe_users"):
-                all_users.update(event.maybe_users)
-            if hasattr(event, "no_users"):
-                all_users.update(event.no_users)
-
+            all_users = (
+                set(getattr(event, "yes_users", []))
+                | set(getattr(event, "maybe_users", []))
+                | set(getattr(event, "no_users", []))
+            )
             for user_id in all_users:
                 try:
                     user = db.get_document(User, user_id)
