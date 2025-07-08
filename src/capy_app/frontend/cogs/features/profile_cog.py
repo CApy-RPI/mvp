@@ -36,6 +36,7 @@ class TryAgainView(discord.ui.View):
         self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         await self.parent_cog.handle_profile(interaction, self.action)
+        self.stop()
 
 
 class ProfileCog(commands.Cog):
