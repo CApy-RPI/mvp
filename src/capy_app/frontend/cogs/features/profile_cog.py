@@ -30,6 +30,7 @@ class TryAgainView(discord.ui.View):
         super().__init__(timeout=60)
         self.parent_cog = parent_cog
         self.action = action
+
     @discord.ui.button(label="Try Again", style=discord.ButtonStyle.primary)
     async def retry_button(
         self, interaction: discord.Interaction, button: discord.ui.Button
@@ -157,6 +158,7 @@ class ProfileCog(commands.Cog):
         return self.email_verifier.verify_code(
             message.author.id, values["verification_code"]
         )
+
     async def handle_profile(
         self, interaction: discord.Interaction, action: str
     ) -> None:
@@ -205,7 +207,7 @@ class ProfileCog(commands.Cog):
             content += "Student ID must be a number.\n"
             trycheck = True
         if (profile_data["graduation_year"].isdigit()) and not (
-            int(profile_data["graduation_year"]) > 2000
+            int(profile_data["graduation_year"]) > 1899
             and int(profile_data["graduation_year"]) < 2100
         ):
             content += "Graduation year outside of acceptable bounds.\n"
