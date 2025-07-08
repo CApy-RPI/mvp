@@ -621,6 +621,7 @@ class EventCog(commands.Cog):
             except (discord.NotFound, discord.HTTPException):
                 pass
             return
+
         if view.value:  # Confirmed delete
             # Remove event from guild's events list
             try:
