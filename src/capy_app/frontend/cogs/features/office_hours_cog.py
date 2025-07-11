@@ -9,11 +9,13 @@ from discord import app_commands
 from typing import Dict, List, Optional
 from frontend.interactions.bases.modal_base import DynamicModalView
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
-from backend.db.documents.guild import Guild, OfficeHours
+from backend.db.documents.guild import Guild
+from backend.db.documents.guild import OfficeHours as GOfficeHours
 from backend.db.database import Database
 from config import settings
 from frontend import config_colors as colors
 from frontend.cogs.features.office_hours_config import PROFILE_CONFIG
+from backend.db.documents.user import User, OfficeHours
 
 # TIME_SLOTS = [
 #     "8:00 AM",
@@ -266,158 +268,124 @@ class OfficeHoursCog(commands.Cog):
         user: Optional[discord.User] = None,
     ):
         """Manage office hours with a single command"""
-        guild = Database.get_document(Guild, interaction.guild_id)
-        if not guild:
-            await interaction.response.send_message(
-                "Error: Guild not configured", ephemeral=True
-            )
-            return
-
         if action == "edit":
-            await self._handle_edit(interaction, guild)
+            await self._handle_edit(interaction)
         elif action == "clear":
-            await self._handle_clear(interaction, guild)
+            await self._handle_clear(interaction)
         elif action in ["show", "announce"]:
             await self._handle_display(
-                interaction,
-                guild,
-                user or interaction.user,
-                is_announcement=(action == "announce"),
+                interaction, user or interaction.user, is_announcement=(action == "announce")
             )
 
-    async def _handle_edit(self, interaction: discord.Interaction, guild: Guild):
+    async def _handle_edit(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
-        existing_schedule = None
 
-        if guild.office_hours:
-            existing = next(
-                (oh for oh in guild.office_hours if oh.name == user_id), None
-            )
-            if existing:
-                existing_schedule = existing.schedule
+        # 1) Load existing schedule from User (if they have one)
+        existing: Dict[str, List[str]] = {}
+        user_doc = Database.get_document(User, int(user_id))
+        if user_doc and user_doc.office_hours:
+            for d in ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]:
+                existing[d] = list(getattr(user_doc.office_hours, d))
 
-        modal_config = PROFILE_CONFIG.get("office_hour_modal")
-        if not modal_config:
-            self.logger.error("Office hour modal config not found")
-            await interaction.response.send_message(
-                "Configuration error: cannot find office hours modal.", ephemeral=True
-            )
-            return
+        # 2) Prepare modal field halves
+        modal_cfg = PROFILE_CONFIG["office_hour_modal"]["modal"]
+        fields = modal_cfg["fields"]
+        part1, part2 = fields[:5], fields[5:]
 
-        full_fields = modal_config.get("modal", {}).get("fields", [])
-        if not full_fields:
-            self.logger.error("Office hour modal fields missing")
-            await interaction.response.send_message(
-                "Configuration error: office hours fields missing.", ephemeral=True
-            )
-            return
-
-        split_index = min(5, len(full_fields))
-        fields_part1 = full_fields[:split_index]
-        fields_part2 = full_fields[split_index:]
-
-        # First modal
-        config1 = {
-            "ephemeral": modal_config.get("ephemeral", True),
-            "modal": {
-                "title": modal_config.get("modal", {}).get("title", "Office Hours") + " (1/2)",
-                "fields": fields_part1,
+        # 3) Show first modal (Mon–Fri)
+        m1 = DynamicModalView(
+            ephemeral=True,
+            modal={
+                "title": modal_cfg["title"] + " (1/2)",
+                "fields": part1,
             },
-        }
-        modal1 = DynamicModalView(**config1)
-        if existing_schedule:
-            for child in modal1._modal.children:
-                cid = getattr(child, 'custom_id', None)
-                if cid and cid.endswith('_hours'):
-                    day = cid[:-6]
-                    times = existing_schedule.get(day, [])
-                    if times:
-                        child.default = ", ".join(times)
-        try:
-            values1, msg = await modal1.initiate_from_interaction(interaction)
-        except Exception as e:
-            self.logger.error(f"Error initiating first office hours modal: {e}")
-            return
-        if not values1:
-            self.logger.info(f"Office hours edit cancelled by {interaction.user} at part 1")
-            return
-        self.logger.info(f"Values1 collected for {user_id}: {values1}")
+        )
+        # Prefill if we have existing values
+        if existing:
+            for item in m1._modal.children:
+                cid = getattr(item, "custom_id", "")
+                day = cid[:-6]
+                if day in existing and existing[day]:
+                    item.default = ", ".join(existing[day])
 
-        # If no second part
-        if not fields_part2:
-            await self._finalize_schedule(interaction, guild, user_id, values1)
+        vals1, _ = await m1.initiate_from_interaction(interaction)
+        if not vals1:
+            return  # user cancelled
+
+        # 4) If no Saturday/Sunday fields, finish now
+        if not part2:
+            await self._finish(interaction, user_id, vals1)
             return
 
-        self._pending_schedules[user_id] = values1
+        # 5) Otherwise, set up second modal behind a Continue button
+        m2 = DynamicModalView(
+            ephemeral=True,
+            modal={
+                "title": modal_cfg["title"] + " (2/2)",
+                "fields": part2,
+            },
+        )
 
-        # Define ContinueView
         class ContinueView(discord.ui.View):
-            def __init__(self, outer: OfficeHoursCog, modal2: DynamicModalView, guild_ref: Guild, user_id_ref: str):
+            def __init__(self, interim: Dict[str,str], outer: OfficeHoursCog):
                 super().__init__(timeout=120)
+                self.interim = interim
                 self.outer = outer
-                self.modal2 = modal2
-                self.guild_ref = guild_ref
-                self.user_id_ref = user_id_ref
 
             @discord.ui.button(label="Continue to Saturday/Sunday", style=discord.ButtonStyle.primary)
-            async def continue_callback(self, button_interaction: discord.Interaction, button: discord.ui.Button):
-                existing = None
-                if self.guild_ref.office_hours:
-                    existing = next((oh for oh in self.guild_ref.office_hours if oh.name == self.user_id_ref), None)
-                if existing:
-                    for child in self.modal2._modal.children:
-                        cid = getattr(child, 'custom_id', None)
-                        if cid and cid.endswith('_hours'):
-                            day = cid[:-6]
-                            times = existing.schedule.get(day, [])
-                            if times:
-                                child.default = ", ".join(times)
-                try:
-                    values2, _ = await self.modal2.initiate_from_interaction(button_interaction)
-                except Exception as e:
-                    self.outer.logger.error(f"Error initiating second office hours modal: {e}")
-                    await button_interaction.response.send_message("Error collecting Saturday/Sunday.", ephemeral=True)
-                    return
-                if not values2:
-                    self.outer.logger.info(f"Office hours edit cancelled by {button_interaction.user} at part 2")
-                    await button_interaction.response.send_message("Office hours update cancelled.", ephemeral=True)
-                    self.outer._pending_schedules.pop(self.user_id_ref, None)
-                    return
-                interim = self.outer._pending_schedules.pop(self.user_id_ref, {})
-                combined = {**interim, **values2}
-                self.outer.logger.info(f"Values2 collected for {self.user_id_ref}: {values2}")
-                await self.outer._finalize_schedule(button_interaction, self.guild_ref, self.user_id_ref, combined)
-                button.disabled = True
+            async def cont(self, button_inter: discord.Interaction, btn: discord.ui.Button):
+                vals2, _ = await m2.initiate_from_interaction(button_inter)
+                if not vals2:
+                    return  # cancelled
+                combined = {**self.interim, **vals2}
+                await self.outer._finish(button_inter, user_id, combined)
+                btn.disabled = True
                 self.stop()
-                # Edit to disable button
                 try:
-                    await button_interaction.edit_original_response(view=self)
+                    await button_inter.edit_original_response(view=self)
                 except:
                     pass
 
-        config2 = {
-            "ephemeral": modal_config.get("ephemeral", True),
-            "modal": {
-                "title": modal_config.get("modal", {}).get("title", "Office Hours") + " (2/2)",
-                "fields": fields_part2,
-            },
-        }
-        modal2 = DynamicModalView(**config2)
+        view = ContinueView(vals1, self)
+        await interaction.followup.send(
+            "Your Mon–Fri hours are saved! Click below to enter Sat & Sun:",
+            ephemeral=True,
+            view=view,
+        )
+        
+    async def _finish(self, interaction: discord.Interaction, user_id: str, vals: Dict[str, str]):
+        # Parse the raw modal values into a schedule dict
+        schedule: Dict[str, List[str]] = {}
+        for cid, txt in vals.items():
+            if not cid.endswith("_hours"):
+                continue
+            day = cid[:-6].lower()  # strip "_hours"
+            schedule[day] = [p.strip() for p in txt.split(",") if p.strip()]
+        # Ensure every weekday has an entry
+        for d in ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]:
+            schedule.setdefault(d, [])
 
-        try:
-            await interaction.followup.send(
-                content="First part received. Click below to continue to Saturday/Sunday:",
-                ephemeral=True,
-                view=ContinueView(self, modal2, guild, user_id),
-            )
-        except Exception:
+        # Persist to the User.office_hours embedded document
+        user_doc = Database.get_document(User, int(user_id))
+        if not user_doc:
             await interaction.response.send_message(
-                content="First part received. Click below to continue to Saturday/Sunday:",
+                "You need to create a profile first with `/profile create`.",
                 ephemeral=True,
-                view=ContinueView(self, modal2, guild, user_id),
             )
+            return
 
-    async def _finalize_schedule(self, interaction: discord.Interaction, guild: Guild, user_id: str, collected_values: Dict[str, str]):
+        user_doc.office_hours = OfficeHours(**schedule)
+        Database.update_document(user_doc, {"office_hours": user_doc.office_hours})
+
+        # Finally, send the confirmation embed
+        embed = self.generate_office_hours_embed(interaction.user, schedule)
+        try:
+            await interaction.followup.send("Office hours set!", embed=embed, ephemeral=True)
+        except:
+            await interaction.response.send_message("Office hours set!", embed=embed, ephemeral=True)
+
+    async def _finalize_schedule(self, interaction: discord.Interaction, user_id: str, collected_values: Dict[str, str]):
+        # Parse and persist
         schedule: Dict[str, List[str]] = {}
         for field_id, text in collected_values.items():
             if not field_id.endswith('_hours'):
@@ -430,12 +398,33 @@ class OfficeHoursCog(commands.Cog):
                 schedule[day] = []
         for day in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]:
             schedule.setdefault(day, [])
-        self.logger.info(f"Final schedule for {user_id}: {schedule}")
-        if guild.office_hours:
-            guild.office_hours = [oh for oh in guild.office_hours if oh.name != user_id]
-        guild.office_hours.append(OfficeHours(name=user_id, schedule=schedule))
-        Database.update_document(guild, {"office_hours": guild.office_hours})
-        embed = self.generate_office_hours_embed(interaction.user, schedule)
+        self.logger.info(f"Parsed schedule for {user_id}: {schedule}")
+
+        # Fetch fresh guild, update
+        # Load the User document for this user
+        user_doc = Database.get_document(User, int(user_id))
+        if not user_doc:
+            # Don’t auto‑create—require an existing profile
+            await interaction.response.send_message(
+                    "You need to create a user profile first with `/profile create`.",
+                    ephemeral=True,
+            )
+            return
+
+        # Assign the new office_hours embedded doc
+        user_doc.office_hours = OfficeHours(**schedule)
+
+        # Persist directly to the User
+        Database.update_document(user_doc, {"office_hours": user_doc.office_hours})
+        # Re-fetch to confirm
+        fresh_guild = Database.get_document(Guild, interaction.guild_id)
+        entry = next((oh for oh in fresh_guild.office_hours if oh.name == user_id), None)
+        if entry:
+            self.logger.info(f"After DB write, fetched schedule: {entry.schedule}")
+            embed = self.generate_office_hours_embed(interaction.user, entry.schedule)
+        else:
+            self.logger.error(f"After DB write, no entry found for user {user_id}")
+            embed = self.generate_office_hours_embed(interaction.user, schedule)
         try:
             await interaction.followup.send(
                 content="Office hours schedule set!", embed=embed, ephemeral=True
@@ -447,6 +436,7 @@ class OfficeHoursCog(commands.Cog):
 
     async def _handle_clear(self, interaction: discord.Interaction, guild: Guild):
         user_id = str(interaction.user.id)
+        guild = Database.get_document(Guild, interaction.guild_id)
         if guild.office_hours:
             guild.office_hours = [oh for oh in guild.office_hours if oh.name != user_id]
             Database.update_document(guild, {"office_hours": guild.office_hours})
@@ -461,38 +451,20 @@ class OfficeHoursCog(commands.Cog):
     async def _handle_display(
         self,
         interaction: discord.Interaction,
-        guild: Guild,
         user: discord.User,
         is_announcement: bool = False,
     ):
-        if not guild.office_hours:
-            await interaction.response.send_message(
-                "No office hours schedules found", ephemeral=True
-            )
-            return
-
-        if is_announcement:
-            embed = self.generate_weekly_schedule_embed(guild.office_hours)
-            await interaction.response.send_message(embed=embed, ephemeral=False)
-            return
-
-        user_id = str(user.id)
-        schedule_entry = next(
-            (oh for oh in guild.office_hours if oh.name == user_id),
-            None,
-        )
-
-        if not schedule_entry:
-            msg = (
-                "You don't have any office hours set"
-                if user == interaction.user
-                else f"{user.display_name} doesn't have any office hours set"
-            )
+        user_doc = Database.get_document(User, user.id)
+        if not user_doc or not getattr(user_doc, 'office_hours', None):
+            msg = "You don't have any office hours set"
             await interaction.response.send_message(msg, ephemeral=True)
             return
-
-        embed = self.generate_office_hours_embed(user, schedule_entry.schedule)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        oh = user_doc.office_hours
+        schedule = {day: list(getattr(oh, day)) for day in [
+            "monday","tuesday","wednesday","thursday","friday","saturday","sunday"
+        ]}
+        embed = self.generate_office_hours_embed(user, schedule)
+        await interaction.response.send_message(embed=embed, ephemeral=not is_announcement)
 
     def generate_office_hours_embed(
         self, user: discord.User, schedule: Dict[str, List[str]]
@@ -500,50 +472,30 @@ class OfficeHoursCog(commands.Cog):
         embed = discord.Embed(
             title=f"Office Hours - {user.display_name}", color=colors.STATUS_SUCCESS
         )
-
-        for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
+        for day in ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]:
             times = schedule.get(day.lower(), [])
-            if times:
-                embed.add_field(name=day, value="\n".join(times), inline=True)
-            else:
-                embed.add_field(name=day, value="No office hours", inline=True)
-
+            embed.add_field(name=day, value="\n".join(times) if times else "No office hours", inline=True)
         return embed
 
     def generate_weekly_schedule_embed(
-        self, schedules: List[OfficeHours]
+        self, schedules: List[GOfficeHours]
     ) -> discord.Embed:
-        """Generate a combined weekly schedule showing all office hours."""
         embed = discord.Embed(
             title="Weekly Office Hours Schedule", color=colors.STATUS_SUCCESS
         )
-
-        days = [
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-            "Sunday",
-        ]
-
+        days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
         for day in days:
-            daily_schedule = []
+            daily = []
             for oh in schedules:
                 times = oh.schedule.get(day.lower(), [])
                 if times:
                     try:
                         member = self.bot.get_user(int(oh.name))
                         name = member.display_name if member else f"User{oh.name}"
-                    except (ValueError, AttributeError):
+                    except:
                         name = f"User{oh.name}"
-                    times_str = ", ".join(times)
-                    daily_schedule.append(f"• **{name}**: {times_str}")
-
-            value = "\n".join(daily_schedule) if daily_schedule else "No office hours"
-            embed.add_field(name=day, value=value, inline=False)
-
+                    daily.append(f"• **{name}**: {', '.join(times)}")
+            embed.add_field(name=day, value="\n".join(daily) if daily else "No office hours", inline=False)
         return embed
 
 
