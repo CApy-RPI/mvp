@@ -20,7 +20,71 @@ from config import settings
 logger = logging.getLogger(f"discord.interactions.{__name__.lower()}")
 logger.setLevel(settings.LOG_LEVEL)
 
+class RightButton(Button["DynamicDropdownView"]):
+    """Button that goes to the next page of the dropdown"""
+    def __init__(self) -> None:
+        super().__init__(
+            style=ButtonStyle.blurple,
+            label=">",
+            custom_id="right",
+            row=4,  # Put buttons on the last row
+        )
+    async def callback(self, interaction: Interaction) -> None:
+        """Handle accept button click."""
+        assert self.view is not None
+        logger.debug("Right button clicked")
+        old_view: DynamicDropdownView = cast(DynamicDropdownView, self.view)
+        next_page = old_view.page_number + 1
 
+        if next_page >= len(old_view._dropdowns_data):
+            logger.debug("Already on last page")
+            return await interaction.response.defer()
+
+        new_view = DynamicDropdownView(
+            dropdowns=old_view._dropdowns_data,
+            page_number=next_page,
+            ephemeral=old_view._ephemeral,
+            auto_buttons=old_view._auto_buttons,
+            add_buttons=old_view._add_buttons,
+        )
+        new_view._message = old_view._message  # Maintain message reference
+        
+        await interaction.response.edit_message(view=new_view)
+        
+        
+class LeftButton(Button["DynamicDropdownView"]):
+    def __init__(self) -> None:
+        super().__init__(
+            style=ButtonStyle.blurple,
+            label="<",
+            custom_id="left",
+            row=4,
+        )
+
+    async def callback(self, interaction: Interaction) -> None:
+        assert self.view is not None
+        logger.debug("Left button clicked")
+
+        old_view: DynamicDropdownView = cast(DynamicDropdownView, self.view)
+        prev_page = old_view.page_number - 1
+
+        if prev_page < 0:
+            logger.debug("Already on first page")
+            return await interaction.response.defer()
+
+        new_view = DynamicDropdownView(
+            dropdowns=old_view._dropdowns_data,
+            page_number=prev_page,
+            ephemeral=old_view._ephemeral,
+            auto_buttons=old_view._auto_buttons,
+            add_buttons=old_view._add_buttons,
+        )
+        new_view._message = old_view._message
+
+        await interaction.response.edit_message(view=new_view)
+       
+
+                
 class AcceptButton(Button["DynamicDropdownView"]):
     """Button that confirms selections and stops the view."""
 
@@ -129,6 +193,7 @@ class DynamicDropdownView(View):
     def __init__(
         self,
         dropdowns: Optional[List[Dict[str, Any]]] = None,
+        page_number: int = 0,
         ephemeral: bool = True,
         auto_buttons: bool = True,
         add_buttons: bool = False,
@@ -142,7 +207,8 @@ class DynamicDropdownView(View):
         """
         super().__init__(**options)
         self.accepted: bool = False
-
+        self.page_number = page_number
+        self._dropdowns_data = dropdowns or []
         self._dropdowns: List[DynamicDropdown] = []
         self._completed: bool = False
         self._timed_out: bool = False
@@ -162,8 +228,11 @@ class DynamicDropdownView(View):
                 f"Number of dropdowns exceeds Discord limit of {self.MAX_DROPDOWNS}. "
             )
 
-        for dropdown in dropdowns:
-            self._add_dropdown(**dropdown)
+        #for dropdown in dropdowns:
+         #   self._add_dropdown(**dropdown)
+        self._clear_dropdown()
+        self._add_dropdown(**dropdowns[self.page_number])
+        self._add_accept_cancel_buttons_if_needed()
 
     async def initiate_from_interaction(
         self,
@@ -213,7 +282,16 @@ class DynamicDropdownView(View):
         self._dropdowns.append(dropdown)
         self.add_item(dropdown)
         return dropdown
-
+    
+    def _clear_dropdown(
+        self,
+        **options,
+    ) -> DynamicDropdown:
+       
+        for dropdown in self._dropdowns:
+            self.remove_item(dropdown)
+        self._dropdowns.clear()
+        
     def _add_accept_cancel_buttons_if_needed(self) -> None:
         """Adds accept and cancel buttons to the view."""
         if self._has_buttons:
@@ -224,9 +302,14 @@ class DynamicDropdownView(View):
             not self._auto_buttons or len(self._dropdowns) == 1
         ):
             return
-
+       
+        if self.page_number>0:
+            self.add_item(LeftButton())   
         self.add_item(AcceptButton())
         self.add_item(CancelButton())
+        if self.page_number<len(self._dropdowns_data)-1:
+            self.add_item(RightButton())
+       
         self._has_buttons = True
 
     async def _get_data(self) -> Tuple[Dict[str, List[str]] | None, Message | None]:
@@ -245,7 +328,7 @@ class DynamicDropdownView(View):
         selections = {
             dropdown.custom_id: dropdown.selected_values
             for dropdown in self._dropdowns
-            if dropdown.selected_values
+            if dropdown.selected_values 
         }
 
         logger.debug(
