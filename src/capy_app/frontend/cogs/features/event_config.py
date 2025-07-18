@@ -51,7 +51,7 @@ EVENT_CONFIG = {
     "announce_message": {
         "title": "Event Announcement",
         "color": 0x9B59B6,  # Purple
-        "footer": "React with ✅ to attend, ❌ to decline, or ❔ for maybe."
+        "footer": "React with ✅ to attend, ❌ to decline, or ❔ for maybe.",
     },
     "timezone_dropdown": {
         "ephemeral": True,
@@ -76,42 +76,42 @@ EVENT_CONFIG = {
         ],
     },
     "edit_event_modal": {
-    "ephemeral": True,
-    "modal": {
-        "title": "Edit Event Information",
-        "fields": [
-            {
-                "label": "Event Name",
-                "placeholder": "Enter the event name",
-                "required": True,
-                "custom_id": "event_name",
-            },
-            {
-                "label": "Event Description",
-                "placeholder": "Enter event description",
-                "required": True,
-                "custom_id": "event_description",
-                "style": TextStyle.paragraph,
-            },
-            {
-                "label": "Event Date",
-                "placeholder": "MM/DD/YY (e.g., 05/15/25)",
-                "required": True,
-                "custom_id": "event_date",
-            },
-            {
-                "label": "Event Time",
-                "placeholder": "HH:MM AM/PM (e.g., 03:30 PM)",
-                "required": True,
-                "custom_id": "event_time",
-            },
-            {
-                "label": "Event Location",
-                "placeholder": "Enter the event location",
-                "required": True,
-                "custom_id": "event_location",
-            },
-        ],
+        "ephemeral": True,
+        "modal": {
+            "title": "Edit Event Information",
+            "fields": [
+                {
+                    "label": "Event Name",
+                    "placeholder": "Enter the event name",
+                    "required": True,
+                    "custom_id": "event_name",
+                },
+                {
+                    "label": "Event Description",
+                    "placeholder": "Enter event description",
+                    "required": True,
+                    "custom_id": "event_description",
+                    "style": TextStyle.paragraph,
+                },
+                {
+                    "label": "Event Date",
+                    "placeholder": "MM/DD/YY (e.g., 05/15/25)",
+                    "required": True,
+                    "custom_id": "event_date",
+                },
+                {
+                    "label": "Event Time",
+                    "placeholder": "HH:MM AM/PM (e.g., 03:30 PM)",
+                    "required": True,
+                    "custom_id": "event_time",
+                },
+                {
+                    "label": "Event Location",
+                    "placeholder": "Enter the event location",
+                    "required": True,
+                    "custom_id": "event_location",
+                },
+            ],
+        },
     },
-},
 }
