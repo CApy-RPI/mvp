@@ -12,6 +12,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+import time
 from config import settings
 from backend.db.database import Database as db
 from backend.db.documents.user import User, UserProfile, UserName
@@ -22,6 +23,20 @@ from frontend.interactions.bases.modal_base import ButtonDynamicModalView
 from .profile_handlers import EmailVerifier
 from .major_handler import MajorHandler
 from .profile_config import PROFILE_CONFIG
+
+
+class TryAgainView(discord.ui.View):
+    def __init__(self, parent_cog, action):
+        super().__init__(timeout=60)
+        self.parent_cog = parent_cog
+        self.action = action
+
+    @discord.ui.button(label="Try Again", style=discord.ButtonStyle.primary)
+    async def retry_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        await self.parent_cog.handle_profile(interaction, self.action)
+        self.stop()
 
 
 class ProfileCog(commands.Cog):
@@ -159,7 +174,7 @@ class ProfileCog(commands.Cog):
             values, message = await verify_view.initiate_from_message(
                 message, prompt=prompt_msg
             )
-
+            
             # User closed the modal or it timed-out
             if not values:
                 return False
@@ -213,6 +228,29 @@ class ProfileCog(commands.Cog):
         profile_data, message = await self.get_profile_data(interaction, action, user)
         if not profile_data or not message:
             self.logger.info(f"Profile {action} cancelled by {interaction.user}")
+            return
+        trycheck = False
+        content = ""
+        if not (
+            profile_data["first_name"].isalpha() and profile_data["last_name"].isalpha()
+        ):
+            content += "Names cannot consist of numbers or special characters.\n"
+            trycheck = True
+        if not (profile_data["graduation_year"].isdigit()):
+            content += "Graduation year must be a number.\n"
+            trycheck = True
+        if not (profile_data["student_id"].isdigit()):
+            content += "Student ID must be a number.\n"
+            trycheck = True
+        if (profile_data["graduation_year"].isdigit()) and not (
+            int(profile_data["graduation_year"]) > 1899
+            and int(profile_data["graduation_year"]) < 2100
+        ):
+            content += "Graduation year outside of acceptable bounds.\n"
+            trycheck = True
+        if trycheck == True:
+            view = TryAgainView(self, action)
+            await message.edit(content=content, view=view)
             return
 
         # Get major selection with dropdown using previous message
