@@ -1,7 +1,3 @@
-# mypy: ignore-errors
-# flake8: noqa
-# TODO Remove on rewrite ^
-
 """Message purging functionality for server management.
 
 This module provides commands for bulk message deletion with various modes.
@@ -76,9 +72,7 @@ class PurgeModeView(discord.ui.View):
             self.mode = self.mode_select.values[0]
             if self.mode == "count":
                 modal = discord.ui.Modal(title="Enter Count")
-                text_input = discord.ui.TextInput(
-                    label="Number of messages", placeholder="10"
-                )
+                text_input = discord.ui.TextInput(label="Number of messages", placeholder="10")
                 modal.add_item(text_input)
 
                 async def count_callback(interaction: discord.Interaction) -> None:
@@ -136,9 +130,7 @@ class PurgeModeView(discord.ui.View):
 class PurgeCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.logger = logging.getLogger(
-            f"discord.cog.{self.__class__.__name__.lower()}"
-        )
+        self.logger = logging.getLogger(f"discord.cog.{self.__class__.__name__.lower()}")
 
     def parse_duration(self, duration: str) -> timedelta | None:
         """Parse duration string into timedelta. Format: 1d2h3m"""
@@ -191,15 +183,11 @@ class PurgeCog(commands.Cog):
     @app_commands.checks.has_permissions(manage_messages=True)
     async def purge(self, interaction: discord.Interaction) -> None:
         view = PurgeModeView()
-        await interaction.response.send_message(
-            "Select purge mode:", view=view, ephemeral=True
-        )
+        await interaction.response.send_message("Select purge mode:", view=view, ephemeral=True)
 
         await view.wait()
         if not view.mode or not view.value:
-            await interaction.followup.send(
-                "Purge cancelled or timed out.", ephemeral=True
-            )
+            await interaction.followup.send("Purge cancelled or timed out.", ephemeral=True)
             return
 
         try:
@@ -217,11 +205,7 @@ class PurgeCog(commands.Cog):
                         view.value, interaction.channel
                     )
 
-            embed = (
-                success_embed("Purge", message)
-                if success
-                else error_embed("Error", message)
-            )
+            embed = success_embed("Purge", message) if success else error_embed("Error", message)
             await interaction.followup.send(embed=embed, ephemeral=True)
 
             if success:
@@ -231,9 +215,7 @@ class PurgeCog(commands.Cog):
 
         except discord.Forbidden:
             await interaction.followup.send(
-                embed=error_embed(
-                    "Error", "I don't have permission to delete messages"
-                ),
+                embed=error_embed("Error", "I don't have permission to delete messages"),
                 ephemeral=True,
             )
         except Exception as e:

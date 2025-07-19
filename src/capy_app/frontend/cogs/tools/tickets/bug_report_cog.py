@@ -1,34 +1,34 @@
-
 from discord.ext import commands
 from discord import TextStyle, ButtonStyle
 
 from config import settings
-from frontend.cogs.developers.ticket_base import TicketBase
+from .ticket_base import TicketBase
 from frontend.config_colors import STATUS_ERROR, STATUS_IMPORTANT, STATUS_RESOLVED, STATUS_IGNORED
 
 
-class NewBugReportCog(TicketBase):
+class BugReportCog(TicketBase):
     def __init__(self, bot: commands.Bot) -> None:
-        super().__init__(bot,
-                         {
-                             "⭐": "Important",
-                             "✅": "Resolved",
-                             "❌": "Ignored",
-                             "🔄": "Unmarked",
-                         },
-                         "bug",
-                         "Bug report",
-                         "🐛",
-                         "Report a bug in the bot",
-                         settings.TICKET_BUG_REPORT_CHANNEL_ID,
-                         STATUS_ERROR,
-                         {
-                             "Important": STATUS_IMPORTANT,
-                             "Resolved": STATUS_RESOLVED,
-                             "Ignored": STATUS_IGNORED,
-                         },
-                         " ⭐ Important • ✅ Resolve • ❌ Ignore • 🔄 Reset"
-                         )
+        super().__init__(
+            bot,
+            {
+                "⭐": "Important",
+                "✅": "Resolved",
+                "❌": "Ignored",
+                "🔄": "Unmarked",
+            },
+            "bug",
+            "Bug report",
+            "🐛",
+            "Report a bug in the bot",
+            settings.TICKET_BUG_REPORT_CHANNEL_ID,
+            STATUS_ERROR,
+            {
+                "Important": STATUS_IMPORTANT,
+                "Resolved": STATUS_RESOLVED,
+                "Ignored": STATUS_IGNORED,
+            },
+            " ⭐ Important • ✅ Resolve • ❌ Ignore • 🔄 Reset",
+        )
 
         self.MODAL_CONFIGS = {
             "button_modal": {
@@ -60,4 +60,4 @@ class NewBugReportCog(TicketBase):
 
 
 async def setup(bot: commands.Bot):
-    await bot.add_cog(NewBugReportCog(bot))
+    await bot.add_cog(BugReportCog(bot))

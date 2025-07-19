@@ -1,10 +1,9 @@
-# mypy: disable-error-code="union-attr"
-# TODO this ^ exists because mypy doesn't check for explicit typechecking of subclasses, I don't know a better way to do it.
 from typing import Dict, Any
 
 import discord
 from discord.ext import commands
 from discord import app_commands, TextChannel
+from discord import Color
 
 import logging
 
@@ -26,8 +25,8 @@ class TicketBase(commands.Cog):
                  cmd_emoji: str,
                  description,
                  request_channel_id,
-                 unmarked_color,
-                 marked_colors,
+                 unmarked_color: Color,
+                 marked_colors: Dict[str, Color],
                  reaction_footer) -> None:
         self.bot = bot
         self.logger = logging.getLogger(
@@ -152,9 +151,9 @@ class TicketBase(commands.Cog):
         status = self.status_emoji[emoji]
 
         if status == "Unmarked":
-            embed.color = self.unmarked_color
+            embed.colour = self.unmarked_color
         else:
-            embed.color = self.marked_colors[status]
+            embed.colour = self.marked_colors[status]
 
         embed.set_footer(
             text=f"Status: {status} | {self.reaction_footer}"
