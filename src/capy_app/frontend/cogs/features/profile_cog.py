@@ -136,20 +136,49 @@ class ProfileCog(commands.Cog):
             await message.edit(content="Failed to send verification email.")
             return False
 
-        verify_view = ButtonDynamicModalView(**self.config["verify_modal"])
-        values, _ = await verify_view.initiate_from_message(message)
+        max_attempts = 5
+        attempt = 0
 
-        if not values:
-            return False
+        # Base prompt from config for first attempt
+        base_prompt: str | None = self.config["verify_modal"].get("message_prompt")
 
-        is_valid = self.email_verifier.verify_code(
-            message.author.id, values["verification_code"]
+        while attempt < max_attempts:
+            # Create a fresh view each attempt to avoid state conflicts
+            verify_view = ButtonDynamicModalView(**self.config["verify_modal"])
+
+            # Custom prompt for retries after the first failed attempt
+            if attempt == 0:
+                prompt_msg = base_prompt
+            else:
+                remaining = max_attempts - attempt
+                prompt_msg = (
+                    f"❌ Incorrect verification code. You have {remaining} attempt{'s' if remaining != 1 else ''} left.\n"
+                    "Click below to try again:"
+                )
+
+            values, message = await verify_view.initiate_from_message(
+                message, prompt=prompt_msg
+            )
+
+            # User closed the modal or it timed-out
+            if not values:
+                return False
+
+            is_valid = self.email_verifier.verify_code(
+                message.author.id, values["verification_code"]
+            )
+
+            if is_valid:
+                return True
+
+            attempt += 1
+
+        # Exhausted attempts – inform the user and fail validation
+        await message.edit(
+            content="❌ Too many incorrect verification attempts. Verification failed.",
+            view=None,
         )
-
-        if not is_valid:
-            await message.edit(content="Incorrect verification code.")
-
-        return is_valid
+        return False
 
     async def handle_profile(
         self, interaction: discord.Interaction, action: str
