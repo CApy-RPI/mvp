@@ -9,7 +9,7 @@ and sending verification emails to users.
 #! Email verification is critical for security
 """
 
-import random
+import secrets
 import typing
 
 from backend.modules.email import Email
@@ -33,7 +33,7 @@ class EmailVerifier:
         Returns:
             str: The generated verification code
         """
-        code = "".join(str(random.randint(0, 9)) for _ in range(6))
+        code = "".join(str(secrets.randbelow(10)) for _ in range(6))
         self._codes[user_id] = (code, email)
         return code
 
@@ -50,7 +50,7 @@ class EmailVerifier:
         if user_id not in self._codes:
             return False
         stored_code, _ = self._codes[user_id]
-        is_valid = code == stored_code
+        is_valid = secrets.compare_digest(code, stored_code)
         if is_valid:
             del self._codes[user_id]
         return is_valid
