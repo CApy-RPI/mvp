@@ -5,6 +5,7 @@
 """Profile management cog for handling user profiles."""
 
 import logging
+import time
 from typing import Union, Dict
 from pathlib import Path
 
@@ -130,6 +131,10 @@ class ProfileCog(commands.Cog):
         for dropdown_id in values:
             selected.extend(values[dropdown_id])
 
+        if len(selected) > 2:
+            await message.edit(content="You can only select up to 2 majors.", view=10)
+            return ["Not Set"], message  # Limit to max 2 majors total
+
         # TODO Check if more than 2-3 majors and warn
 
         return selected, message  # Limit to max 2 majors total
@@ -254,7 +259,17 @@ class ProfileCog(commands.Cog):
             return
 
         # Get major selection with dropdown using previous message
-        selected_majors, message = await self.get_majors(message, user)
+        while True:
+            try:
+                selected_majors, message = await self.get_majors(message, user)
+                if selected_majors != ["Not Set"]:
+                    break
+
+                await message.edit(content="⚠️ Please select 1 or 2 majors.")
+                time.sleep(1)
+            except Exception as e:
+                await message.edit(content="⚠️ Please select 1 or 2 majors.")
+                time.sleep(1)
 
         # Verify email if needed using previous message
         if not await self.verify_email(message, profile_data["school_email"], user):
