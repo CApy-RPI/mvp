@@ -50,7 +50,7 @@ class EmailVerifier:
         if user_id not in self._codes:
             return False
         stored_code, _ = self._codes[user_id]
-        is_valid = code == stored_code
+        is_valid = secrets.compare_digest(code, stored_code)
         if is_valid:
             del self._codes[user_id]
         return is_valid
