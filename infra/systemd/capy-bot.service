@@ -1,0 +1,17 @@
+[Unit]
+Description=CAPY Discord Bot Service
+After=network-online.target
+Requires=network-online.target
+
+[Service]
+Restart=always
+RestartSec=5
+ExecStartPre=/snap/bin/docker rm -f capy-bot || true
+ExecStart=/snap/bin/docker run \
+  --name capy-bot \
+  --env-file /home/karkhs/env \
+  capyorg/capy_app:latest
+ExecStop=/snap/bin/docker stop capy-bot
+
+[Install]
+WantedBy=multi-user.target
