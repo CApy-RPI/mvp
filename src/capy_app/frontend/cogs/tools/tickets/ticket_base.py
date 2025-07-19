@@ -1,3 +1,6 @@
+#! turn into ABC
+from abc import ABC, abstractmethod
+
 from typing import Dict, Any
 
 import discord
@@ -17,21 +20,21 @@ from frontend.config_colors import (
 
 
 class TicketBase(commands.Cog):
-    def __init__(self,
-                 bot: commands.Bot,
-                 status_emoji: Dict[str, str],
-                 cmd_name: str,
-                 cmd_name_verbose: str,
-                 cmd_emoji: str,
-                 description,
-                 request_channel_id,
-                 unmarked_color: Color,
-                 marked_colors: Dict[str, Color],
-                 reaction_footer) -> None:
+    def __init__(
+        self,
+        bot: commands.Bot,
+        status_emoji: Dict[str, str],
+        cmd_name: str,
+        cmd_name_verbose: str,
+        cmd_emoji: str,
+        description,
+        request_channel_id,
+        unmarked_color: Color,
+        marked_colors: Dict[str, Color],
+        reaction_footer,
+    ) -> None:
         self.bot = bot
-        self.logger = logging.getLogger(
-            f"discord.cog.{self.__class__.__name__.lower()}"
-        )
+        self.logger = logging.getLogger(f"discord.cog.{self.__class__.__name__.lower()}")
 
         self.status_emoji: Dict[str, str] = status_emoji
         self.cmd_name: str = cmd_name
@@ -55,7 +58,9 @@ class TicketBase(commands.Cog):
 
         try:
             modal = ButtonDynamicModalView(**self.MODAL_CONFIGS["button_modal"])
-            values, message = await modal.initiate_from_interaction(interaction, prompt="Click below to start the survey!")
+            values, message = await modal.initiate_from_interaction(
+                interaction, prompt="Click below to start the survey!"
+            )
 
             if not values or not message or len(values.items()) != 2:
                 self.logger.warning(
@@ -72,7 +77,9 @@ class TicketBase(commands.Cog):
                 )
                 return
             if channel is not TextChannel:
-                self.logger.error(f"{self.request_channel_id} for {self.cmd_name_verbose} tickets is not a Text Channel")
+                self.logger.error(
+                    f"{self.request_channel_id} for {self.cmd_name_verbose} tickets is not a Text Channel"
+                )
                 await interaction.followup.send(
                     "The channel for receiving this type of ticket is invalid due to not being a text channel, please contact the bot administrators.",
                     ephemeral=True,
@@ -80,7 +87,8 @@ class TicketBase(commands.Cog):
                 return
 
             embed = discord.Embed(
-                title=f"{self.cmd_emoji} {self.cmd_name_verbose}: " + values.get(f"{self.cmd_name}_title"),
+                title=f"{self.cmd_emoji} {self.cmd_name_verbose}: "
+                + values.get(f"{self.cmd_name}_title"),
                 description=values.get(f"{self.cmd_name}_description"),
                 color=STATUS_ERROR,
             )
@@ -155,7 +163,5 @@ class TicketBase(commands.Cog):
         else:
             embed.colour = self.marked_colors[status]
 
-        embed.set_footer(
-            text=f"Status: {status} | {self.reaction_footer}"
-        )
+        embed.set_footer(text=f"Status: {status} | {self.reaction_footer}")
         await message.edit(embed=embed)
