@@ -5,6 +5,7 @@
 """Profile management cog for handling user profiles."""
 
 import logging
+import time
 from typing import Union, Dict
 from pathlib import Path
 
@@ -12,6 +13,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+import time
 from config import settings
 from backend.db.database import Database as db
 from backend.db.documents.user import User, UserProfile, UserName
@@ -22,6 +24,20 @@ from frontend.interactions.bases.modal_base import ButtonDynamicModalView
 from .profile_handlers import EmailVerifier
 from .major_handler import MajorHandler
 from .profile_config import PROFILE_CONFIG
+
+
+class TryAgainView(discord.ui.View):
+    def __init__(self, parent_cog, action):
+        super().__init__(timeout=60)
+        self.parent_cog = parent_cog
+        self.action = action
+
+    @discord.ui.button(label="Try Again", style=discord.ButtonStyle.primary)
+    async def retry_button(
+        self, interaction: discord.Interaction, button: discord.ui.Button
+    ):
+        await self.parent_cog.handle_profile(interaction, self.action)
+        self.stop()
 
 
 class ProfileCog(commands.Cog):
@@ -115,6 +131,10 @@ class ProfileCog(commands.Cog):
         for dropdown_id in values:
             selected.extend(values[dropdown_id])
 
+        if len(selected) > 2:
+            await message.edit(content="You can only select up to 2 majors.", view=10)
+            return ["Not Set"], message  # Limit to max 2 majors total
+
         # TODO Check if more than 2-3 majors and warn
 
         return selected, message  # Limit to max 2 majors total
@@ -136,15 +156,49 @@ class ProfileCog(commands.Cog):
             await message.edit(content="Failed to send verification email.")
             return False
 
-        verify_view = ButtonDynamicModalView(**self.config["verify_modal"])
-        values, _ = await verify_view.initiate_from_message(message)
+        max_attempts = 5
+        attempt = 0
 
-        if not values:
-            return False
+        # Base prompt from config for first attempt
+        base_prompt: str | None = self.config["verify_modal"].get("message_prompt")
 
-        return self.email_verifier.verify_code(
-            message.author.id, values["verification_code"]
+        while attempt < max_attempts:
+            # Create a fresh view each attempt to avoid state conflicts
+            verify_view = ButtonDynamicModalView(**self.config["verify_modal"])
+
+            # Custom prompt for retries after the first failed attempt
+            if attempt == 0:
+                prompt_msg = base_prompt
+            else:
+                remaining = max_attempts - attempt
+                prompt_msg = (
+                    f"❌ Incorrect verification code. You have {remaining} attempt{'s' if remaining != 1 else ''} left.\n"
+                    "Click below to try again:"
+                )
+
+            values, message = await verify_view.initiate_from_message(
+                message, prompt=prompt_msg
+            )
+            
+            # User closed the modal or it timed-out
+            if not values:
+                return False
+
+            is_valid = self.email_verifier.verify_code(
+                message.author.id, values["verification_code"]
+            )
+
+            if is_valid:
+                return True
+
+            attempt += 1
+
+        # Exhausted attempts – inform the user and fail validation
+        await message.edit(
+            content="❌ Too many incorrect verification attempts. Verification failed.",
+            view=None,
         )
+        return False
 
     async def handle_profile(
         self, interaction: discord.Interaction, action: str
@@ -180,9 +234,42 @@ class ProfileCog(commands.Cog):
         if not profile_data or not message:
             self.logger.info(f"Profile {action} cancelled by {interaction.user}")
             return
+        trycheck = False
+        content = ""
+        if not (
+            profile_data["first_name"].isalpha() and profile_data["last_name"].isalpha()
+        ):
+            content += "Names cannot consist of numbers or special characters.\n"
+            trycheck = True
+        if not (profile_data["graduation_year"].isdigit()):
+            content += "Graduation year must be a number.\n"
+            trycheck = True
+        if not (profile_data["student_id"].isdigit()):
+            content += "Student ID must be a number.\n"
+            trycheck = True
+        if (profile_data["graduation_year"].isdigit()) and not (
+            int(profile_data["graduation_year"]) > 1899
+            and int(profile_data["graduation_year"]) < 2100
+        ):
+            content += "Graduation year outside of acceptable bounds.\n"
+            trycheck = True
+        if trycheck == True:
+            view = TryAgainView(self, action)
+            await message.edit(content=content, view=view)
+            return
 
         # Get major selection with dropdown using previous message
-        selected_majors, message = await self.get_majors(message, user)
+        while True:
+            try:
+                selected_majors, message = await self.get_majors(message, user)
+                if selected_majors != ["Not Set"]:
+                    break
+
+                await message.edit(content="⚠️ Please select 1 or 2 majors.")
+                time.sleep(1)
+            except Exception as e:
+                await message.edit(content="⚠️ Please select 1 or 2 majors.")
+                time.sleep(1)
 
         # Verify email if needed using previous message
         if not await self.verify_email(message, profile_data["school_email"], user):

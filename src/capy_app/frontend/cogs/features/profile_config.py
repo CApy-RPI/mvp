@@ -47,7 +47,7 @@ PROFILE_CONFIG = {
     },
     "major_dropdown": {"ephemeral": True, "add_buttons": True, "dropdowns": []},
     "verify_modal": {
-        "ephemeral": True,
+        "ephemeral": True,  
         "button_label": "Enter Verification Code",
         "button_style": ButtonStyle.primary,
         "message_prompt": "📧 A verification code has been sent to your email.\nClick below when ready to verify:",
