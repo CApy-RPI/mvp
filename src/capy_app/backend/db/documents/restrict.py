@@ -18,7 +18,6 @@ class RestrictedBase(BaseDocument):
             err = AttributeError(
                 f"Cannot modify attribute {name} on {self.__class__.__name__} as it does not exist."
             )
-
             self.logger.exception(err, stack_info=True)
             raise err
         super().__setattr__(name, value)

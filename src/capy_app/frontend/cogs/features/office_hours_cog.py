@@ -359,9 +359,8 @@ class OfficeHoursCog(commands.Cog):
         for cid, txt in vals.items():
             if not cid.endswith("_hours"):
                 continue
-            day = cid[:-6].lower()  # strip "_hours"
+            day = cid[:-6].lower()
             schedule[day] = [p.strip() for p in txt.split(",") if p.strip()]
-        # Ensure every weekday has an entry
         for d in ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]:
             schedule.setdefault(d, [])
 
@@ -377,62 +376,26 @@ class OfficeHoursCog(commands.Cog):
         user_doc.office_hours = OfficeHours(**schedule)
         Database.update_document(user_doc, {"office_hours": user_doc.office_hours})
 
-        # Finally, send the confirmation embed
+        # Update the Guild document to include this user's office hours
+        guild_doc = Database.get_document(Guild, interaction.guild_id)
+        if guild_doc is None:
+            # Create guild entry if missing
+            guild_doc = Guild(pk=interaction.guild_id, office_hours=[])
+            Database.add_document(guild_doc)
+
+        # Remove any existing entry for this user
+        guild_doc.office_hours = [oh for oh in guild_doc.office_hours if oh.name != user_id]
+        # Add new office hours entry
+        new_oh = GOfficeHours(name=user_id, schedule=schedule)
+        guild_doc.office_hours.append(new_oh)
+        Database.update_document(guild_doc, {"office_hours": guild_doc.office_hours})
+
+        # Send confirmation embed
         embed = self.generate_office_hours_embed(interaction.user, schedule)
         try:
             await interaction.followup.send("Office hours set!", embed=embed, ephemeral=True)
         except:
             await interaction.response.send_message("Office hours set!", embed=embed, ephemeral=True)
-
-    async def _finalize_schedule(self, interaction: discord.Interaction, user_id: str, collected_values: Dict[str, str]):
-        # Parse and persist
-        schedule: Dict[str, List[str]] = {}
-        for field_id, text in collected_values.items():
-            if not field_id.endswith('_hours'):
-                continue
-            day = field_id[:-6].lower()
-            if text:
-                parts = [part.strip() for part in text.split(',') if part.strip()]
-                schedule[day] = parts
-            else:
-                schedule[day] = []
-        for day in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]:
-            schedule.setdefault(day, [])
-        self.logger.info(f"Parsed schedule for {user_id}: {schedule}")
-
-        # Fetch fresh guild, update
-        # Load the User document for this user
-        user_doc = Database.get_document(User, int(user_id))
-        if not user_doc:
-            # Don’t auto‑create—require an existing profile
-            await interaction.response.send_message(
-                    "You need to create a user profile first with `/profile create`.",
-                    ephemeral=True,
-            )
-            return
-
-        # Assign the new office_hours embedded doc
-        user_doc.office_hours = OfficeHours(**schedule)
-
-        # Persist directly to the User
-        Database.update_document(user_doc, {"office_hours": user_doc.office_hours})
-        # Re-fetch to confirm
-        fresh_guild = Database.get_document(Guild, interaction.guild_id)
-        entry = next((oh for oh in fresh_guild.office_hours if oh.name == user_id), None)
-        if entry:
-            self.logger.info(f"After DB write, fetched schedule: {entry.schedule}")
-            embed = self.generate_office_hours_embed(interaction.user, entry.schedule)
-        else:
-            self.logger.error(f"After DB write, no entry found for user {user_id}")
-            embed = self.generate_office_hours_embed(interaction.user, schedule)
-        try:
-            await interaction.followup.send(
-                content="Office hours schedule set!", embed=embed, ephemeral=True
-            )
-        except Exception:
-            await interaction.response.send_message(
-                content="Office hours schedule set!", embed=embed, ephemeral=True
-            )
 
     async def _handle_clear(self, interaction: discord.Interaction, guild: Guild):
         user_id = str(interaction.user.id)
