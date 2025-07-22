@@ -2,8 +2,8 @@
 
 import logging
 import re
-from typing import Union, Dict, Optional, Any, cast
-from datetime import datetime, timezone
+from typing import Any, cast
+from datetime import UTC, datetime
 import pytz
 
 
