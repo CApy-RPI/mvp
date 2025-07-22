@@ -8,10 +8,10 @@ This module handles the display of privacy policy information to users.
 """
 
 import discord
-from discord.ext import commands
 from discord import app_commands
-
+from discord.ext import commands
 from frontend import config_colors as colors
+
 from config import settings
 
 

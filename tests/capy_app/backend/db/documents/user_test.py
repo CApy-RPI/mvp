@@ -1,9 +1,9 @@
-import pytest
 import mongoengine
 import mongomock
-from mongoengine.errors import ValidationError, NotUniqueError
+import pytest
+from mongoengine.errors import NotUniqueError, ValidationError
 
-from capy_app.backend.db.documents.user import User, UserProfile, UserName
+from capy_app.backend.db.documents.user import User, UserName, UserProfile
 
 
 @pytest.fixture(scope="module")
@@ -48,7 +48,7 @@ def test_create_user_success(db):
             school_email="not.an.email",
             student_id=12345,
             major=["Computer Science"],
-            graduation_year=2025
+            graduation_year=2025,
         )
         User(_id=2, profile=invalid_profile).save()
 
@@ -58,7 +58,7 @@ def test_create_user_success(db):
             school_email="valid@school.edu",
             student_id="abc123",  # Should be numeric
             major=["Computer Science"],
-            graduation_year=2025
+            graduation_year=2025,
         )
         User(_id=3, profile=invalid_profile).save()
 
@@ -68,7 +68,7 @@ def test_create_user_success(db):
             school_email="valid@school.edu",
             student_id=12345,
             major=[],  # Empty major list
-            graduation_year=2025
+            graduation_year=2025,
         )
         User(_id=4, profile=invalid_profile).save()
 
@@ -78,7 +78,7 @@ def test_create_user_success(db):
             school_email="valid@school.edu",
             student_id=12345,
             major=["Computer Science"],
-            graduation_year=2000  # Past year
+            graduation_year=2000,  # Past year
         )
         User(_id=5, profile=invalid_profile).save()
 
@@ -89,7 +89,7 @@ def test_create_user_success(db):
             student_id=12345,
             major=["Computer Science"],
             graduation_year=2025,
-            phone="not-a-phone"  # Invalid phone format
+            phone="not-a-phone",  # Invalid phone format
         )
         User(_id=6, profile=invalid_profile).save()
 
@@ -149,9 +149,7 @@ def test_unique_school_email(db):
         user_b.save()
 
     # Adjusted assertion to check for duplicate key error
-    assert "E11000" in str(
-        excinfo.value
-    ), "Expected a duplicate key error for school_email"
+    assert "E11000" in str(excinfo.value), "Expected a duplicate key error for school_email"
 
 
 def test_unique_student_id(db):
@@ -183,9 +181,7 @@ def test_unique_student_id(db):
         user_d.save()
 
     # Adjusted assertion to check for duplicate key error
-    assert "E11000" in str(
-        excinfo.value
-    ), "Expected a duplicate key error for student_id"
+    assert "E11000" in str(excinfo.value), "Expected a duplicate key error for student_id"
 
 
 def test_optional_phone(db):

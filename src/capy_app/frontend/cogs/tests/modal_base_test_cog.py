@@ -1,9 +1,9 @@
-from discord.ext import commands
-from discord import app_commands, Interaction, Object, TextStyle, ButtonStyle
+from discord import ButtonStyle, Interaction, Object, TextStyle, app_commands
 from discord.errors import NotFound
+from discord.ext import commands
 from frontend.interactions.bases.modal_base import (
-    DynamicModalView,
     ButtonDynamicModalView,
+    DynamicModalView,
 )
 
 from config import settings
@@ -106,8 +106,7 @@ class ModalTestCog(commands.Cog):
         if values and message:
             try:
                 await message.edit(
-                    content="Survey results:\n"
-                    + "\n".join(f"{k}: {v}" for k, v in values.items())
+                    content="Survey results:\n" + "\n".join(f"{k}: {v}" for k, v in values.items())
                 )
             except NotFound:
                 pass

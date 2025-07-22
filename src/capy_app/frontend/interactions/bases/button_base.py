@@ -1,10 +1,12 @@
 """Utility classes for Discord views."""
 
 import logging
-from typing import Optional, Any, Tuple
+from typing import Any
+
 import discord
-from discord import Message, Interaction, ButtonStyle
+from discord import ButtonStyle, Interaction, Message
 from discord.errors import NotFound
+
 from config import settings
 
 # Configure logging
@@ -18,10 +20,10 @@ class BaseButtonView(discord.ui.View):
     def __init__(self, ephemeral: bool = True, **options) -> None:
         super().__init__(**options)
         self._ephemeral = ephemeral
-        self._message: Optional[Message] = None
+        self._message: Message | None = None
         self._completed: bool = False
         self._timed_out: bool = False
-        self.value: Optional[bool] = None
+        self.value: bool | None = None
 
     async def _send_status_message(self, content: str) -> None:
         """Update status message."""
@@ -33,7 +35,7 @@ class BaseButtonView(discord.ui.View):
 
     async def initiate_from_interaction(
         self, interaction: Interaction, content: str
-    ) -> Tuple[Optional[bool], Optional[Message]]:
+    ) -> tuple[bool | None, Message | None]:
         """Show buttons from a new interaction."""
         await interaction.response.send_message(
             content=content,
@@ -45,12 +47,12 @@ class BaseButtonView(discord.ui.View):
 
     async def initiate_from_message(
         self, message: Message, content: str
-    ) -> Tuple[Optional[bool], Optional[Message]]:
+    ) -> tuple[bool | None, Message | None]:
         """Show buttons on an existing message."""
         self._message = await message.edit(content=content, view=self)
         return await self._get_data()
 
-    async def _get_data(self) -> Tuple[Optional[bool], Optional[Message]]:
+    async def _get_data(self) -> tuple[bool | None, Message | None]:
         """Wait for user input and return result."""
         if not self._completed:
             await self.wait()
@@ -75,9 +77,7 @@ class AcceptCancelView(BaseButtonView):
     """View with accept and cancel buttons."""
 
     @discord.ui.button(label="Accept", style=ButtonStyle.success)
-    async def accept(
-        self, interaction: Interaction, button: discord.ui.Button[Any]
-    ) -> None:
+    async def accept(self, interaction: Interaction, button: discord.ui.Button[Any]) -> None:
         """Handle accept button press."""
         await interaction.response.defer()
         self.value = True
@@ -86,9 +86,7 @@ class AcceptCancelView(BaseButtonView):
         self.stop()
 
     @discord.ui.button(label="Cancel", style=ButtonStyle.danger)
-    async def cancel(
-        self, interaction: Interaction, button: discord.ui.Button[Any]
-    ) -> None:
+    async def cancel(self, interaction: Interaction, button: discord.ui.Button[Any]) -> None:
         """Handle cancel button press."""
         await interaction.response.defer()
         self.value = False
@@ -109,13 +107,14 @@ class ConfirmDeleteView(AcceptCancelView):
 
 class ConfirmView(AcceptCancelView):
     """Customizable confirmation view with configurable button labels and styles."""
+
     def __init__(
         self,
         confirm_text: str = "Confirm",
         confirm_style: ButtonStyle = ButtonStyle.primary,
         cancel_text: str = "Cancel",
         cancel_style: ButtonStyle = ButtonStyle.secondary,
-        **options
+        **options,
     ) -> None:
         super().__init__(**options)
         self.accept.label = confirm_text  # type: ignore

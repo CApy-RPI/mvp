@@ -1,54 +1,54 @@
-from pydantic_settings import BaseSettings
 from functools import lru_cache
-from typing import Optional
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     # Logging settings
-    LOG_LEVEL: Optional[str] = "DEBUG"
+    LOG_LEVEL: str | None = "DEBUG"
 
     # Bot settings
-    BOT_TOKEN: Optional[str] = None
-    BOT_COMMAND_PREFIX: Optional[str] = "!"
+    BOT_TOKEN: str | None = None
+    BOT_COMMAND_PREFIX: str | None = "!"
 
     # MongoDB settings
-    MONGO_URI: Optional[str] = None
-    MONGO_DBNAME: Optional[str] = None
-    MONGO_USERNAME: Optional[str] = None
-    MONGO_PASSWORD: Optional[str] = None
+    MONGO_URI: str | None = None
+    MONGO_DBNAME: str | None = None
+    MONGO_USERNAME: str | None = None
+    MONGO_PASSWORD: str | None = None
 
     # Email settings
-    MAILJET_API_KEY: Optional[str] = ""
-    MAILJET_API_SECRET: Optional[str] = ""
-    MAILJET_API_EMAIL: Optional[str] = ""
+    MAILJET_API_KEY: str | None = ""
+    MAILJET_API_SECRET: str | None = ""
+    MAILJET_API_EMAIL: str | None = ""
 
     # Channel settings
-    WHO_DUNNIT: Optional[str] = None
-    DEV_LOCKED_CHANNEL_ID: Optional[int] = None
+    WHO_DUNNIT: str | None = None
+    DEV_LOCKED_CHANNEL_ID: int | None = None
 
     # Developer channels
-    TICKET_BUG_REPORT_CHANNEL_ID: Optional[int] = None
-    TICKET_FEEDBACK_CHANNEL_ID: Optional[int] = None
-    TICKET_FEATURE_REQUEST_CHANNEL_ID: Optional[int] = None
+    TICKET_BUG_REPORT_CHANNEL_ID: int | None = None
+    TICKET_FEEDBACK_CHANNEL_ID: int | None = None
+    TICKET_FEATURE_REQUEST_CHANNEL_ID: int | None = None
 
     # Error handling settings
-    FAILED_COMMANDS_INVITE_EXPIRY: Optional[int] = 300
-    FAILED_COMMANDS_INVITE_USES: Optional[int] = 1
-    FAILED_COMMANDS_GUILD_ID: Optional[int] = None
-    FAILED_COMMANDS_CHANNEL_ID: Optional[int] = None
-    FAILED_COMMANDS_ROLE_ID: Optional[int] = None
+    FAILED_COMMANDS_INVITE_EXPIRY: int | None = 300
+    FAILED_COMMANDS_INVITE_USES: int | None = 1
+    FAILED_COMMANDS_GUILD_ID: int | None = None
+    FAILED_COMMANDS_CHANNEL_ID: int | None = None
+    FAILED_COMMANDS_ROLE_ID: int | None = None
 
     # Path settings
-    COG_PATH: Optional[str] = "frontend/cogs"
-    MAJORS_PATH: Optional[str] = "frontend/resources/majors.txt"
+    COG_PATH: str | None = "frontend/cogs"
+    MAJORS_PATH: str | None = "frontend/resources/majors.txt"
 
     # Chatbot settings
-    ENABLE_CHATBOT: Optional[bool] = None
-    MODEL_NAME: Optional[str] = None
-    MESSAGE_LIMIT: Optional[int] = 500
+    ENABLE_CHATBOT: bool | None = None
+    MODEL_NAME: str | None = None
+    MESSAGE_LIMIT: int | None = 500
 
     # Debug guild setting
-    DEBUG_GUILD_ID: Optional[int] = None
+    DEBUG_GUILD_ID: int | None = None
 
     model_config = {
         "env_file": ".env",
@@ -121,7 +121,7 @@ class Settings(BaseSettings):
     #     return v
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance"""
     return Settings()

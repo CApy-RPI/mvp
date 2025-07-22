@@ -20,7 +20,7 @@ class EmailVerifier:
 
     def __init__(self) -> None:
         """Initialize email verifier with empty code storage."""
-        self._codes: typing.Dict[int, typing.Tuple[str, str]] = {}
+        self._codes: dict[int, tuple[str, str]] = {}
         self._email_client = Email()
 
     def generate_code(self, user_id: int, email: str) -> str:

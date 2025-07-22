@@ -1,6 +1,8 @@
 import typing
 from unittest.mock import Mock, patch
+
 import pytest
+
 from capy_app.backend.modules.email import Email, EmailError, EmailSendError
 from capy_app.config import settings
 
@@ -11,7 +13,7 @@ def email_client() -> Email:
 
 
 @pytest.fixture
-def expected_data() -> typing.Dict[str, typing.Any]:
+def expected_data() -> dict[str, typing.Any]:
     return {
         "Messages": [
             {
@@ -45,15 +47,11 @@ def test_email_init() -> None:
         )
 
 
-def test_send_mail_success(
-    email_client: Email, expected_data: typing.Dict[str, typing.Any]
-) -> None:
+def test_send_mail_success(email_client: Email, expected_data: dict[str, typing.Any]) -> None:
     mock_response = Mock(status_code=200)
     mock_response.json.return_value = {"status": "success"}
 
-    with patch.object(
-        email_client.mailjet, "send", Mock(**{"create.return_value": mock_response})
-    ):
+    with patch.object(email_client.mailjet, "send", Mock(**{"create.return_value": mock_response})):
         result = email_client.send_mail("test@example.com", "123456")
 
         email_client.mailjet.send.create.assert_called_once_with(data=expected_data)
@@ -65,9 +63,7 @@ def test_send_mail_http_error(email_client: Email) -> None:
     mock_response = Mock(status_code=400)
     mock_response.json.return_value = {"error": "bad request"}
 
-    with patch.object(
-        email_client.mailjet, "send", Mock(**{"create.return_value": mock_response})
-    ):
+    with patch.object(email_client.mailjet, "send", Mock(**{"create.return_value": mock_response})):
         with pytest.raises(EmailSendError) as exc_info:
             email_client.send_mail("test@example.com", "123456")
 
@@ -78,10 +74,7 @@ def test_send_mail_http_error(email_client: Email) -> None:
 def test_send_mail_exception_with_chaining(email_client: Email) -> None:
     original_error = EmailSendError("Failed to send email")
 
-    with patch.object(
-        email_client.mailjet, "send", Mock(**{"create.side_effect": original_error})
-    ):
-
+    with patch.object(email_client.mailjet, "send", Mock(**{"create.side_effect": original_error})):
         with pytest.raises(EmailSendError):
             email_client.send_mail("test@example.com", "123456")
 

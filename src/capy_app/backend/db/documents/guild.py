@@ -1,8 +1,8 @@
-import typing
 import datetime
-import mongoengine
+import typing
 
-from backend.db.documents.restrict import RestrictedEmbeddedDocument, RestrictedDocument
+import mongoengine
+from backend.db.documents.restrict import RestrictedDocument, RestrictedEmbeddedDocument
 
 
 class GuildChannels(RestrictedEmbeddedDocument):
@@ -14,9 +14,9 @@ class GuildChannels(RestrictedEmbeddedDocument):
         moderator: Channel ID for moderator communications
     """
 
-    reports: typing.Optional[int] = mongoengine.IntField()
-    announcements: typing.Optional[int] = mongoengine.IntField()
-    moderator: typing.Optional[int] = mongoengine.IntField()
+    reports: int | None = mongoengine.IntField()
+    announcements: int | None = mongoengine.IntField()
+    moderator: int | None = mongoengine.IntField()
 
 
 class GuildRoles(RestrictedEmbeddedDocument):
@@ -30,12 +30,12 @@ class GuildRoles(RestrictedEmbeddedDocument):
         office_hours: Role identifier for office hours
     """
 
-    visitor: typing.Optional[str] = mongoengine.StringField()
-    member: typing.Optional[str] = mongoengine.StringField()
-    eboard: typing.Optional[str] = mongoengine.StringField()
-    admin: typing.Optional[str] = mongoengine.StringField()
-    advisor: typing.Optional[str] = mongoengine.StringField()
-    office_hours: typing.Optional[str] = mongoengine.StringField()
+    visitor: str | None = mongoengine.StringField()
+    member: str | None = mongoengine.StringField()
+    eboard: str | None = mongoengine.StringField()
+    admin: str | None = mongoengine.StringField()
+    advisor: str | None = mongoengine.StringField()
+    office_hours: str | None = mongoengine.StringField()
 
 
 class OfficeHours(RestrictedEmbeddedDocument):
@@ -47,7 +47,7 @@ class OfficeHours(RestrictedEmbeddedDocument):
     """
 
     name: str = mongoengine.StringField(required=True)
-    schedule: typing.Dict[str, typing.List[str]] = mongoengine.DictField()
+    schedule: dict[str, list[str]] = mongoengine.DictField()
 
 
 class Guild(RestrictedDocument):
@@ -65,23 +65,17 @@ class Guild(RestrictedDocument):
     """
 
     _id: int = mongoengine.IntField(primary_key=True)
-    users: typing.List[int] = mongoengine.ListField(mongoengine.IntField())
-    events: typing.List[int] = mongoengine.ListField(mongoengine.IntField())
+    users: list[int] = mongoengine.ListField(mongoengine.IntField())
+    events: list[int] = mongoengine.ListField(mongoengine.IntField())
     channels: GuildChannels = mongoengine.EmbeddedDocumentField(
         GuildChannels, default=GuildChannels
     )
-    roles: GuildRoles = mongoengine.EmbeddedDocumentField(
-        GuildRoles, default=GuildRoles
-    )
-    office_hours: typing.List[OfficeHours] = mongoengine.EmbeddedDocumentListField(
+    roles: GuildRoles = mongoengine.EmbeddedDocumentField(GuildRoles, default=GuildRoles)
+    office_hours: list[OfficeHours] = mongoengine.EmbeddedDocumentListField(
         OfficeHours, default=list
     )
-    created_at: datetime.datetime = mongoengine.DateTimeField(
-        default=datetime.datetime.now
-    )
-    updated_at: datetime.datetime = mongoengine.DateTimeField(
-        default=datetime.datetime.now
-    )
+    created_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
+    updated_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
 
     meta = {"collection": "guilds", "indexes": ["created_at", "updated_at"]}
 

@@ -2,16 +2,17 @@
 
 # Standard library imports
 import logging
-import typing
 import pathlib
+import typing
 
 # Third-party imports
 import discord
-from discord.ext import commands
-from discord.ext.commands import Context
 
 # Local imports
 from backend.db.database import Database as db
+from discord.ext import commands
+from discord.ext.commands import Context
+
 from config import settings
 
 
@@ -39,8 +40,7 @@ class Bot(commands.AutoShardedBot):
             guild_data = db.Guild(_id=member.guild.id)
             guild_data.save()
             self.logger.info(
-                f"Created new guild entry for {member.guild.name}"
-                f" (ID: {member.guild.id})"
+                f"Created new guild entry for {member.guild.name}" f" (ID: {member.guild.id})"
             )
         else:
             db.sync_document_with_template(guild_data, db.Guild)
@@ -48,8 +48,7 @@ class Bot(commands.AutoShardedBot):
         guild_data.users.append(member.id)
         guild_data.save()
         self.logger.info(
-            f"User {member.id} joined guild {member.guild.name}"
-            f" (ID: {member.guild.id})"
+            f"User {member.id} joined guild {member.guild.name}" f" (ID: {member.guild.id})"
         )
 
     async def _load_cogs_recursive(self, path: pathlib.Path, base_package: str) -> None:
@@ -63,11 +62,7 @@ class Bot(commands.AutoShardedBot):
             if settings.DEBUG_GUILD_ID is None and item.name.endswith("test_cog.py"):
                 continue
 
-            if (
-                item.is_file()
-                and item.name.endswith("cog.py")
-                and not item.name.startswith("_")
-            ):
+            if item.is_file() and item.name.endswith("cog.py") and not item.name.startswith("_"):
                 # Convert path to module path and load extension
                 module_path = (
                     str(item.relative_to(pathlib.Path(settings.COG_PATH)))
@@ -103,8 +98,7 @@ class Bot(commands.AutoShardedBot):
 
         self.logger.info(f"Logged in as {self.user.name} - {self.user.id}")
         self.logger.info(
-            f"Connected to {len(self.guilds)} guilds "
-            f"across {self.shard_count} shards"
+            f"Connected to {len(self.guilds)} guilds " f"across {self.shard_count} shards"
         )
 
     async def on_message(self, message: discord.Message) -> None:
@@ -140,17 +134,11 @@ class Bot(commands.AutoShardedBot):
         dev_channel = self.get_channel(settings.DEV_LOCKED_CHANNEL_ID)
         if not isinstance(dev_channel, (discord.TextChannel, discord.Thread)):
             await ctx.send("Developer channel not found. Ensure it is set correctly.")
-            self.logger.error(
-                f"Developer channel {settings.DEV_LOCKED_CHANNEL_ID} not found"
-            )
+            self.logger.error(f"Developer channel {settings.DEV_LOCKED_CHANNEL_ID} not found")
             return
 
-        await ctx.send(
-            f"Please use {dev_channel.mention} instead which this session is locked to."
-        )
-        self.logger.info(
-            f"Command from {ctx.author} in disallowed channel {ctx.channel}"
-        )
+        await ctx.send(f"Please use {dev_channel.mention} instead which this session is locked to.")
+        self.logger.info(f"Command from {ctx.author} in disallowed channel {ctx.channel}")
 
     def run_bot(self) -> None:
         """Run the bot instance."""

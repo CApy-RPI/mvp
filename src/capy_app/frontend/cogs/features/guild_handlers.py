@@ -9,9 +9,11 @@ This module provides handlers for updating guild settings:
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any
+
 import discord
 from backend.db.database import Database as db
+
 from .guild_views import ChannelSelectView, RoleSelectView
 
 logger = logging.getLogger("discord.guild.handler")
@@ -21,7 +23,7 @@ async def handle_channel_update(
     interaction: discord.Interaction,
     view: ChannelSelectView,
     guild_data: Any,
-    channels: Dict[str, str],
+    channels: dict[str, str],
 ) -> bool:
     """Handle channel updates after selection.
 
@@ -61,7 +63,7 @@ async def handle_role_update(
     interaction: discord.Interaction,
     view: RoleSelectView,
     guild_data: Any,
-    roles: Dict[str, str],
+    roles: dict[str, str],
 ) -> bool:
     """Handle role updates after selection.
 
@@ -81,10 +83,7 @@ async def handle_role_update(
         if not view.selected_roles:
             return True  # No changes needed
 
-        updates = {
-            f"roles__{name}": str(role_id)
-            for name, role_id in view.selected_roles.items()
-        }
+        updates = {f"roles__{name}": str(role_id) for name, role_id in view.selected_roles.items()}
         db.update_document(guild_data, updates)
         return True
     except Exception as e:

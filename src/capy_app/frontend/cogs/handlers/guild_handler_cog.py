@@ -1,11 +1,11 @@
 """Guild handler cog for managing guild database entries."""
 
 import logging
-import discord
-from discord.ext import commands
 
+import discord
 from backend.db.database import Database as db
 from backend.db.documents.guild import Guild
+from discord.ext import commands
 
 
 class GuildHandlerCog(commands.Cog):
@@ -18,9 +18,7 @@ class GuildHandlerCog(commands.Cog):
             bot: The Discord bot instance
         """
         self.bot = bot
-        self.logger = logging.getLogger(
-            f"discord.cog.{self.__class__.__name__.lower()}"
-        )
+        self.logger = logging.getLogger(f"discord.cog.{self.__class__.__name__.lower()}")
 
     @staticmethod
     async def ensure_guild_exists(guild_id: int) -> Guild:

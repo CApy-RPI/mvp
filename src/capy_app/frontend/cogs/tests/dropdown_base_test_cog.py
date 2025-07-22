@@ -1,7 +1,7 @@
 """Test cog for dropdown base functionality."""
 
+from discord import Interaction, Object, app_commands
 from discord.ext import commands
-from discord import app_commands, Interaction, Object
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 
 from config import settings
@@ -242,11 +242,7 @@ class DropdownTestCog(commands.Cog):
         )
 
         if message:
-            content = (
-                f"Selected values: {selections}"
-                if selections
-                else "Selection cancelled."
-            )
+            content = f"Selected values: {selections}" if selections else "Selection cancelled."
             await message.edit(content=content, view=None)
 
     @app_commands.guilds(Object(id=settings.DEBUG_GUILD_ID))
@@ -263,9 +259,7 @@ class DropdownTestCog(commands.Cog):
 
         # Second dropdown - Specific colors based on family
         selected_family = primary_selection["color_family"][0]
-        view2 = DynamicDropdownView(
-            **DROPDOWN_CONFIGS[f"paint_step2_{selected_family}"]
-        )
+        view2 = DynamicDropdownView(**DROPDOWN_CONFIGS[f"paint_step2_{selected_family}"])
         secondary_selection, message = await view2.initiate_from_message(
             message, f"Step 2: Choose 1-2 colors from the {selected_family} family:"
         )

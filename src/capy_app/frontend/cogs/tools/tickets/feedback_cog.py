@@ -4,15 +4,15 @@ This module handles feedback submissions through a modal interface.
 Feedback is sent to a designated channel for developer review.
 """
 
+from discord import ButtonStyle, TextStyle
 from discord.ext import commands
-from discord import TextStyle, ButtonStyle
-
-from config import settings
 from frontend.config_colors import (
+    STATUS_IGNORED,
     STATUS_INFO,
     STATUS_RESOLVED,
-    STATUS_IGNORED,
 )
+
+from config import settings
 
 from .ticket_base import TicketBase
 

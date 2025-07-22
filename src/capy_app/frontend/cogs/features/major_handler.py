@@ -4,7 +4,6 @@
 """Handles major-related operations and grouping logic."""
 
 import logging
-from typing import Dict, List, Tuple
 from math import ceil
 
 from config import settings
@@ -16,7 +15,7 @@ logger.setLevel(settings.LOG_LEVEL)
 class MajorHandler:
     """Handles operations related to academic majors."""
 
-    def __init__(self, major_list: List[str], num_groups: int = 4) -> None:
+    def __init__(self, major_list: list[str], num_groups: int = 4) -> None:
         """Initialize the major handler.
 
         Args:
@@ -28,7 +27,7 @@ class MajorHandler:
         self._ranges = self._calculate_ranges()
         self._grouped_majors = self._group_majors()
 
-    def _calculate_ranges(self) -> Dict[str, Tuple[str, str]]:
+    def _calculate_ranges(self) -> dict[str, tuple[str, str]]:
         """Dynamically calculate letter ranges based on major distribution."""
         if not self.major_list:
             return {}
@@ -57,7 +56,7 @@ class MajorHandler:
 
         return ranges
 
-    def _group_majors(self) -> Dict[str, List[str]]:
+    def _group_majors(self) -> dict[str, list[str]]:
         """Group majors according to calculated ranges."""
         groups = {group_id: [] for group_id in self._ranges}
 
@@ -89,9 +88,7 @@ class MajorHandler:
                     "custom_id": group_id,
                     "min_values": 0,
                     "max_values": 2,
-                    "selections": [
-                        {"label": major, "value": major} for major in majors
-                    ],
+                    "selections": [{"label": major, "value": major} for major in majors],
                 }
             )
 

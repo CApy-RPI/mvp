@@ -28,3 +28,18 @@ explicit_package_bases = true
 
 [tool.black]
 line-length = 100
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "C90", "B", "A", "C4", "T20", "SIM", "ARG", "PTH", "PL", "RUF"]
+
+[tool.ruff.lint.isort]
+split-on-trailing-comma = true
+force-single-line = false
+known-first-party = ["capy_app", "config"]
+known-local-folder = ["src"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+combine-as-imports = true

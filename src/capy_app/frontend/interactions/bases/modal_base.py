@@ -8,15 +8,15 @@ dynamic text input fields. It supports:
 - Both interaction and message-based initialization
 """
 
-from typing import Dict, Optional, List, Any, TypeVar, Tuple
 import logging
-from discord import Interaction, Message, ButtonStyle
-from discord.ui import Modal, Button, View
-from discord.ui.text_input import TextInput
+from typing import Any, TypeVar
+
+from discord import ButtonStyle, Interaction, Message
 from discord.errors import NotFound
+from discord.ui import Button, Modal, View
+from discord.ui.text_input import TextInput
 
 from config import settings
-
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -39,16 +39,16 @@ class DynamicModal(Modal):
 
     def __init__(
         self,
-        fields: Optional[List[Dict[str, Any]]] = None,
+        fields: list[dict[str, Any]] | None = None,
         **options,
     ) -> None:
         """Initialize the modal dialog."""
         super().__init__(**options)
-        self.values: Dict[str, str] = {}
+        self.values: dict[str, str] = {}
         self.success: bool = False
 
-        self._fields: List[DynamicField[View]] = []
-        self._interaction: Optional[Interaction] = None
+        self._fields: list[DynamicField[View]] = []
+        self._interaction: Interaction | None = None
 
         if fields is not None:
             for field in fields:
@@ -102,15 +102,15 @@ class DynamicModalView(View):
 
     def __init__(
         self,
-        modal: Optional[Dict[str, Any]] = None,
+        modal: dict[str, Any] | None = None,
         ephemeral: bool = True,
         **options,
     ) -> None:
         super().__init__(**options)
         self._ephemeral = ephemeral
-        self._modal: Optional[DynamicModal] = None
-        self._message: Optional[Message] = None
-        self._interaction: Optional[Interaction] = None
+        self._modal: DynamicModal | None = None
+        self._message: Message | None = None
+        self._interaction: Interaction | None = None
         self._completed: bool = False
         self._timed_out: bool = False
 
@@ -146,7 +146,7 @@ class DynamicModalView(View):
     async def initiate_from_interaction(
         self,
         interaction: Interaction,
-    ) -> Tuple[Optional[Dict[str, str]], Optional[Message]]:
+    ) -> tuple[dict[str, str] | None, Message | None]:
         """Show modal directly from interaction."""
         if self._modal is None:
             raise ValueError("No modal added to view")
@@ -158,7 +158,7 @@ class DynamicModalView(View):
     async def initiate_from_message(
         self,
         message: Message,
-    ) -> Tuple[Optional[Dict[str, str]], Optional[Message]]:
+    ) -> tuple[dict[str, str] | None, Message | None]:
         """Show modal from existing message."""
         if self._modal is None:
             raise ValueError("No modal added to view")
@@ -172,7 +172,7 @@ class DynamicModalView(View):
         await self._modal._interaction.response.send_modal(self._modal)
         return await self._get_data()
 
-    async def _get_data(self) -> Tuple[Optional[Dict[str, str]], Optional[Message]]:
+    async def _get_data(self) -> tuple[dict[str, str] | None, Message | None]:
         """Wait for user input and return form values and message.
 
         Returns:
@@ -189,17 +189,13 @@ class DynamicModalView(View):
             logger.debug("Modal submitted successfully")
             await self._send_status_message("Form submitted successfully")
         else:
-            status = (
-                "Form input timed out"
-                if self._timed_out
-                else "Form submission cancelled"
-            )
+            status = "Form input timed out" if self._timed_out else "Form submission cancelled"
             logger.debug(status)
             await self._send_status_message(status)
 
         self.stop()
 
-        return_values: Tuple[Optional[Dict[str, str]], Optional[Message]] = (
+        return_values: tuple[dict[str, str] | None, Message | None] = (
             (self._modal.values, self._message)
             if self._modal and self._modal.success
             else (None, self._message)
@@ -228,7 +224,7 @@ class ButtonDynamicModalView(DynamicModalView):
 
     def __init__(
         self,
-        message_prompt: Optional[str] = None,
+        message_prompt: str | None = None,
         button_label: str = "Open Form",
         button_style: ButtonStyle = ButtonStyle.primary,
         **options,
@@ -248,8 +244,8 @@ class ButtonDynamicModalView(DynamicModalView):
     async def initiate_from_interaction(
         self,
         interaction: Interaction,
-        prompt: Optional[str] = None,
-    ) -> Tuple[Optional[Dict[str, str]], Optional[Message]]:
+        prompt: str | None = None,
+    ) -> tuple[dict[str, str] | None, Message | None]:
         """Show button and modal from interaction."""
         if self._modal is None:
             raise ValueError("No modal added to view")
@@ -263,9 +259,7 @@ class ButtonDynamicModalView(DynamicModalView):
         )
 
         content = (
-            prompt
-            or self._message_prompt
-            or f"Click the button to open '{self._modal.title}'"
+            prompt or self._message_prompt or f"Click the button to open '{self._modal.title}'"
         )
         await interaction.response.send_message(
             content=content,
@@ -278,8 +272,8 @@ class ButtonDynamicModalView(DynamicModalView):
     async def initiate_from_message(
         self,
         message: Message,
-        prompt: Optional[str] = None,
-    ) -> Tuple[Optional[Dict[str, str]], Optional[Message]]:
+        prompt: str | None = None,
+    ) -> tuple[dict[str, str] | None, Message | None]:
         """Update message with button and wait for modal submission."""
         if self._modal is None:
             raise ValueError("No modal added to view")
@@ -293,9 +287,7 @@ class ButtonDynamicModalView(DynamicModalView):
         )
 
         content = (
-            prompt
-            or self._message_prompt
-            or f"Click the button to open '{self._modal.title}'"
+            prompt or self._message_prompt or f"Click the button to open '{self._modal.title}'"
         )
         await message.edit(
             content=content,

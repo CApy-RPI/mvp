@@ -1,11 +1,12 @@
-import typing
 import datetime
-import mongoengine
+import typing
 
+import mongoengine
 from backend.db.documents.restrict import (
     RestrictedDocument,
     RestrictedEmbeddedDocument,
 )
+
 
 class OfficeHours(mongoengine.EmbeddedDocument):
     """Represents a user's weekly office hours schedule."""
@@ -17,7 +18,6 @@ class OfficeHours(mongoengine.EmbeddedDocument):
     friday = mongoengine.ListField(mongoengine.StringField(), default=list)
     saturday = mongoengine.ListField(mongoengine.StringField(), default=list)
     sunday = mongoengine.ListField(mongoengine.StringField(), default=list)
-    
 
 
 class UserName(RestrictedEmbeddedDocument):
@@ -49,9 +49,7 @@ class UserProfile(RestrictedEmbeddedDocument):
     name: UserName = mongoengine.EmbeddedDocumentField(UserName, required=True)
     school_email: str = mongoengine.EmailField(required=True, unique=True)
     student_id: int = mongoengine.IntField(required=True, unique=True)
-    major: typing.List[str] = mongoengine.ListField(
-        mongoengine.StringField(), required=True
-    )
+    major: list[str] = mongoengine.ListField(mongoengine.StringField(), required=True)
     graduation_year: int = mongoengine.IntField(required=True)
     phone: int = mongoengine.IntField()
 
@@ -69,18 +67,14 @@ class User(RestrictedDocument):
     """
 
     _id: int = mongoengine.IntField(primary_key=True)
-    guilds: typing.List[int] = mongoengine.ListField(mongoengine.IntField())
-    events: typing.List[int] = mongoengine.ListField(mongoengine.IntField())
+    guilds: list[int] = mongoengine.ListField(mongoengine.IntField())
+    events: list[int] = mongoengine.ListField(mongoengine.IntField())
     profile: UserProfile = mongoengine.EmbeddedDocumentField(UserProfile, required=True)
-    created_at: datetime.datetime = mongoengine.DateTimeField(
-        default=datetime.datetime.now
-    )
-    updated_at: datetime.datetime = mongoengine.DateTimeField(
-        default=datetime.datetime.now
-    )
+    created_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
+    updated_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
     office_hours: OfficeHours = mongoengine.EmbeddedDocumentField(OfficeHours, default=OfficeHours)
 
-    meta: typing.Dict[str, typing.Any] = {
+    meta: dict[str, typing.Any] = {
         "collection": "users",
         "indexes": ["created_at", "updated_at"],
     }
