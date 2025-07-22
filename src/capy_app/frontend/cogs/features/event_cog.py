@@ -2,10 +2,8 @@
 
 import logging
 import re
-from typing import Any, cast
 from datetime import UTC, datetime
-import pytz
-
+from typing import Any, cast
 
 import discord
 import pytz
@@ -15,20 +13,11 @@ from backend.db.documents.guild import Guild
 from backend.db.documents.user import User
 from discord import app_commands
 from discord.ext import commands
-from frontend.interactions.bases.button_base import ConfirmDeleteView, ConfirmView
+from frontend.interactions.bases.button_base import ConfirmDeleteView, ConfirmView, EditView
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 from frontend.interactions.bases.modal_base import DynamicModalView
 
 from config import settings
-from backend.db.database import Database as db
-from backend.db.documents.user import User
-from backend.db.documents.guild import Guild
-from backend.db.documents.event import Event, EventDetails, EventReactions
-from frontend.interactions.bases.button_base import ConfirmDeleteView
-from frontend.interactions.bases.button_base import ConfirmView
-from frontend.interactions.bases.button_base import EditView
-from frontend.interactions.bases.modal_base import DynamicModalView
-from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 
 from .event_config import EVENT_CONFIG
 
@@ -684,7 +673,7 @@ class EventCog(commands.Cog):
 
             except Exception as e:
                 self.logger.error(f"Failed to update event: {e}", exc_info=True)
-                error_message = f"Failed to update event: {str(e)}"
+                error_message = f"Failed to update event: {e!s}"
                 if modal_response:
                     await modal_response.edit(content=error_message, view=None)
                 else:
