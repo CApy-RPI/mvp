@@ -7,6 +7,18 @@ from backend.db.documents.restrict import (
     RestrictedEmbeddedDocument,
 )
 
+class OfficeHours(mongoengine.EmbeddedDocument):
+    """Represents a user's weekly office hours schedule."""
+
+    monday = mongoengine.ListField(mongoengine.StringField(), default=list)
+    tuesday = mongoengine.ListField(mongoengine.StringField(), default=list)
+    wednesday = mongoengine.ListField(mongoengine.StringField(), default=list)
+    thursday = mongoengine.ListField(mongoengine.StringField(), default=list)
+    friday = mongoengine.ListField(mongoengine.StringField(), default=list)
+    saturday = mongoengine.ListField(mongoengine.StringField(), default=list)
+    sunday = mongoengine.ListField(mongoengine.StringField(), default=list)
+    
+
 
 class UserName(RestrictedEmbeddedDocument):
     """Represents a user's name with first, middle, and last components.
@@ -66,6 +78,7 @@ class User(RestrictedDocument):
     updated_at: datetime.datetime = mongoengine.DateTimeField(
         default=datetime.datetime.now
     )
+    office_hours: OfficeHours = mongoengine.EmbeddedDocumentField(OfficeHours, default=OfficeHours)
 
     meta: typing.Dict[str, typing.Any] = {
         "collection": "users",
