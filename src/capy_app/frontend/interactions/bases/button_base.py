@@ -75,9 +75,7 @@ class AcceptCancelView(BaseButtonView):
     """View with accept and cancel buttons."""
 
     @discord.ui.button(label="Accept", style=ButtonStyle.success)
-    async def accept(
-        self, interaction: Interaction, button: discord.ui.Button[Any]
-    ) -> None:
+    async def accept(self, interaction: Interaction, button: discord.ui.Button[Any]) -> None:
         """Handle accept button press."""
         await interaction.response.defer()
         self.value = True
@@ -86,9 +84,7 @@ class AcceptCancelView(BaseButtonView):
         self.stop()
 
     @discord.ui.button(label="Cancel", style=ButtonStyle.danger)
-    async def cancel(
-        self, interaction: Interaction, button: discord.ui.Button[Any]
-    ) -> None:
+    async def cancel(self, interaction: Interaction, button: discord.ui.Button[Any]) -> None:
         """Handle cancel button press."""
         await interaction.response.defer()
         self.value = False
@@ -109,16 +105,44 @@ class ConfirmDeleteView(AcceptCancelView):
 
 class ConfirmView(AcceptCancelView):
     """Customizable confirmation view with configurable button labels and styles."""
+
     def __init__(
         self,
         confirm_text: str = "Confirm",
         confirm_style: ButtonStyle = ButtonStyle.primary,
         cancel_text: str = "Cancel",
         cancel_style: ButtonStyle = ButtonStyle.secondary,
-        **options
+        **options,
     ) -> None:
         super().__init__(**options)
         self.accept.label = confirm_text  # type: ignore
         self.accept.style = confirm_style  # type: ignore
         self.cancel.label = cancel_text  # type: ignore
         self.cancel.style = cancel_style  # type: ignore
+
+
+class EditView(BaseButtonView):
+    """Button view for editing."""
+
+    def __init__(self, callback, **options) -> None:
+        """Initialize a view with an Edit button.
+
+        Args:
+            callback: Function to call when the edit button is clicked
+        """
+        super().__init__(**options)
+        self._callback = callback
+
+    @discord.ui.button(label="Edit", style=ButtonStyle.primary)
+    async def edit_button(self, interaction: Interaction, button: discord.ui.Button[Any]) -> None:
+        """Handle edit button press."""
+        await self._callback(interaction)
+
+    @discord.ui.button(label="Cancel", style=ButtonStyle.secondary)
+    async def cancel_button(self, interaction: Interaction, button: discord.ui.Button[Any]) -> None:
+        """Handle cancel button press."""
+        await interaction.response.defer()
+        self.value = False
+        self._completed = True
+        await self._send_status_message("Edit cancelled")
+        self.stop()
