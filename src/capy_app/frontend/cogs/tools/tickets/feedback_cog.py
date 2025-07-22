@@ -14,29 +14,30 @@ from frontend.config_colors import (
     STATUS_IGNORED,
 )
 
-from frontend.cogs.developers.ticket_base import TicketBase
+from .ticket_base import TicketBase
 
 
 class FeedbackCog(TicketBase):
     def __init__(self, bot):
-        super().__init__(bot,
-                         {
-                             "✅": "Acknowledged",
-                             "❌": "Ignored",
-                             "🔄": "Unmarked",
-                         },
-                         "feedback",
-                         "Feedback Report",
-                         "📝",
-                         "Provide general feedback",
-                         settings.TICKET_FEEDBACK_CHANNEL_ID,
-                         STATUS_INFO,
-                         {
-                             "Acknowledged": STATUS_RESOLVED,
-                             "Ignored": STATUS_IGNORED,
-                         },
-                         " ✅ Acknowledge • ❌ Ignore • 🔄 Reset",
-                         )
+        super().__init__(
+            bot,
+            {
+                "✅": "Acknowledged",
+                "❌": "Ignored",
+                "🔄": "Unmarked",
+            },
+            "feedback",
+            "Feedback Report",
+            "📝",
+            "Provide general feedback",
+            settings.TICKET_FEEDBACK_CHANNEL_ID,
+            STATUS_INFO,
+            {
+                "Acknowledged": STATUS_RESOLVED,
+                "Ignored": STATUS_IGNORED,
+            },
+            " ✅ Acknowledge • ❌ Ignore • 🔄 Reset",
+        )
         self.MODAL_CONFIGS = {
             "button_modal": {
                 "ephemeral": False,
