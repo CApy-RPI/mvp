@@ -4,7 +4,7 @@
 
 ## **Overview**  
 
-Welcome to **CAPY** — an all-in-one club managerial software built for efficiency and ease of use. Using **Discord** as the primary communication platform, this bot automates administrative tasks like attendance tracking, student verification, meeting reminders, and more. Whether you're starting a new club or managing an established one, CApy helps you focus on what matters most.
+Welcome to **CAPY** — an all-in-one club managerial software built for efficiency and ease of use. Using **Discord** as the primary communication platform, this bot automates administrative tasks like attendance tracking, student verification, meeting reminders, and more. Whether you're starting a new club or managing an established one, CAPY helps you focus on what matters most.
 
 ## **Features**  
 
