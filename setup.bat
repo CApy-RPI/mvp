@@ -5,7 +5,7 @@ echo Setting up development environment...
 
 REM Create virtual environment
 echo Creating virtual environment...
-python -m venv venv
+python -m venv .venv
 if !errorlevel! neq 0 (
     echo Failed to create virtual environment
     exit /b 1
@@ -13,7 +13,7 @@ if !errorlevel! neq 0 (
 
 REM Activate virtual environment
 echo Activating virtual environment...
-call venv\Scripts\activate.bat
+call .venv\Scripts\activate.bat
 if !errorlevel! neq 0 (
     echo Failed to activate virtual environment
     exit /b 1
@@ -50,7 +50,7 @@ if !errorlevel! neq 0 (
 )
 
 echo Setup complete!
-echo To activate the virtual environment, run: venv\Scripts\activate.bat
+echo To activate the virtual environment, run: .venv\Scripts\activate.bat
 echo To run pre-commit on all files: pre-commit run --all-files
 
 pause
