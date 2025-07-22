@@ -597,14 +597,17 @@ class EventCog(commands.Cog):
 
     async def edit_event_selection(self, interaction: discord.Interaction) -> None:
         """Edit a specific event selected from dropdown."""
+        # Prompt the user to select an event to edit
         event, message = await self.get_event_selection(interaction, "edit")
         if not event or not message:
             return
 
+        # Define the callback for when the "Edit" button is pressed
         async def handle_edit_button(button_interaction: discord.Interaction) -> None:
-            # Use helper to get pre-filled modal config
+            # Get a modal config with fields pre-filled from the selected event
             modal_config = await self.get_prefilled__modal_config(event)
 
+            # Show the modal to the user and wait for their input
             modal_view = DynamicModalView(**modal_config)
             form_data, modal_response = await modal_view.initiate_from_interaction(
                 button_interaction
@@ -612,6 +615,7 @@ class EventCog(commands.Cog):
             if not form_data:
                 return
 
+            # Validate the submitted form data
             if not self._validate_event_form(form_data):
                 msg = "Invalid event data. Please check the format of date and time fields."
                 if modal_response:
@@ -621,6 +625,8 @@ class EventCog(commands.Cog):
                 return
 
             try:
+                # Prepare the timezone dropdown config,
+                # setting the current event timezone as default
                 timezone_config = self.config["timezone_dropdown"].copy()
                 timezone_config.pop("placeholder", None)
                 current_tz = getattr(
@@ -633,6 +639,7 @@ class EventCog(commands.Cog):
                             for opt in dropdown.pop("options", [])
                         ]
 
+                # Show the timezone dropdown to the user
                 timezone_view = DynamicDropdownView(**timezone_config)
                 timezone_data, dropdown_message = await timezone_view.initiate_from_message(
                     modal_response or await button_interaction.original_response(),
@@ -644,16 +651,19 @@ class EventCog(commands.Cog):
                     else current_tz
                 )
 
+                # Parse the new date and time with the selected timezone
                 event_time = self.parse_datetime(
                     form_data["event_date"], form_data["event_time"], timezone
                 )
 
+                # Update the event details with the new data
                 event.details.name = form_data["event_name"]
                 event.details.description = form_data["event_description"]
                 event.details.time = event_time
                 event.details.location = form_data["event_location"]
                 db.update_document(event, {"details": event.details})
 
+                # Notify the user of success
                 success_message = "Event updated successfully!"
                 target_msg = dropdown_message or modal_response
                 if target_msg:
@@ -661,6 +671,7 @@ class EventCog(commands.Cog):
                 else:
                     await button_interaction.followup.send(content=success_message, ephemeral=True)
 
+                # Show the updated event embed
                 await self.show_event_embed(message, event)
 
             except Exception as e:
@@ -671,12 +682,14 @@ class EventCog(commands.Cog):
                 else:
                     await button_interaction.followup.send(content=error_message, ephemeral=True)
 
+        # Show the edit/cancel button view to the user
         view = EditView(handle_edit_button, ephemeral=True)
         await message.edit(
             content='Press "Edit" below to edit this event or press "Cancel" to cancel editing:',
             view=view,
         )
         await view.wait()
+        # If the user cancels, update the message accordingly
         if view.value is False:
             try:
                 await message.edit(
@@ -686,7 +699,6 @@ class EventCog(commands.Cog):
                 )
             except (discord.NotFound, discord.HTTPException):
                 pass
-            return
 
     async def delete_event_selection(self, interaction: discord.Interaction) -> None:
         """Delete a specific event selected from dropdown."""
