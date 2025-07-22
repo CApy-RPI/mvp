@@ -1,42 +1,34 @@
-# mypy: ignore-errors
-# TODO Remove on rewrite ^
-
 import discord
 import logging
 import os
 from discord.ext import commands
 from discord import app_commands
-from typing import List, Literal, Any
+from typing import List, Literal, Any, cast
 
 from frontend import config_colors as colors
 from config import settings
 
 
-class HotswapView(discord.ui.View):
+class HotswapSelect(discord.ui.Select[discord.ui.View]):
     def __init__(self, cogs: List[str], operation: str, bot: commands.Bot):
-        super().__init__()
+        super().__init__(
+            placeholder="Select a cog...",
+            options=[discord.SelectOption(label=cog.split(".")[-1], value=cog) for cog in cogs],
+            min_values=1,
+            max_values=1,
+        )
+
         self.bot = bot
         self.operation = operation
         self.logger = logging.getLogger("discord.cog.hotswap")
 
-        # Create select menu with appropriate cogs based on operation
-        select: discord.ui.Select[Any] = discord.ui.Select(
-            placeholder="Select a cog...",
-            options=[
-                discord.SelectOption(label=cog.split(".")[-1], value=cog)
-                for cog in cogs
-            ],
-            min_values=1,
-            max_values=1,
-        )
-        select.callback = self.select_callback
-        self.add_item(select)
-
-    async def select_callback(self, interaction: discord.Interaction):
+    async def callback(self, interaction: discord.Interaction):
         if not isinstance(interaction.data, dict):
             return
 
-        values = interaction.data.get("values", [])
+        # Ensure interaction data is indeed a dict and can be indexable
+        data = cast(dict[str, Any], interaction.data)
+        values = data.get("values", [])
         if not values:
             return
 
@@ -66,12 +58,16 @@ class HotswapView(discord.ui.View):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
+class HotswapView(discord.ui.View):
+    def __init__(self, cogs: List[str], operation: str, bot: commands.Bot):
+        super().__init__()
+        self.add_item(HotswapSelect(cogs, operation, bot))
+
+
 class HotswapCog(commands.Cog, name="hotswap"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.logger = logging.getLogger(
-            f"discord.cog.{self.__class__.__name__.lower()}"
-        )
+        self.logger = logging.getLogger(f"discord.cog.{self.__class__.__name__.lower()}")
         self.cogs_path = os.path.join(os.path.dirname(__file__), "..")
 
     def get_cog_from_path(self, path: str) -> str | None:
@@ -105,9 +101,7 @@ class HotswapCog(commands.Cog, name="hotswap"):
         return list(all_cogs - loaded_cogs)
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
-    @app_commands.command(
-        name="hotswap", description="Manage cogs (reload/load/unload)"
-    )
+    @app_commands.command(name="hotswap", description="Manage cogs (reload/load/unload)")
     @app_commands.checks.has_permissions(administrator=True)
     async def hotswap(
         self,

@@ -15,31 +15,32 @@ from frontend.config_colors import (
     STATUS_IGNORED,
 )
 
-from frontend.cogs.developers.ticket_base import TicketBase
+from .ticket_base import TicketBase
 
 
 class FeatureRequestCog(TicketBase):
     def __init__(self, bot):
-        super().__init__(bot,
-                         {
-                             "✅": "Completed",
-                             "👍": "Approved",
-                             "❌": "Ignored",
-                             "🔄": "Unmarked",
-                         },
-                         "feature",
-                         "Feature Request",
-                         "💡",
-                         "Request a new feature",
-                         settings.TICKET_FEATURE_REQUEST_CHANNEL_ID,
-                         STATUS_UNMARKED,
-                         {
-                             "Completed": STATUS_RESOLVED,
-                             "Approved": STATUS_IMPORTANT,
-                             "Ignored": STATUS_IGNORED,
-                         },
-                         " ✅ Complete • 👍 Approve • ❌ Ignore • 🔄 Reset",
-                         )
+        super().__init__(
+            bot,
+            {
+                "✅": "Completed",
+                "👍": "Approved",
+                "❌": "Ignored",
+                "🔄": "Unmarked",
+            },
+            "feature",
+            "Feature Request",
+            "💡",
+            "Request a new feature",
+            settings.TICKET_FEATURE_REQUEST_CHANNEL_ID,
+            STATUS_UNMARKED,
+            {
+                "Completed": STATUS_RESOLVED,
+                "Approved": STATUS_IMPORTANT,
+                "Ignored": STATUS_IGNORED,
+            },
+            " ✅ Complete • 👍 Approve • ❌ Ignore • 🔄 Reset",
+        )
         self.MODAL_CONFIGS = {
             "button_modal": {
                 "ephemeral": False,
