@@ -4,7 +4,7 @@ import logging
 from typing import Any
 
 import discord
-from discord import Color, TextChannel, app_commands
+from discord import TextChannel, app_commands
 from discord.ext import commands
 from frontend.config_colors import (
     STATUS_ERROR,
