@@ -1,5 +1,6 @@
 import datetime
 import typing
+from typing import Any, ClassVar
 
 import mongoengine
 from backend.db.documents.restrict import RestrictedDocument, RestrictedEmbeddedDocument
@@ -64,7 +65,10 @@ class Event(RestrictedDocument):
     created_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
     updated_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
 
-    meta = {"collection": "events", "indexes": ["created_at", "updated_at"]}
+    meta: ClassVar[dict[str, Any]] = {
+        "collection": "events",
+        "indexes": ["created_at", "updated_at"]
+    }
 
     def save(self, *args: typing.Any, **kwargs: typing.Any) -> "Event":
         """Override save to update the updated_at timestamp."""
