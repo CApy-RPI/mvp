@@ -235,12 +235,9 @@ class DynamicDropdownView(View):
         self._auto_buttons, self._add_buttons = buttons
         self._collection = collection
         dropdowns = dropdowns or []
-        if (
-            (len(dropdowns) > self.MAX_DROPDOWNS)
-            or (
-                (len(dropdowns) > (self.MAX_DROPDOWNS - 1))
-                and (self._auto_buttons or self._add_buttons)
-            )
+        if (len(dropdowns) > self.MAX_DROPDOWNS) or (
+            (len(dropdowns) > (self.MAX_DROPDOWNS - 1))
+            and (self._auto_buttons or self._add_buttons)
         ):
             raise ValueError(f"Number of dropdowns exceeds Discord limit of {self.MAX_DROPDOWNS}.")
 
