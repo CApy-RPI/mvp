@@ -1,3 +1,5 @@
+from contextlib import suppress
+
 from discord import ButtonStyle, Interaction, Object, TextStyle, app_commands
 from discord.errors import NotFound
 from discord.ext import commands
@@ -86,13 +88,11 @@ class ModalTestCog(commands.Cog):
 
         values, message = await view.initiate_from_interaction(interaction)
         if values and message:
-            try:
+            with suppress(NotFound):
                 await message.edit(
                     content="Submitted values:\n"
                     + "\n".join(f"{k}: {v}" for k, v in values.items())
                 )
-            except NotFound:
-                pass
 
     @app_commands.guilds(Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="test_modal_button")
@@ -104,12 +104,10 @@ class ModalTestCog(commands.Cog):
             interaction, prompt="Click below to start the survey!"
         )
         if values and message:
-            try:
+            with suppress(NotFound):
                 await message.edit(
                     content="Survey results:\n" + "\n".join(f"{k}: {v}" for k, v in values.items())
                 )
-            except NotFound:
-                pass
 
     @app_commands.guilds(Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="test_modal_sequential")
@@ -138,10 +136,8 @@ class ModalTestCog(commands.Cog):
             f"{section}:\n" + "\n".join(f"  {k}: {v}" for k, v in info.items())
             for section, info in combined.items()
         )
-        try:
+        with suppress(NotFound):
             await message.edit(content=f"Profile completed:\n{formatted}")
-        except NotFound:
-            pass
 
 
 async def setup(bot: commands.Bot):
