@@ -8,6 +8,8 @@ backend = types.ModuleType("backend")
 modules = types.ModuleType("modules")
 email_module = types.ModuleType("email")
 
+CODE_LENGTH = 6
+
 
 class DummyEmail:
     def send_mail(self, *_, **__):  # pragma: no cover - simple dummy
@@ -25,7 +27,6 @@ sys.modules.setdefault("backend.modules.email", email_module)
 def test_generate_code_length_and_digits() -> None:
     verifier = EmailVerifier()
     code = verifier.generate_code(1, "test@example.com")
-    CODE_LENGTH = 6
     assert len(code) == CODE_LENGTH
     assert code.isdigit()
 
