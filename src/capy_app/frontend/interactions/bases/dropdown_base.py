@@ -10,6 +10,7 @@ dropdown menus with optional accept/cancel buttons. It supports:
 
 import asyncio
 import logging
+from contextlib import suppress
 from typing import Any, cast
 
 from discord import ButtonStyle, Interaction, Message, SelectOption
@@ -49,8 +50,7 @@ class RightButton(Button["DynamicDropdownView"]):
             dropdowns=old_view._dropdowns_data,
             page_number=next_page,
             ephemeral=old_view._ephemeral,
-            auto_buttons=old_view._auto_buttons,
-            add_buttons=old_view._add_buttons,
+            buttons=(old_view._auto_buttons, old_view._add_buttons),
             collection=old_view._collection,
         )
         new_view._message = old_view._message  # Maintain message reference
@@ -175,11 +175,9 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
     async def callback(self, interaction: Interaction) -> None:
         """Handle dropdown selection."""
         self.selected_values = self.values
-        print("type of _collection:", type(self.view._collection))
-        print("value of _collection:", self.view._collection)
         runningtotal = 0
-        for dropdown in self.view._collection.keys():
-            for major in self.view._collection[dropdown]:
+        for dropdown in self.view._collection:
+            for _major in self.view._collection[dropdown]:
                 runningtotal += 1
         if runningtotal + len(self.selected_values) <= self.max_values:
             self.view._collection[self.custom_id] = self.selected_values
@@ -212,9 +210,8 @@ class DynamicDropdownView(View):
         dropdowns: list[dict[str, Any]] | None = None,
         page_number: int = 0,
         ephemeral: bool = True,
-        auto_buttons: bool = True,
-        add_buttons: bool = False,
-        collection: tuple[dict[str, list[str]]] = {},
+        buttons: tuple[bool, bool] = (True, False),
+        collection: dict[str, list[str]] | None = None,
         **options,
     ) -> None:
         """Initialize the multi-selector view.
@@ -235,16 +232,17 @@ class DynamicDropdownView(View):
         self._has_buttons: bool = False
         self._message: Message | None = None
         self._ephemeral: bool = ephemeral
-        self._auto_buttons = auto_buttons
-        self._add_buttons = add_buttons
+        self._auto_buttons, self._add_buttons = buttons
         self._collection = collection
         dropdowns = dropdowns or []
         if (
-            len(dropdowns) > self.MAX_DROPDOWNS
-            or len(dropdowns) > self.MAX_DROPDOWNS - 1
-            and (self._auto_buttons or self._add_buttons)
+            (len(dropdowns) > self.MAX_DROPDOWNS)
+            or (
+                (len(dropdowns) > (self.MAX_DROPDOWNS - 1))
+                and (self._auto_buttons or self._add_buttons)
+            )
         ):
-            raise ValueError(f"Number of dropdowns exceeds Discord limit of {self.MAX_DROPDOWNS}. ")
+            raise ValueError(f"Number of dropdowns exceeds Discord limit of {self.MAX_DROPDOWNS}.")
 
         # for dropdown in dropdowns:
         #   self._add_dropdown(**dropdown)
@@ -288,10 +286,8 @@ class DynamicDropdownView(View):
         if not self._message:
             return
 
-        try:
+        with suppress(NotFound):
             await self._message.edit(content="Selection timed out", view=None)
-        except NotFound:
-            pass
 
     def _add_dropdown(
         self,
@@ -312,7 +308,6 @@ class DynamicDropdownView(View):
 
     def _clear_dropdown(
         self,
-        **options,
     ) -> DynamicDropdown:
         for dropdown in self._dropdowns:
             self.remove_item(dropdown)
