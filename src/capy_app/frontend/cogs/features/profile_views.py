@@ -1,22 +1,21 @@
 """Profile-specific view classes for Discord interactions."""
 
-from typing import Optional, List, Dict
 import datetime
-import discord
-from discord import TextStyle, ButtonStyle
-from backend.db.documents.user import User
 
+import discord
+from backend.db.documents.user import User
+from discord import ButtonStyle, TextStyle
+from frontend.interactions.bases.dropdown_base import MultiSelectorView
 from frontend.interactions.bases.modal_base import (
     DynamicModal,
     DynamicModalView,
 )
-from frontend.interactions.bases.dropdown_base import MultiSelectorView
 
 
 class ProfileModal(DynamicModal):
     """Profile creation/editing modal without button trigger."""
 
-    def __init__(self, user: Optional[User] = None) -> None:
+    def __init__(self, user: User | None = None) -> None:
         super().__init__(title="Create Profile")
 
         self.add_field(
@@ -121,9 +120,7 @@ class EmailVerificationView(DynamicModalView):
             await interaction.response.defer(ephemeral=True)
             code = self.modal.children[0].value
             if not code.isdigit() or len(code) != 6:
-                await interaction.followup.send(
-                    "Invalid verification code format.", ephemeral=True
-                )
+                await interaction.followup.send("Invalid verification code format.", ephemeral=True)
                 return
             self.modal.success = True
             self.modal.values = {"verification_code": code}
@@ -134,12 +131,10 @@ class EmailVerificationView(DynamicModalView):
 class MajorSelector(MultiSelectorView):
     """Dropdown for major selection."""
 
-    def __init__(
-        self, major_list: List[str], current_majors: Optional[List[str]] = None
-    ) -> None:
+    def __init__(self, major_list: list[str], current_majors: list[str] | None = None) -> None:
         super().__init__(timeout=180.0)
 
-        options_dict: Dict[str, Dict[str, str]] = {
+        options_dict: dict[str, dict[str, str]] = {
             major: {"value": major, "description": f"Select {major} as your major"}
             for major in (major_list or ["Undeclared"])
         }

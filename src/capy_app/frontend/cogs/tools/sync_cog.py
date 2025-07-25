@@ -9,11 +9,12 @@ This module handles synchronizing application commands with Discord:
 """
 
 import logging
-from typing import List, Optional
+
 import discord
-from discord.ext import commands
 from discord import app_commands
-from frontend.utils.embed_statuses import success_embed, error_embed
+from discord.ext import commands
+from frontend.utils.embed_statuses import error_embed, success_embed
+
 from config import settings
 
 
@@ -27,13 +28,11 @@ class SyncCog(commands.Cog):
             bot: The Discord bot instance
         """
         self.bot = bot
-        self.logger = logging.getLogger(
-            f"discord.cog.{self.__class__.__name__.lower()}"
-        )
+        self.logger = logging.getLogger(f"discord.cog.{self.__class__.__name__.lower()}")
 
     async def _sync_commands(
-        self, debug_guild: Optional[discord.Guild]
-    ) -> List[discord.app_commands.AppCommand]:
+        self, debug_guild: discord.Guild | None
+    ) -> list[discord.app_commands.AppCommand]:
         """Synchronize commands with Discord.
 
         Args:
@@ -47,8 +46,8 @@ class SyncCog(commands.Cog):
         self.logger.info("Syncing application commands...")
         if debug_guild:
             self.logger.info(f"Connected to debug guild: {debug_guild.name}")
-        synced_commands: list[discord.app_commands.AppCommand] = (
-            await self.bot.tree.sync(guild=debug_guild)
+        synced_commands: list[discord.app_commands.AppCommand] = await self.bot.tree.sync(
+            guild=debug_guild
         )
         return synced_commands
 
@@ -67,9 +66,7 @@ class SyncCog(commands.Cog):
 
         except Exception as e:
             self.logger.error(f"Failed to sync commands: {e}")
-            await ctx.send(
-                embed=error_embed("Sync Commands", f"❌ Failed to sync commands: {e}")
-            )
+            await ctx.send(embed=error_embed("Sync Commands", f"❌ Failed to sync commands: {e}"))
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="sync", description="Sync application commands")

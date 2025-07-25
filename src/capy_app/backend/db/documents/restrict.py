@@ -1,16 +1,15 @@
 import datetime
-
 import logging
-from typing import Any, Dict
+from typing import Any
 
-from mongoengine import EmbeddedDocument, Document, DateTimeField
+from mongoengine import DateTimeField, Document, EmbeddedDocument
 from mongoengine.base import BaseDocument
 
 
 class RestrictedBase(BaseDocument):
     """Base class for restricted documents with proper type hints."""
 
-    meta: Dict[str, Any] = {"abstract": True, "allow_inheritance": True}
+    meta: dict[str, Any] = {"abstract": True, "allow_inheritance": True}
     logger = logging.getLogger(__name__)
 
     def __setattr__(self, name, value):
@@ -31,14 +30,10 @@ class RestrictedBase(BaseDocument):
 
 
 class RestrictedDocument(RestrictedBase, Document):
-    created_at = DateTimeField(
-        default=lambda: datetime.datetime.now(datetime.timezone.utc)
-    )
-    updated_at = DateTimeField(
-        default=lambda: datetime.datetime.now(datetime.timezone.utc), auto_now=True
-    )
+    created_at = DateTimeField(default=lambda: datetime.datetime.now(datetime.UTC))
+    updated_at = DateTimeField(default=lambda: datetime.datetime.now(datetime.UTC), auto_now=True)
 
-    meta: Dict[str, Any] = {"abstract": True}
+    meta: dict[str, Any] = {"abstract": True}
 
 
 class RestrictedEmbeddedDocument(RestrictedBase, EmbeddedDocument):

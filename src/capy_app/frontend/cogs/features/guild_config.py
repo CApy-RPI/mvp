@@ -3,7 +3,8 @@
 
 """Configuration settings for guild management."""
 
-from typing import TypedDict, Dict
+from typing import TypedDict
+
 import discord
 
 
@@ -76,7 +77,7 @@ class ConfigConstructor:
         }
 
     @staticmethod
-    def get_settings_type_dropdown() -> Dict:
+    def get_settings_type_dropdown() -> dict:
         """Get settings type selection dropdown configuration."""
         return {
             "dropdowns": [
@@ -103,7 +104,7 @@ class ConfigConstructor:
         }
 
     @staticmethod
-    def get_config_view_settings() -> Dict:
+    def get_config_view_settings() -> dict:
         """Get configuration view settings."""
         return {
             "ephemeral": False,
@@ -141,9 +142,7 @@ class ConfigConstructor:
     async def create_channel_dropdown(cls, guild: discord.Guild) -> list[dict]:
         """Create channel selection options."""
         text_channels = [
-            channel
-            for channel in guild.channels
-            if isinstance(channel, discord.TextChannel)
+            channel for channel in guild.channels if isinstance(channel, discord.TextChannel)
         ]
 
         selections = []

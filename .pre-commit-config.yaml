@@ -10,10 +10,41 @@ repos:
         types: [python]
         require_serial: true
         verbose: true
-  - repo: https://github.com/pycqa/flake8
-    rev: 7.1.2
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
     hooks:
-      - id: flake8
+      - id: black
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.0
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+  - repo: local
+    hooks:
+      - id: radon-cc
+        name: radon complexity check
+        entry: radon
+        language: python
+        additional_dependencies: ["radon"]
+        args: ["cc", "--min", "B", "--show-complexity", "src"]
+        files: \.py$
+      - id: radon-mi
+        name: radon maintainability index
+        entry: radon
+        language: python
+        additional_dependencies: ["radon"]
+        args: ["mi", "--min", "B", "--show", "src"]
+        files: \.py$
+      - id: pytest
+        name: pytest
+        entry: pytest
+        language: python
+        additional_dependencies: ["pytest"]
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
 default_stages: [pre-commit, pre-push]
 default_language_version:
   python: python3.12
+fail_fast: false

@@ -2,25 +2,22 @@
 
 import logging
 import re
-from typing import Union, Dict, Optional, Any, cast
-from datetime import datetime, timezone
-import pytz
-
+from datetime import UTC, datetime
+from typing import Any, cast
 
 import discord
+import pytz
+from backend.db.database import Database as db
+from backend.db.documents.event import Event, EventDetails, EventReactions
+from backend.db.documents.guild import Guild
+from backend.db.documents.user import User
 from discord import app_commands
 from discord.ext import commands
+from frontend.interactions.bases.button_base import ConfirmDeleteView, ConfirmView, EditView
+from frontend.interactions.bases.dropdown_base import DynamicDropdownView
+from frontend.interactions.bases.modal_base import DynamicModalView
 
 from config import settings
-from backend.db.database import Database as db
-from backend.db.documents.user import User
-from backend.db.documents.guild import Guild
-from backend.db.documents.event import Event, EventDetails, EventReactions
-from frontend.interactions.bases.button_base import ConfirmDeleteView
-from frontend.interactions.bases.button_base import ConfirmView
-from frontend.interactions.bases.button_base import EditView
-from frontend.interactions.bases.modal_base import DynamicModalView
-from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 
 from .event_config import EVENT_CONFIG
 
@@ -37,10 +34,10 @@ class EventCog(commands.Cog):
 
     def now(self) -> datetime:
         """Returns current time in UTC."""
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
     def parse_datetime(
-        self, date_str: str, time_str: str, timezone_str: Optional[str] = None
+        self, date_str: str, time_str: str, timezone_str: str | None = None
     ) -> datetime:
         """Parse date and time strings into a datetime object."""
         try:
@@ -97,7 +94,7 @@ class EventCog(commands.Cog):
             self.logger.error(f"Error formatting datetime: {e}")
             return str(dt)
 
-    def _validate_event_form(self, form_data: Dict[str, str]) -> bool:
+    def _validate_event_form(self, form_data: dict[str, str]) -> bool:
         """Validate event form data."""
         # Check required fields
         required_fields = [
@@ -325,10 +322,10 @@ class EventCog(commands.Cog):
         except Exception as e:
             self.logger.error(f"Exception in create_event: {e}", exc_info=True)
             if interaction.response.is_done():
-                await interaction.followup.send(f"Error creating event: {str(e)}", ephemeral=True)
+                await interaction.followup.send(f"Error creating event: {e!s}", ephemeral=True)
             else:
                 await interaction.response.send_message(
-                    f"Error creating event: {str(e)}", ephemeral=True
+                    f"Error creating event: {e!s}", ephemeral=True
                 )
 
     async def list_events(self, interaction: discord.Interaction) -> None:
@@ -394,9 +391,9 @@ class EventCog(commands.Cog):
 
     async def get_event_selection(
         self, interaction: discord.Interaction, action: str
-    ) -> tuple[Optional[Event], Optional[discord.Message]]:
+    ) -> tuple[Event | None, discord.Message | None]:
         """Get event selection from dropdown. Returns (Event, Message) or (None, None)."""
-        message: Optional[discord.Message] = None  # Initialize message variable
+        message: discord.Message | None = None  # Initialize message variable
         try:
             # Get all events for this guild
             guild = db.get_document(Guild, interaction.guild_id)
@@ -565,7 +562,7 @@ class EventCog(commands.Cog):
             return selected_event, message
 
         except Exception as e:
-            self.logger.error(f"Outer error in get_event_selection: {str(e)}", exc_info=True)
+            self.logger.error(f"Outer error in get_event_selection: {e!s}", exc_info=True)
             # Ensure we return two values even on unexpected error
             # Try to inform user if possible
             try:
@@ -676,7 +673,7 @@ class EventCog(commands.Cog):
 
             except Exception as e:
                 self.logger.error(f"Failed to update event: {e}", exc_info=True)
-                error_message = f"Failed to update event: {str(e)}"
+                error_message = f"Failed to update event: {e!s}"
                 if modal_response:
                     await modal_response.edit(content=error_message, view=None)
                 else:
@@ -895,10 +892,8 @@ class EventCog(commands.Cog):
             )
         except discord.Forbidden:
             self.logger.error(
-                (
-                    f"Permission error announcing event {event._id} "
-                    f"in channel {announcement_channel.id}"
-                )
+                f"Permission error announcing event {event._id} "
+                f"in channel {announcement_channel.id}"
             )
             try:
                 await message.edit(
@@ -985,7 +980,7 @@ class EventCog(commands.Cog):
 
     async def show_event_embed(
         self,
-        message_or_interaction: Union[discord.Message, discord.Interaction],
+        message_or_interaction: discord.Message | discord.Interaction,
         event: Event,
     ) -> None:
         """Display event details in an embed."""

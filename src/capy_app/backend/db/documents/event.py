@@ -1,8 +1,8 @@
-import typing
 import datetime
-import mongoengine
+import typing
 
-from backend.db.documents.restrict import RestrictedEmbeddedDocument, RestrictedDocument
+import mongoengine
+from backend.db.documents.restrict import RestrictedDocument, RestrictedEmbeddedDocument
 
 
 class EventReactions(RestrictedEmbeddedDocument):
@@ -32,8 +32,8 @@ class EventDetails(RestrictedEmbeddedDocument):
 
     name: str = mongoengine.StringField(required=True)
     time: datetime.datetime = mongoengine.DateTimeField(required=True)
-    location: typing.Optional[str] = mongoengine.StringField()
-    description: typing.Optional[str] = mongoengine.StringField()
+    location: str | None = mongoengine.StringField()
+    description: str | None = mongoengine.StringField()
     reactions: EventReactions = mongoengine.EmbeddedDocumentField(
         EventReactions, default=EventReactions
     )
@@ -55,20 +55,14 @@ class Event(RestrictedDocument):
     """
 
     _id: int = mongoengine.IntField(primary_key=True)
-    yes_users: typing.List[int] = mongoengine.ListField(mongoengine.IntField(), default=list)
-    maybe_users: typing.List[int] = mongoengine.ListField(mongoengine.IntField(), default=list)
-    no_users: typing.List[int] = mongoengine.ListField(mongoengine.IntField(), default=list)
+    yes_users: list[int] = mongoengine.ListField(mongoengine.IntField(), default=list)
+    maybe_users: list[int] = mongoengine.ListField(mongoengine.IntField(), default=list)
+    no_users: list[int] = mongoengine.ListField(mongoengine.IntField(), default=list)
     guild_id: int = mongoengine.IntField()
     message_id: int = mongoengine.IntField()
-    details: EventDetails = mongoengine.EmbeddedDocumentField(
-        EventDetails, required=True
-    )
-    created_at: datetime.datetime = mongoengine.DateTimeField(
-        default=datetime.datetime.now
-    )
-    updated_at: datetime.datetime = mongoengine.DateTimeField(
-        default=datetime.datetime.now
-    )
+    details: EventDetails = mongoengine.EmbeddedDocumentField(EventDetails, required=True)
+    created_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
+    updated_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
 
     meta = {"collection": "events", "indexes": ["created_at", "updated_at"]}
 

@@ -1,10 +1,14 @@
 import sys
 import types
 
+from capy_app.frontend.cogs.features.profile_handlers import EmailVerifier
+
 # Provide dummy backend email module to avoid external dependency
 backend = types.ModuleType("backend")
 modules = types.ModuleType("modules")
 email_module = types.ModuleType("email")
+
+CODE_LENGTH = 6
 
 
 class DummyEmail:
@@ -19,13 +23,11 @@ sys.modules.setdefault("backend", backend)
 sys.modules.setdefault("backend.modules", modules)
 sys.modules.setdefault("backend.modules.email", email_module)
 
-from capy_app.frontend.cogs.features.profile_handlers import EmailVerifier
-
 
 def test_generate_code_length_and_digits() -> None:
     verifier = EmailVerifier()
     code = verifier.generate_code(1, "test@example.com")
-    assert len(code) == 6
+    assert len(code) == CODE_LENGTH
     assert code.isdigit()
 
 

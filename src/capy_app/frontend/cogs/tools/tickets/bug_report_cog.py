@@ -1,9 +1,10 @@
+from discord import ButtonStyle, TextStyle
 from discord.ext import commands
-from discord import TextStyle, ButtonStyle
+from frontend.config_colors import STATUS_ERROR, STATUS_IGNORED, STATUS_IMPORTANT, STATUS_RESOLVED
 
 from config import settings
+
 from .ticket_base import TicketBase
-from frontend.config_colors import STATUS_ERROR, STATUS_IMPORTANT, STATUS_RESOLVED, STATUS_IGNORED
 
 
 class BugReportCog(TicketBase):

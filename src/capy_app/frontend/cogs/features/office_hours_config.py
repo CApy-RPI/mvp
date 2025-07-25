@@ -117,7 +117,6 @@
 
 """Configuration for office hours management."""
 
-from discord import ButtonStyle
 
 PROFILE_CONFIG = {
     "office_hour_modal": {

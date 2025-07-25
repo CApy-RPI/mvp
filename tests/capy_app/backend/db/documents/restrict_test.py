@@ -1,10 +1,11 @@
-from typing import Dict, Any
-
-import pytest
-import mongoengine
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
+
+import mongoengine
+import pytest
 from mongomock import MongoClient
+
 from capy_app.backend.db.documents.restrict import (
     RestrictedDocument,
     RestrictedEmbeddedDocument,
@@ -12,7 +13,7 @@ from capy_app.backend.db.documents.restrict import (
 
 
 class ConcreteRestrictedDocument(RestrictedDocument):
-    meta: Dict[str, Any] = {"collection": "test_restricted_document"}
+    meta: dict[str, Any] = {"collection": "test_restricted_document"}
 
 
 @pytest.fixture(scope="module")
@@ -35,7 +36,7 @@ def test_restricted_document_set_known_field(db):
     Test that setting an existing field (created_at) on a RestrictedDocument is allowed.
     """
     doc = ConcreteRestrictedDocument()
-    new_time = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    new_time = datetime(2020, 1, 1, tzinfo=UTC)
     doc.created_at = new_time
     assert doc.created_at == new_time
     doc.save()
@@ -43,7 +44,7 @@ def test_restricted_document_set_known_field(db):
     saved_doc = ConcreteRestrictedDocument.objects.first()
 
     # Convert saved_doc.created_at to timezone-aware for comparison
-    saved_created_at = saved_doc.created_at.replace(tzinfo=timezone.utc)
+    saved_created_at = saved_doc.created_at.replace(tzinfo=UTC)
     assert saved_created_at == new_time
 
 
@@ -70,23 +71,19 @@ def test_restricted_document_autoupdate(db):
     Test that `updated_at` automatically updates when saving the document after changes.
     """
     doc = ConcreteRestrictedDocument().save()
-    first_updated = doc.updated_at.replace(tzinfo=timezone.utc)
+    first_updated = doc.updated_at.replace(tzinfo=UTC)
 
     time.sleep(0.02)  # Ensures MongoDB registers a timestamp change
 
-    doc.created_at = datetime.now(timezone.utc)
+    doc.created_at = datetime.now(UTC)
     doc.save()
     doc.reload()
 
-    updated_at = doc.updated_at.replace(tzinfo=timezone.utc)
+    updated_at = doc.updated_at.replace(tzinfo=UTC)
 
     # Round both timestamps to the nearest millisecond
-    first_updated_ms = first_updated.replace(
-        microsecond=(first_updated.microsecond // 1000) * 1000
-    )
-    updated_at_ms = updated_at.replace(
-        microsecond=(updated_at.microsecond // 1000) * 1000
-    )
+    first_updated_ms = first_updated.replace(microsecond=(first_updated.microsecond // 1000) * 1000)
+    updated_at_ms = updated_at.replace(microsecond=(updated_at.microsecond // 1000) * 1000)
 
     print(
         f"Before update (ms rounded): {first_updated_ms}, After update (ms rounded): {updated_at_ms}"

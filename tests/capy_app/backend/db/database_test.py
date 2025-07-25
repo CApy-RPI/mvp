@@ -1,11 +1,11 @@
 # third-party imports
+import mongomock
 import pytest
 from mongoengine import connect, disconnect
-import mongomock
 
 # local imports
 from capy_app.backend.db.database import Database
-from capy_app.backend.db.documents.user import User, UserProfile, UserName
+from capy_app.backend.db.documents.user import User, UserName, UserProfile
 
 
 @pytest.fixture(scope="module")

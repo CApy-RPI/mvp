@@ -20,14 +20,12 @@ from config import settings
 class ErrorHandlerCog(commands.Cog):
     """Cog for handling error messages and their resolution status."""
 
-    STATUS_MAP: typing.Dict[str, typing.Tuple[discord.Color, str]]
+    STATUS_MAP: dict[str, tuple[discord.Color, str]]
 
     def __init__(self, bot: commands.Bot) -> None:
         """Initialize the error handler cog."""
         self.bot = bot
-        self.logger = logging.getLogger(
-            f"discord.cog.{self.__class__.__name__.lower()}"
-        )
+        self.logger = logging.getLogger(f"discord.cog.{self.__class__.__name__.lower()}")
 
         self.RESOLVED_EMOJI = "✅"
         self.IGNORED_EMOJI = "❌"
@@ -35,18 +33,16 @@ class ErrorHandlerCog(commands.Cog):
         self.STATUS_UNMARKED = "Unresolved"
         self.STATUS_RESOLVED = "Resolved"
         self.STATUS_IGNORED = "Ignored"
-        self.STATUS_MAP: typing.Dict[str, typing.Tuple[discord.Color, str]] = {
+        self.STATUS_MAP: dict[str, tuple[discord.Color, str]] = {
             self.RESOLVED_EMOJI: (discord.Color.green(), self.STATUS_RESOLVED),
             self.IGNORED_EMOJI: (discord.Color.light_grey(), self.STATUS_IGNORED),
         }
 
-    async def _get_error_channel(self) -> typing.Optional[discord.TextChannel]:
+    async def _get_error_channel(self) -> discord.TextChannel | None:
         """Get the error logging channel."""
         guild = self.bot.get_guild(settings.FAILED_COMMANDS_GUILD_ID)
         if not guild:
-            self.logger.error(
-                f"Could not find guild with ID {settings.FAILED_COMMANDS_GUILD_ID}"
-            )
+            self.logger.error(f"Could not find guild with ID {settings.FAILED_COMMANDS_GUILD_ID}")
             return None
 
         channel = guild.get_channel(settings.FAILED_COMMANDS_CHANNEL_ID)
@@ -58,7 +54,7 @@ class ErrorHandlerCog(commands.Cog):
 
         return channel
 
-    def _create_urls(self, ctx: commands.Context[typing.Any]) -> typing.Dict[str, str]:
+    def _create_urls(self, ctx: commands.Context[typing.Any]) -> dict[str, str]:
         """Create URLs for server, channel, and user."""
         if isinstance(ctx.channel, discord.DMChannel):
             return {
@@ -76,9 +72,7 @@ class ErrorHandlerCog(commands.Cog):
             "message": f"https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}/{ctx.message.id}",
         }
 
-    def _get_guild_info(
-        self, guild: typing.Optional[discord.Guild], url: typing.Optional[str] = None
-    ) -> str:
+    def _get_guild_info(self, guild: discord.Guild | None, url: str | None = None) -> str:
         """Get formatted guild information string."""
         if not guild:
             return "Direct Message"
@@ -88,16 +82,16 @@ class ErrorHandlerCog(commands.Cog):
 
     def _get_channel_info(
         self,
-        channel: typing.Union[
-            discord.TextChannel,
-            discord.VoiceChannel,
-            discord.StageChannel,
-            discord.Thread,
-            discord.PartialMessageable,
-            discord.GroupChannel,
-            discord.DMChannel,
-        ],
-        url: typing.Optional[str] = None,
+        channel: (
+            discord.TextChannel
+            | discord.VoiceChannel
+            | discord.StageChannel
+            | discord.Thread
+            | discord.PartialMessageable
+            | discord.GroupChannel
+            | discord.DMChannel
+        ),
+        url: str | None = None,
     ) -> str:
         """Get formatted channel information string."""
         if isinstance(channel, discord.PartialMessageable):
@@ -115,12 +109,12 @@ class ErrorHandlerCog(commands.Cog):
         self,
         ctx: commands.Context[typing.Any],
         error: Exception,
-        urls: typing.Dict[str, str],
+        urls: dict[str, str],
     ) -> discord.Embed:
         """Create error embed message."""
         embed = discord.Embed(
             title=f"Command Error - {self.STATUS_UNMARKED}",
-            description=f"Command: {ctx.command}\nError: {str(error)}",
+            description=f"Command: {ctx.command}\nError: {error!s}",
             color=discord.Color.red(),
         )
 
@@ -159,9 +153,7 @@ class ErrorHandlerCog(commands.Cog):
             value="\n".join(context_lines),
         )
 
-        embed.set_footer(
-            text="Status: Unresolved | React: ✅ Resolve, ❌ Ignore, ❓ Create Invite"
-        )
+        embed.set_footer(text="Status: Unresolved | React: ✅ Resolve, ❌ Ignore, ❓ Create Invite")
         return embed
 
     async def _send_error_message(
@@ -174,15 +166,13 @@ class ErrorHandlerCog(commands.Cog):
             for emoji in [self.RESOLVED_EMOJI, self.IGNORED_EMOJI, self.INVITE_EMOJI]:
                 await error_message.add_reaction(emoji)
         except discord.Forbidden:
-            self.logger.error(
-                f"Missing permissions to send to error channel {error_channel.id}"
-            )
+            self.logger.error(f"Missing permissions to send to error channel {error_channel.id}")
         except Exception as e:
             self.logger.error(f"Failed to send error message: {e}")
 
     def _extract_ids_from_context(
-        self, context_value: typing.Optional[str] = None
-    ) -> typing.Tuple[typing.Optional[int], typing.Optional[int]]:
+        self, context_value: str | None = None
+    ) -> tuple[int | None, int | None]:
         """Extract guild and channel IDs from context field value.
 
         Args:
@@ -215,16 +205,14 @@ class ErrorHandlerCog(commands.Cog):
 
         return guild_id, channel_id
 
-    def _find_status_field_index(self, embed: discord.Embed) -> typing.Optional[int]:
+    def _find_status_field_index(self, embed: discord.Embed) -> int | None:
         """Find the index of the Invite Status field if it exists."""
         for i, field in enumerate(embed.fields):
             if field.name == "Invite Status":
                 return i
         return None
 
-    def _add_status_field(
-        self, embed: discord.Embed, message: str, success: bool = False
-    ) -> None:
+    def _add_status_field(self, embed: discord.Embed, message: str, success: bool = False) -> None:
         """Update or add status field to embed with consistent formatting.
 
         Args:
@@ -239,16 +227,12 @@ class ErrorHandlerCog(commands.Cog):
         field_index = self._find_status_field_index(embed)
         if field_index is not None:
             # Update existing field
-            embed.set_field_at(
-                field_index, name="Invite Status", value=status_value, inline=False
-            )
+            embed.set_field_at(field_index, name="Invite Status", value=status_value, inline=False)
         else:
             # Add new field if none exists
             embed.add_field(name="Invite Status", value=status_value, inline=False)
 
-    async def _handle_invite_reaction(
-        self, message: discord.Message, embed: discord.Embed
-    ) -> None:
+    async def _handle_invite_reaction(self, message: discord.Message, embed: discord.Embed) -> None:
         """Handle invite reaction on error message."""
         context_field = next((f for f in embed.fields if f.name == "Context"), None)
         if not context_field:
@@ -301,18 +285,14 @@ class ErrorHandlerCog(commands.Cog):
             )
         except discord.Forbidden:
             self._add_status_field(embed, "Missing permissions to create invite.")
-            self.logger.error(
-                f"Missing permissions to create invite in channel {channel_id}"
-            )
+            self.logger.error(f"Missing permissions to create invite in channel {channel_id}")
         except Exception as e:
-            self._add_status_field(embed, f"Failed to create invite: {str(e)}")
+            self._add_status_field(embed, f"Failed to create invite: {e!s}")
             self.logger.error(f"Failed to create invite: {e}")
 
         await message.edit(embed=embed)
 
-    async def _log_error(
-        self, ctx: commands.Context[typing.Any], error: Exception
-    ) -> None:
+    async def _log_error(self, ctx: commands.Context[typing.Any], error: Exception) -> None:
         """Log error to designated channel with reaction controls."""
         error_channel = await self._get_error_channel()
         if not error_channel:
@@ -353,9 +333,7 @@ class ErrorHandlerCog(commands.Cog):
             )
 
         try:
-            reaction, _ = await self.bot.wait_for(
-                "reaction_add", timeout=30.0, check=check
-            )
+            reaction, _ = await self.bot.wait_for("reaction_add", timeout=30.0, check=check)
             await confirm_message.delete()
             return str(reaction.emoji) == "✅"
         except TimeoutError:
@@ -365,16 +343,16 @@ class ErrorHandlerCog(commands.Cog):
 
     async def _create_interactive_menu(
         self, ctx: commands.Context[typing.Any]
-    ) -> typing.Tuple[str, str, str]:
+    ) -> tuple[str, str, str]:
         """Create an interactive menu for selecting ehc options."""
-        operations: typing.Dict[str, str] = {"📋": "list", "🗑️": "clear"}
-        statuses: typing.Dict[str, str] = {
+        operations: dict[str, str] = {"📋": "list", "🗑️": "clear"}
+        statuses: dict[str, str] = {
             "✅": "resolved",
             "❌": "ignored",
             "⚠️": "unmarked",
             "📎": "all",
         }
-        time_ranges: typing.Dict[str, str] = {
+        time_ranges: dict[str, str] = {
             "1️⃣": "1h",
             "2️⃣": "1d",
             "3️⃣": "7d",
@@ -383,18 +361,16 @@ class ErrorHandlerCog(commands.Cog):
         }
 
         async def get_selection(
-            message: discord.Message, options: typing.Dict[str, str], prompt: str
+            message: discord.Message, options: dict[str, str], prompt: str
         ) -> str:
-            for emoji in options.keys():
+            for emoji in options:
                 await message.add_reaction(emoji)
 
             def check(reaction: discord.Reaction, user: discord.User) -> bool:
                 return user == ctx.author and str(reaction.emoji) in options
 
             try:
-                reaction, _ = await self.bot.wait_for(
-                    "reaction_add", timeout=30.0, check=check
-                )
+                reaction, _ = await self.bot.wait_for("reaction_add", timeout=30.0, check=check)
                 return options[str(reaction.emoji)]
             except TimeoutError:
                 raise commands.CommandError("Selection timed out")
@@ -405,9 +381,7 @@ class ErrorHandlerCog(commands.Cog):
         await op_msg.delete()
 
         # Status selection
-        status_msg = await ctx.send(
-            "Select status:\n✅ Resolved\n❌ Ignored\n⚠️ Unmarked\n📎 All"
-        )
+        status_msg = await ctx.send("Select status:\n✅ Resolved\n❌ Ignored\n⚠️ Unmarked\n📎 All")
         status = await get_selection(status_msg, statuses, "status")
         await status_msg.delete()
 
@@ -425,9 +399,9 @@ class ErrorHandlerCog(commands.Cog):
     async def error_handler_command(
         self,
         ctx: commands.Context[typing.Any],
-        operation: typing.Optional[str] = None,
-        status: typing.Optional[str] = None,
-        time_range: typing.Optional[str] = None,
+        operation: str | None = None,
+        status: str | None = None,
+        time_range: str | None = None,
     ) -> None:
         """Manage error messages.
 
@@ -439,9 +413,7 @@ class ErrorHandlerCog(commands.Cog):
         """
         # Check if command is used in the correct guild and channel
         if not ctx.guild or ctx.guild.id != settings.FAILED_COMMANDS_GUILD_ID:
-            await ctx.send(
-                "This command can only be used in the designated error handling server."
-            )
+            await ctx.send("This command can only be used in the designated error handling server.")
             return
 
         if ctx.channel.id != settings.FAILED_COMMANDS_CHANNEL_ID:
@@ -454,7 +426,7 @@ class ErrorHandlerCog(commands.Cog):
             if any(param is None for param in [operation, status, time_range]):
                 operation, status, time_range = await self._create_interactive_menu(ctx)
         except commands.CommandError as e:
-            await ctx.send(f"Error: {str(e)}")
+            await ctx.send(f"Error: {e!s}")
             return
 
         # These are now guaranteed to be strings after _create_interactive_menu
@@ -475,7 +447,7 @@ class ErrorHandlerCog(commands.Cog):
             await ctx.send("Invalid status. Use: resolved, ignored, unmarked, or all")
             return
 
-        time_ranges: typing.Dict[str, typing.Optional[int]] = {
+        time_ranges: dict[str, int | None] = {
             "1h": 3600,
             "1d": 86400,
             "7d": 604800,
@@ -492,23 +464,21 @@ class ErrorHandlerCog(commands.Cog):
             await ctx.send("Error channel not found")
             return
 
-        STATUS_MAP: typing.Dict[str, str] = {
+        STATUS_MAP: dict[str, str] = {
             "resolved": self.STATUS_RESOLVED,
             "ignored": self.STATUS_IGNORED,
             "unmarked": self.STATUS_UNMARKED,
         }
 
         # Calculate cutoff time if needed
-        cutoff_time: typing.Optional[datetime.datetime] = None
+        cutoff_time: datetime.datetime | None = None
         seconds = time_ranges[time_range_str]
         if seconds is not None:
-            cutoff_time = discord.utils.utcnow() - datetime.timedelta(
-                seconds=float(seconds)
-            )
+            cutoff_time = discord.utils.utcnow() - datetime.timedelta(seconds=float(seconds))
 
         # Count matching messages
         count = 0
-        matching_messages: typing.List[discord.Message] = []
+        matching_messages: list[discord.Message] = []
         async for message in error_channel.history(limit=None):
             if cutoff_time and message.created_at < cutoff_time:
                 break
@@ -546,15 +516,13 @@ class ErrorHandlerCog(commands.Cog):
             await message.delete()
             deleted += 1
 
-        await ctx.send(
-            f"Successfully deleted {deleted} error messages with status: {status_str}"
-        )
+        await ctx.send(f"Successfully deleted {deleted} error messages with status: {status_str}")
 
     @commands.Cog.listener()
     async def on_reaction_add(
         self,
         reaction: discord.Reaction,
-        user: typing.Union[discord.User, discord.Member],
+        user: discord.User | discord.Member,
     ) -> None:
         """Handle reactions on error messages."""
         if user.bot:
@@ -589,15 +557,11 @@ class ErrorHandlerCog(commands.Cog):
         color, status = self.STATUS_MAP[str(reaction.emoji)]
         embed.colour = color
         embed.title = f"Command Error - {status}"
-        embed.set_footer(
-            text=f"Status: {status} | React: ✅ Resolve, ❌ Ignore, ❓ New Invite"
-        )
+        embed.set_footer(text=f"Status: {status} | React: ✅ Resolve, ❌ Ignore, ❓ New Invite")
         await message.edit(embed=embed)
 
     @commands.Cog.listener()
-    async def on_command_error(
-        self, ctx: commands.Context[typing.Any], error: Exception
-    ) -> None:
+    async def on_command_error(self, ctx: commands.Context[typing.Any], error: Exception) -> None:
         """Handle command execution errors.
 
         Args:

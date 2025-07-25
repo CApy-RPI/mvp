@@ -8,15 +8,14 @@ This module provides commands for bulk message deletion with various modes.
 """
 
 import logging
-import typing
-import discord
-from discord.ext import commands
-from discord import app_commands
-from datetime import datetime, timedelta
 import re
+from datetime import datetime, timedelta
 
-from discord.ui import Select
-from frontend.utils.embed_statuses import success_embed, error_embed
+import discord
+from discord import app_commands
+from discord.ext import commands
+from frontend.utils.embed_statuses import error_embed, success_embed
+
 from config import settings
 
 
@@ -45,8 +44,8 @@ class DateTimeModal(discord.ui.Modal, title="Enter Date and Time"):
 class PurgeModeView(discord.ui.View):
     def __init__(self):
         super().__init__()
-        self.mode: typing.Optional[str] = None
-        self.value: typing.Union[int, str, datetime, None] = None
+        self.mode: str | None = None
+        self.value: int | str | datetime | None = None
         self.mode_select: discord.ui.Select = discord.ui.Select(
             placeholder="Choose purge mode",
             options=[
@@ -159,7 +158,8 @@ class PurgeCog(commands.Cog):
         if not time_delta:
             return (
                 False,
-                "Invalid duration format. Use format: 1d2h3m (e.g., 1d = 1 day, 2h = 2 hours, 3m = 3 minutes)",
+                "Invalid duration format. Use format: 1d2h3m (e.g., 1d = 1 day,"
+                "2h = 2 hours, 3m = 3 minutes)",
             )
 
         after_time = datetime.utcnow() - time_delta
@@ -175,7 +175,8 @@ class PurgeCog(commands.Cog):
         deleted = await channel.purge(after=date)
         return (
             True,
-            f"✨ Successfully deleted {len(deleted)} messages since {date.strftime('%Y-%m-%d %H:%M')}!",
+            f"✨ Successfully deleted {len(deleted)} messages"
+            "since {date.strftime('%Y-%m-%d %H:%M')}!",
         )
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
@@ -210,7 +211,8 @@ class PurgeCog(commands.Cog):
 
             if success:
                 self.logger.info(
-                    f"{interaction.user} purged messages in {interaction.channel} using {view.mode} mode"
+                    f"{interaction.user} purged messages in {interaction.channel}"
+                    f" using {view.mode} mode"
                 )
 
         except discord.Forbidden:
@@ -220,7 +222,7 @@ class PurgeCog(commands.Cog):
             )
         except Exception as e:
             await interaction.followup.send(
-                embed=error_embed("Error", f"An error occurred: {str(e)}"),
+                embed=error_embed("Error", f"An error occurred: {e!s}"),
                 ephemeral=True,
             )
 

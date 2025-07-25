@@ -4,16 +4,16 @@ This module handles feature request submissions through a modal interface.
 Requests are sent to a designated channel for developer review.
 """
 
+from discord import ButtonStyle, TextStyle
 from discord.ext import commands
-from discord import TextStyle, ButtonStyle
-
-from config import settings
 from frontend.config_colors import (
-    STATUS_UNMARKED,
+    STATUS_IGNORED,
     STATUS_IMPORTANT,
     STATUS_RESOLVED,
-    STATUS_IGNORED,
+    STATUS_UNMARKED,
 )
+
+from config import settings
 
 from .ticket_base import TicketBase
 
@@ -59,7 +59,8 @@ class FeatureRequestCog(TicketBase):
                         },
                         {
                             "label": "Feature Description",
-                            "placeholder": "Please describe the feature you'd like to see in detail...",
+                            "placeholder": "Please describe the feature you'd like"
+                            "to see in detail...",
                             "style": TextStyle.paragraph,
                             "required": True,
                             "max_length": 1000,

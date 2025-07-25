@@ -1,10 +1,11 @@
 """Discord cog for handling Ollama LLM interactions."""
 
-import discord
-from discord.ext import commands
 import logging
-import ollama
 import typing
+
+import discord
+import ollama
+from discord.ext import commands
 
 from config import settings
 
@@ -19,19 +20,13 @@ class OllamaCog(commands.Cog):
             bot: The Discord bot instance
         """
         self.bot = bot
-        self.logger = logging.getLogger(
-            f"discord.cog.{self.__class__.__name__.lower()}"
-        )
+        self.logger = logging.getLogger(f"discord.cog.{self.__class__.__name__.lower()}")
 
         ollama.pull(settings.MODEL_NAME)
-        self.user_conversations: typing.Dict[
-            int, typing.List[typing.Dict[str, str]]
-        ] = {}
-        self.channel_conversations: typing.Dict[
-            int, typing.List[typing.Dict[str, str]]
-        ] = {}
+        self.user_conversations: dict[int, list[dict[str, str]]] = {}
+        self.channel_conversations: dict[int, list[dict[str, str]]] = {}
 
-    def chunk_message(self, text: str) -> typing.List[str]:
+    def chunk_message(self, text: str) -> list[str]:
         """Split message into chunks, respecting think tags and message limits.
 
         Args:
@@ -66,7 +61,7 @@ class OllamaCog(commands.Cog):
         return [c for c in chunks if c]  # Remove empty chunks
 
     async def delete_think_block_messages(
-        self, ctx: commands.Context[typing.Any], messages: typing.List[discord.Message]
+        self, ctx: commands.Context[typing.Any], messages: list[discord.Message]
     ) -> None:
         """Delete messages between think tags.
 
@@ -95,7 +90,7 @@ class OllamaCog(commands.Cog):
     async def handle_chat_response(
         self,
         ctx: commands.Context[typing.Any],
-        messages: typing.List[typing.Dict[str, str]],
+        messages: list[dict[str, str]],
     ) -> str:
         """Handle chat interaction with Ollama.
 
@@ -108,7 +103,7 @@ class OllamaCog(commands.Cog):
         """
         client = ollama.AsyncClient()
         buffer = ""
-        sent_messages: typing.List[discord.Message] = []
+        sent_messages: list[discord.Message] = []
         complete_response = ""
 
         async for part in await client.chat(
@@ -169,9 +164,7 @@ class OllamaCog(commands.Cog):
             self.user_conversations[ctx.author.id] = conversation
 
     @commands.command(name="prompt", aliases=["p"], help="Prompt chatbot with context")
-    async def prompt(
-        self, ctx: commands.Context[typing.Any], n: int = 0, *, message: str
-    ) -> None:
+    async def prompt(self, ctx: commands.Context[typing.Any], n: int = 0, *, message: str) -> None:
         """Prompt the chatbot with optional context.
 
         Args:
@@ -184,9 +177,7 @@ class OllamaCog(commands.Cog):
             messages = []
             async for msg in ctx.channel.history(limit=n):
                 messages.append(msg)
-            context = (
-                "\n".join([msg.content for msg in reversed(messages)]) + f"\n{message}"
-            )
+            context = "\n".join([msg.content for msg in reversed(messages)]) + f"\n{message}"
 
         await self.handle_chat_response(ctx, [{"role": "user", "content": context}])
 
@@ -200,9 +191,7 @@ class OllamaCog(commands.Cog):
         """
         await self.prompt(ctx, 0, message=message)
 
-    @commands.command(
-        name="delete", aliases=["d"], help="Delete the last chatbot response"
-    )
+    @commands.command(name="delete", aliases=["d"], help="Delete the last chatbot response")
     async def delete_last_message(self, ctx: commands.Context[typing.Any]) -> None:
         async for message in ctx.channel.history(limit=100):
             if message.author == self.bot.user:
@@ -213,9 +202,7 @@ class OllamaCog(commands.Cog):
         await ctx.message.delete()
 
     @commands.command(name="converse", aliases=["c"], help="Start a conversation")
-    async def converse(
-        self, ctx: commands.Context[typing.Any], *, message: str
-    ) -> None:
+    async def converse(self, ctx: commands.Context[typing.Any], *, message: str) -> None:
         """Start or continue a conversation with context memory.
 
         Args:
@@ -236,9 +223,7 @@ class OllamaCog(commands.Cog):
             del self.user_conversations[user_id]
             await ctx.send("Personal conversation ended.")
 
-    @commands.command(
-        name="chat", aliases=["ch"], help="Start an interactive chat session"
-    )
+    @commands.command(name="chat", aliases=["ch"], help="Start an interactive chat session")
     async def chat(self, ctx: commands.Context[typing.Any]) -> None:
         """Start an interactive chat session in the channel with context memory.
 
@@ -251,16 +236,10 @@ class OllamaCog(commands.Cog):
             return
 
         self.channel_conversations[channel_id] = []
-        await ctx.send(
-            "Starting chat session. Send messages to chat, type 'stop' to end."
-        )
+        await ctx.send("Starting chat session. Send messages to chat, type 'stop' to end.")
 
         def check(m: discord.Message) -> bool:
-            return (
-                m.channel == ctx.channel
-                and not m.author.bot
-                and not m.content.startswith("!")
-            )
+            return m.channel == ctx.channel and not m.author.bot and not m.content.startswith("!")
 
         try:
             while True:
@@ -271,9 +250,7 @@ class OllamaCog(commands.Cog):
                     await ctx.send("Chat session ended.")
                     break
 
-                await self.handle_conversation(
-                    ctx, message.content, is_channel_chat=True
-                )
+                await self.handle_conversation(ctx, message.content, is_channel_chat=True)
 
         except TimeoutError:
             del self.channel_conversations[channel_id]
@@ -285,9 +262,7 @@ class OllamaCog(commands.Cog):
             await ctx.send("Chat session ended due to an error.")
 
     @commands.command(name="clear", aliases=["cl"], help="Clear chat history")
-    async def clear_history(
-        self, ctx: commands.Context[typing.Any], target: str = "all"
-    ) -> None:
+    async def clear_history(self, ctx: commands.Context[typing.Any], target: str = "all") -> None:
         """Clear conversation history.
 
         Args:

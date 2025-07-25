@@ -1,18 +1,17 @@
 # cogs/help.py - displays all available commands
 #              - displays help for a specific command
 
+import logging
+
 import discord
 from discord.ext import commands
-import logging
 from frontend import config_colors as colors
 
 
 class HelpCog(commands.HelpCommand):
     def __init__(self):
         super().__init__()
-        self.logger = logging.getLogger(
-            f"discord.cog.{self.__class__.__name__.lower()}"
-        )
+        self.logger = logging.getLogger(f"discord.cog.{self.__class__.__name__.lower()}")
 
     async def send_error_message(self, error):
         """Handles error messages."""
@@ -41,25 +40,19 @@ class HelpCog(commands.HelpCommand):
                     if cmd.hidden:
                         continue
 
-                    aliases = (
-                        f" (aliases: {', '.join(cmd.aliases)})" if cmd.aliases else ""
-                    )
+                    aliases = f" (aliases: {', '.join(cmd.aliases)})" if cmd.aliases else ""
                     command_list.append(
                         f"**{cmd.name}**{aliases} - {cmd.help or 'No description provided'}"
                     )
 
                 if command_list:
                     cog_name = cog.qualified_name if cog else "No Category"
-                    embed.add_field(
-                        name=cog_name, value="\n".join(command_list), inline=False
-                    )
+                    embed.add_field(name=cog_name, value="\n".join(command_list), inline=False)
 
             await ctx.send(embed=embed)
         except Exception as e:
             self.logger.error(f"Error occurred in send_bot_help {e}")
-            await self.send_error_message(
-                "There was an error sending the help message."
-            )
+            await self.send_error_message("There was an error sending the help message.")
 
     async def send_cog_help(self, cog):
         """Handles help for a specific cog."""
@@ -81,13 +74,10 @@ class HelpCog(commands.HelpCommand):
                             f"**{sub.name}** - {sub.help or 'No description'}"
                             for sub in command.commands
                         ]
-                        description = (
-                            f"{command.help or 'No description'}\n"
-                            + "\n".join(subcommands)
+                        description = f"{command.help or 'No description'}\n" + "\n".join(
+                            subcommands
                         )
-                        command_descriptions.append(
-                            f"**{command.name}**\n{description}"
-                        )
+                        command_descriptions.append(f"**{command.name}**\n{description}")
                     else:
                         # Add standalone command
                         command_descriptions.append(
@@ -103,14 +93,10 @@ class HelpCog(commands.HelpCommand):
             await self.send_error_message("Cog is not found.")
         except commands.MissingPermissions:
             self.logger.error("Missing Permissions!")
-            await self.send_error_message(
-                "You do not have permission to view this category."
-            )
+            await self.send_error_message("You do not have permission to view this category.")
         except Exception as e:
             self.logger.error(f"Error displaying help for command '{cog}': {e}")
-            await self.send_error_message(
-                "There was an error sending the help message."
-            )
+            await self.send_error_message("There was an error sending the help message.")
 
     async def send_command_help(self, command):
         """Handles help for a specific command."""
@@ -134,14 +120,10 @@ class HelpCog(commands.HelpCommand):
             await self.send_error_message("Command is not found.")
         except commands.MissingPermissions:
             self.logger.error("Missing Permissions!")
-            await self.send_error_message(
-                "You do not have permission to view this command."
-            )
+            await self.send_error_message("You do not have permission to view this command.")
         except Exception as e:
             self.logger.error(f"Error displaying help for command '{command}': {e}")
-            await self.send_error_message(
-                "There was an error sending the help message."
-            )
+            await self.send_error_message("There was an error sending the help message.")
 
 
 class Help(commands.Cog):

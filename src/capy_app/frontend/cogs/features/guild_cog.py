@@ -4,19 +4,19 @@
 """Guild settings management cog."""
 
 import logging
+
 import discord
-from typing import Optional
+from backend.db.database import Database as db
 from discord import app_commands
 from discord.ext import commands
-
-from backend.db.database import Database as db
-from frontend.interactions.bases.dropdown_base import DynamicDropdownView
-from frontend.cogs.handlers.guild_handler_cog import GuildHandlerCog
 from frontend import config_colors as colors
-from frontend.interactions.checks.scopes import is_guild
 from frontend.cogs.features.guild_config import ConfigConstructor
-from config import settings
+from frontend.cogs.handlers.guild_handler_cog import GuildHandlerCog
 from frontend.interactions.bases.button_base import ConfirmDeleteView
+from frontend.interactions.bases.dropdown_base import DynamicDropdownView
+from frontend.interactions.checks.scopes import is_guild
+
+from config import settings
 
 
 @app_commands.guild_only()
@@ -26,9 +26,7 @@ class GuildCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         super().__init__()
         self.bot = bot
-        self.logger = logging.getLogger(
-            f"discord.cog.{self.__class__.__name__.lower()}"
-        )
+        self.logger = logging.getLogger(f"discord.cog.{self.__class__.__name__.lower()}")
         self.config = ConfigConstructor()
 
     async def _verify_guild_access(
@@ -49,7 +47,7 @@ class GuildCog(commands.Cog):
 
     async def _process_settings_selection(
         self, interaction: discord.Interaction
-    ) -> tuple[Optional[str], Optional[discord.Message]]:
+    ) -> tuple[str | None, discord.Message | None]:
         """Process settings type selection."""
         settings_view = DynamicDropdownView(**self.config.get_settings_type_dropdown())
         selections, message = await settings_view.initiate_from_interaction(
@@ -63,7 +61,7 @@ class GuildCog(commands.Cog):
 
     async def _process_configuration(
         self, setting_type: str, message: discord.Message, guild: discord.Guild
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """Process configuration selection."""
         dropdowns = (
             await self.config.create_channel_dropdown(guild)
@@ -150,9 +148,7 @@ class GuildCog(commands.Cog):
             f"{prompt['label']}: {f'<@&{getattr(guild_data.roles, name)}>' if getattr(guild_data.roles, name) else 'Not Set'}"
             for name, prompt in self.config.get_role_prompts().items()
         )
-        embed.add_field(
-            name="Roles", value=role_text or "No roles configured", inline=False
-        )
+        embed.add_field(name="Roles", value=role_text or "No roles configured", inline=False)
 
         await interaction.edit_original_response(embed=embed)
 
@@ -166,9 +162,7 @@ class GuildCog(commands.Cog):
             if not setting_type or not message:
                 return
 
-            updates = await self._process_configuration(
-                setting_type, message, interaction.guild
-            )
+            updates = await self._process_configuration(setting_type, message, interaction.guild)
             if not updates:
                 return
 
@@ -188,9 +182,7 @@ class GuildCog(commands.Cog):
             else:
                 await interaction.followup.send(error_msg, view=None)
 
-    async def clear_settings(
-        self, interaction: discord.Interaction, guild_data
-    ) -> None:
+    async def clear_settings(self, interaction: discord.Interaction, guild_data) -> None:
         """Clear all server settings."""
         view = ConfirmDeleteView()
         value, message = await view.initiate_from_interaction(

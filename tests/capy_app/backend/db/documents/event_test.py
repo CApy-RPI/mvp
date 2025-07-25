@@ -1,7 +1,8 @@
-import pytest
+from datetime import datetime
+
 import mongoengine
 import mongomock
-from datetime import datetime
+import pytest
 
 from capy_app.backend.db.documents.event import Event, EventDetails, EventReactions
 
@@ -53,9 +54,7 @@ def test_event_creation(db):
 
 
 def test_event_reactions_defaults(db):
-    details = EventDetails(
-        name="Event With Reactions", time=datetime(2030, 5, 5, 10, 0)
-    )
+    details = EventDetails(name="Event With Reactions", time=datetime(2030, 5, 5, 10, 0))
 
     Event(_id=200, details=details).save()
 

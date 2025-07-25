@@ -1,47 +1,44 @@
 #! turn into ABC
-from abc import ABC, abstractmethod
-
-from typing import Dict, Any
-
-import discord
-from discord.ext import commands
-from discord import app_commands, TextChannel
-from discord import Color
 
 import logging
+from typing import Any
 
-from config import settings
-from frontend.interactions.bases.modal_base import (
-    ButtonDynamicModalView,
-)
+import discord
+from discord import Color, TextChannel, app_commands
+from discord.ext import commands
 from frontend.config_colors import (
     STATUS_ERROR,
 )
+from frontend.interactions.bases.modal_base import (
+    ButtonDynamicModalView,
+)
+
+from config import settings
 
 
 class TicketBase(commands.Cog):
     def __init__(
         self,
         bot: commands.Bot,
-        status_emoji: Dict[str, str],
+        status_emoji: dict[str, str],
         cmd_name: str,
         cmd_name_verbose: str,
         cmd_emoji: str,
         description,
         request_channel_id,
         unmarked_color: Color,
-        marked_colors: Dict[str, Color],
+        marked_colors: dict[str, Color],
         reaction_footer,
     ) -> None:
         self.bot = bot
         self.logger = logging.getLogger(f"discord.cog.{self.__class__.__name__.lower()}")
 
-        self.status_emoji: Dict[str, str] = status_emoji
+        self.status_emoji: dict[str, str] = status_emoji
         self.cmd_name: str = cmd_name
         self.cmd_name_verbose: str = cmd_name_verbose
         self.cmd_emoji: str = cmd_emoji
 
-        self.MODAL_CONFIGS: Dict[Any, Any] = {}
+        self.MODAL_CONFIGS: dict[Any, Any] = {}
 
         self.ticket.name = self.cmd_name
         self.ticket.description = description
@@ -55,7 +52,6 @@ class TicketBase(commands.Cog):
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command()
     async def ticket(self, interaction: discord.Interaction) -> None:
-
         try:
             modal = ButtonDynamicModalView(**self.MODAL_CONFIGS["button_modal"])
             values, message = await modal.initiate_from_interaction(
@@ -113,7 +109,7 @@ class TicketBase(commands.Cog):
             )
 
         except discord.HTTPException as e:
-            self.logger.error(f"HTTP error processing {self.cmd_name_verbose}: {str(e)}")
+            self.logger.error(f"HTTP error processing {self.cmd_name_verbose}: {e!s}")
             if not interaction.response.is_done():
                 await interaction.response.send_message(
                     f"❌ Failed to submit {self.cmd_name_verbose}. Please try again later.",
@@ -121,7 +117,7 @@ class TicketBase(commands.Cog):
                 )
 
         except Exception as e:
-            self.logger.error(f"Error processing {self.cmd_name_verbose}: {str(e)}")
+            self.logger.error(f"Error processing {self.cmd_name_verbose}: {e!s}")
             if not interaction.response.is_done():
                 await interaction.response.send_message(
                     "❌ An unexpected error occurred. Please try again later.",

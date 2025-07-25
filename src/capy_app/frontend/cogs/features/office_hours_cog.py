@@ -244,6 +244,7 @@ from backend.db.documents.user import User, OfficeHours
 # async def setup(bot: commands.Bot):
 #     await bot.add_cog(OfficeHoursCog(bot))
 
+
 class OfficeHoursCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -284,7 +285,7 @@ class OfficeHoursCog(commands.Cog):
         existing: Dict[str, List[str]] = {}
         user_doc = Database.get_document(User, int(user_id))
         if user_doc and user_doc.office_hours:
-            for d in ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]:
+            for d in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]:
                 existing[d] = list(getattr(user_doc.office_hours, d))
 
         # 2) Prepare modal field halves
@@ -327,12 +328,14 @@ class OfficeHoursCog(commands.Cog):
         )
 
         class ContinueView(discord.ui.View):
-            def __init__(self, interim: Dict[str,str], outer: OfficeHoursCog):
+            def __init__(self, interim: Dict[str, str], outer: OfficeHoursCog):
                 super().__init__(timeout=120)
                 self.interim = interim
                 self.outer = outer
 
-            @discord.ui.button(label="Continue to Saturday/Sunday", style=discord.ButtonStyle.primary)
+            @discord.ui.button(
+                label="Continue to Saturday/Sunday", style=discord.ButtonStyle.primary
+            )
             async def cont(self, button_inter: discord.Interaction, btn: discord.ui.Button):
                 vals2, _ = await m2.initiate_from_interaction(button_inter)
                 if not vals2:
@@ -352,7 +355,7 @@ class OfficeHoursCog(commands.Cog):
             ephemeral=True,
             view=view,
         )
-        
+
     async def _finish(self, interaction: discord.Interaction, user_id: str, vals: Dict[str, str]):
         # Parse the raw modal values into a schedule dict
         schedule: Dict[str, List[str]] = {}
@@ -361,7 +364,7 @@ class OfficeHoursCog(commands.Cog):
                 continue
             day = cid[:-6].lower()
             schedule[day] = [p.strip() for p in txt.split(",") if p.strip()]
-        for d in ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]:
+        for d in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]:
             schedule.setdefault(d, [])
 
         # Persist to the User.office_hours embedded document
@@ -395,7 +398,9 @@ class OfficeHoursCog(commands.Cog):
         try:
             await interaction.followup.send("Office hours set!", embed=embed, ephemeral=True)
         except:
-            await interaction.response.send_message("Office hours set!", embed=embed, ephemeral=True)
+            await interaction.response.send_message(
+                "Office hours set!", embed=embed, ephemeral=True
+            )
 
     async def _handle_clear(self, interaction: discord.Interaction, guild: Guild):
         user_id = str(interaction.user.id)
@@ -403,9 +408,7 @@ class OfficeHoursCog(commands.Cog):
         if guild.office_hours:
             guild.office_hours = [oh for oh in guild.office_hours if oh.name != user_id]
             Database.update_document(guild, {"office_hours": guild.office_hours})
-            await interaction.response.send_message(
-                f"Cleared your office hours", ephemeral=True
-            )
+            await interaction.response.send_message(f"Cleared your office hours", ephemeral=True)
         else:
             await interaction.response.send_message(
                 "You don't have any office hours set", ephemeral=True
@@ -418,14 +421,23 @@ class OfficeHoursCog(commands.Cog):
         is_announcement: bool = False,
     ):
         user_doc = Database.get_document(User, user.id)
-        if not user_doc or not getattr(user_doc, 'office_hours', None):
+        if not user_doc or not getattr(user_doc, "office_hours", None):
             msg = "You don't have any office hours set"
             await interaction.response.send_message(msg, ephemeral=True)
             return
         oh = user_doc.office_hours
-        schedule = {day: list(getattr(oh, day)) for day in [
-            "monday","tuesday","wednesday","thursday","friday","saturday","sunday"
-        ]}
+        schedule = {
+            day: list(getattr(oh, day))
+            for day in [
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday",
+            ]
+        }
         embed = self.generate_office_hours_embed(user, schedule)
         await interaction.response.send_message(embed=embed, ephemeral=not is_announcement)
 
@@ -435,18 +447,16 @@ class OfficeHoursCog(commands.Cog):
         embed = discord.Embed(
             title=f"Office Hours - {user.display_name}", color=colors.STATUS_SUCCESS
         )
-        for day in ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]:
+        for day in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
             times = schedule.get(day.lower(), [])
-            embed.add_field(name=day, value="\n".join(times) if times else "No office hours", inline=True)
+            embed.add_field(
+                name=day, value="\n".join(times) if times else "No office hours", inline=True
+            )
         return embed
 
-    def generate_weekly_schedule_embed(
-        self, schedules: List[GOfficeHours]
-    ) -> discord.Embed:
-        embed = discord.Embed(
-            title="Weekly Office Hours Schedule", color=colors.STATUS_SUCCESS
-        )
-        days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+    def generate_weekly_schedule_embed(self, schedules: List[GOfficeHours]) -> discord.Embed:
+        embed = discord.Embed(title="Weekly Office Hours Schedule", color=colors.STATUS_SUCCESS)
+        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         for day in days:
             daily = []
             for oh in schedules:
@@ -458,7 +468,9 @@ class OfficeHoursCog(commands.Cog):
                     except:
                         name = f"User{oh.name}"
                     daily.append(f"• **{name}**: {', '.join(times)}")
-            embed.add_field(name=day, value="\n".join(daily) if daily else "No office hours", inline=False)
+            embed.add_field(
+                name=day, value="\n".join(daily) if daily else "No office hours", inline=False
+            )
         return embed
 
 

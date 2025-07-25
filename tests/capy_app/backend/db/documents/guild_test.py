@@ -1,6 +1,7 @@
-import pytest
 import mongoengine
+import pytest
 from mongomock import MongoClient
+
 from capy_app.backend.db.documents.guild import Guild, GuildChannels, GuildRoles
 
 

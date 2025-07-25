@@ -3,7 +3,9 @@
 
 """Guild-specific view classes for Discord interactions."""
 
-from typing import Any, Optional, Dict, cast, Callable, Coroutine
+from collections.abc import Callable, Coroutine
+from typing import Any, cast
+
 import discord
 from discord import ui
 from discord.interactions import Interaction
@@ -13,9 +15,9 @@ from frontend.interactions.bases.button_base import BaseDropdownView
 class ChannelSelectView(BaseDropdownView):
     """View for selecting guild channels."""
 
-    def __init__(self, channels: Dict[str, str]) -> None:
+    def __init__(self, channels: dict[str, str]) -> None:
         super().__init__()
-        self.selected_channels: Dict[str, int] = {}
+        self.selected_channels: dict[str, int] = {}
 
         for name, desc in channels.items():
             select = ui.ChannelSelect(
@@ -26,11 +28,9 @@ class ChannelSelectView(BaseDropdownView):
             select.callback = self._create_callback(name)
             self.add_item(select)
 
-    def _create_callback(
-        self, name: str
-    ) -> Callable[[Interaction], Coroutine[Any, Any, None]]:
+    def _create_callback(self, name: str) -> Callable[[Interaction], Coroutine[Any, Any, None]]:
         async def callback(interaction: Interaction) -> None:
-            data = cast(Dict[str, Any], interaction.data)
+            data = cast(dict[str, Any], interaction.data)
             values = data.get("values", [])
 
             if values:
@@ -46,9 +46,9 @@ class ChannelSelectView(BaseDropdownView):
 class RoleSelectView(BaseDropdownView):
     """View for selecting guild roles."""
 
-    def __init__(self, roles: Dict[str, str]) -> None:
+    def __init__(self, roles: dict[str, str]) -> None:
         super().__init__()
-        self.selected_roles: Dict[str, int] = {}
+        self.selected_roles: dict[str, int] = {}
 
         for name, desc in roles.items():
             select = ui.RoleSelect(
@@ -57,11 +57,9 @@ class RoleSelectView(BaseDropdownView):
             select.callback = self._create_callback(name)
             self.add_item(select)
 
-    def _create_callback(
-        self, name: str
-    ) -> Callable[[Interaction], Coroutine[Any, Any, None]]:
+    def _create_callback(self, name: str) -> Callable[[Interaction], Coroutine[Any, Any, None]]:
         async def callback(interaction: Interaction) -> None:
-            data = cast(Dict[str, Any], interaction.data)
+            data = cast(dict[str, Any], interaction.data)
             values = data.get("values", [])
 
             if values:
@@ -79,7 +77,7 @@ class SettingsSelectView(discord.ui.View):
 
     def __init__(self) -> None:
         super().__init__(timeout=180.0)
-        self.selected_setting: Optional[str] = None
+        self.selected_setting: str | None = None
 
         select = discord.ui.Select(
             placeholder="Choose what to edit",
@@ -92,9 +90,7 @@ class SettingsSelectView(discord.ui.View):
                 discord.SelectOption(
                     label="Roles", value="roles", description="Edit role settings"
                 ),
-                discord.SelectOption(
-                    label="All", value="all", description="Edit all settings"
-                ),
+                discord.SelectOption(label="All", value="all", description="Edit all settings"),
             ],
             custom_id="settings_select",
         )
@@ -104,7 +100,7 @@ class SettingsSelectView(discord.ui.View):
 
     def _create_callback(self) -> Callable[[Interaction], Coroutine[Any, Any, None]]:
         async def callback(interaction: Interaction) -> None:
-            data = cast(Dict[str, Any], interaction.data)
+            data = cast(dict[str, Any], interaction.data)
             values = data.get("values", [])
 
             if values:
@@ -123,7 +119,7 @@ class ClearSettingsView(BaseDropdownView):
 
     def __init__(self) -> None:
         super().__init__(timeout=180.0)
-        self.selected_setting: Optional[str] = None
+        self.selected_setting: str | None = None
 
         select = discord.ui.Select(
             placeholder="Choose what to clear",

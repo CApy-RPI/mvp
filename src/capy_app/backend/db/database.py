@@ -1,6 +1,6 @@
-import mongoengine
-
 import typing
+
+import mongoengine
 
 from config import settings
 
@@ -36,9 +36,7 @@ class Database:
         return document
 
     @staticmethod
-    def get_document(
-        document_class: typing.Type[T], document_id: typing.Any
-    ) -> typing.Optional[T]:
+    def get_document(document_class: type[T], document_id: typing.Any) -> T | None:
         """Retrieves a document by its ID.
 
         Args:
@@ -49,10 +47,10 @@ class Database:
             Retrieved document or None if not found
         """
         result = document_class.objects(pk=document_id).first()
-        return typing.cast(typing.Optional[T], result)
+        return typing.cast(T | None, result)
 
     @staticmethod
-    def update_document(document: T, updates: typing.Dict[str, typing.Any]) -> T:
+    def update_document(document: T, updates: dict[str, typing.Any]) -> T:
         """Updates an existing document with provided changes.
 
         Args:
@@ -101,9 +99,9 @@ class Database:
 
     @staticmethod
     def list_documents(
-        document_class: typing.Type[T],
-        filters: typing.Optional[typing.Dict[str, typing.Any]] = None,
-    ) -> typing.List[T]:
+        document_class: type[T],
+        filters: dict[str, typing.Any] | None = None,
+    ) -> list[T]:
         """Retrieves documents matching specified filters.
 
         Args:

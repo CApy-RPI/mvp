@@ -33,9 +33,7 @@ class TryAgainView(discord.ui.View):
         self.action = action
 
     @discord.ui.button(label="Try Again", style=discord.ButtonStyle.primary)
-    async def retry_button(
-        self, interaction: discord.Interaction, button: discord.ui.Button
-    ):
+    async def retry_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.parent_cog.handle_profile(interaction, self.action)
         self.stop()
 
@@ -45,9 +43,7 @@ class ProfileCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
-        self.logger = logging.getLogger(
-            f"discord.cog.{self.__class__.__name__.lower()}"
-        )
+        self.logger = logging.getLogger(f"discord.cog.{self.__class__.__name__.lower()}")
         self.major_list = self._load_major_list()
         self.email_verifier = EmailVerifier()
         self.config = PROFILE_CONFIG
@@ -150,9 +146,7 @@ class ProfileCog(commands.Cog):
             await message.edit(content="Invalid School email!")
             return False
 
-        if not self.email_verifier.send_verification_email(
-            message.author.id, new_email
-        ):
+        if not self.email_verifier.send_verification_email(message.author.id, new_email):
             await message.edit(content="Failed to send verification email.")
             return False
 
@@ -176,10 +170,8 @@ class ProfileCog(commands.Cog):
                     "Click below to try again:"
                 )
 
-            values, message = await verify_view.initiate_from_message(
-                message, prompt=prompt_msg
-            )
-            
+            values, message = await verify_view.initiate_from_message(message, prompt=prompt_msg)
+
             # User closed the modal or it timed-out
             if not values:
                 return False
@@ -200,9 +192,7 @@ class ProfileCog(commands.Cog):
         )
         return False
 
-    async def handle_profile(
-        self, interaction: discord.Interaction, action: str
-    ) -> None:
+    async def handle_profile(self, interaction: discord.Interaction, action: str) -> None:
         """Handle profile creation and updates."""
         user = db.get_document(User, interaction.user.id)
         self.logger.info(
@@ -211,18 +201,14 @@ class ProfileCog(commands.Cog):
 
         # Check if user exists for the given action
         if action == "create" and user:
-            self.logger.warning(
-                f"User {interaction.user} attempted to create duplicate profile"
-            )
+            self.logger.warning(f"User {interaction.user} attempted to create duplicate profile")
             await interaction.response.send_message(
                 "You already have a profile. Use /profile update to modify it.",
                 ephemeral=True,
             )
             return
         elif action == "update" and not user:
-            self.logger.warning(
-                f"User {interaction.user} attempted to update non-existent profile"
-            )
+            self.logger.warning(f"User {interaction.user} attempted to update non-existent profile")
             await interaction.response.send_message(
                 "You don't have a profile yet! Use /profile create first.",
                 ephemeral=True,
@@ -236,9 +222,7 @@ class ProfileCog(commands.Cog):
             return
         trycheck = False
         content = ""
-        if not (
-            profile_data["first_name"].isalpha() and profile_data["last_name"].isalpha()
-        ):
+        if not (profile_data["first_name"].isalpha() and profile_data["last_name"].isalpha()):
             content += "Names cannot consist of numbers or special characters.\n"
             trycheck = True
         if not (profile_data["graduation_year"].isdigit()):
@@ -277,9 +261,7 @@ class ProfileCog(commands.Cog):
 
         # Create user profile data
         profile_data = {
-            "name": UserName(
-                first=profile_data["first_name"], last=profile_data["last_name"]
-            ),
+            "name": UserName(first=profile_data["first_name"], last=profile_data["last_name"]),
             "major": selected_majors,
             "graduation_year": profile_data["graduation_year"],
             "school_email": profile_data["school_email"],
@@ -287,9 +269,7 @@ class ProfileCog(commands.Cog):
         }
 
         if action == "create":
-            new_user = User(
-                _id=interaction.user.id, profile=UserProfile(**profile_data)
-            )
+            new_user = User(_id=interaction.user.id, profile=UserProfile(**profile_data))
             db.add_document(new_user)
             user = new_user
             self.logger.info(f"Created new profile for {interaction.user}")
@@ -341,12 +321,8 @@ class ProfileCog(commands.Cog):
         embed.add_field(name="First Name", value=user.profile.name.first, inline=True)
         embed.add_field(name="Last Name", value=user.profile.name.last, inline=True)
         embed.add_field(name="Major", value=", ".join(user.profile.major), inline=True)
-        embed.add_field(
-            name="Graduation Year", value=user.profile.graduation_year, inline=True
-        )
-        embed.add_field(
-            name="School Email", value=user.profile.school_email, inline=True
-        )
+        embed.add_field(name="Graduation Year", value=user.profile.graduation_year, inline=True)
+        embed.add_field(name="School Email", value=user.profile.school_email, inline=True)
         embed.add_field(name="Student ID", value=user.profile.student_id, inline=True)
 
         # Use followup instead of edit_original_response
@@ -384,12 +360,8 @@ class ProfileCog(commands.Cog):
         self.logger.info(f"Profile deletion requested by {interaction.user}")
 
         if not user:
-            self.logger.warning(
-                f"User {interaction.user} attempted to delete non-existent profile"
-            )
-            await interaction.edit_original_response(
-                content="You don't have a profile to delete."
-            )
+            self.logger.warning(f"User {interaction.user} attempted to delete non-existent profile")
+            await interaction.edit_original_response(content="You don't have a profile to delete.")
             return
 
         view = ConfirmDeleteView()

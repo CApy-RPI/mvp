@@ -8,10 +8,10 @@ This module handles the display of privacy policy information to users.
 """
 
 import discord
-from discord.ext import commands
 from discord import app_commands
-
+from discord.ext import commands
 from frontend import config_colors as colors
+
 from config import settings
 
 
@@ -77,7 +77,8 @@ class PrivacyPolicyCog(commands.Cog):
                 "• Event participation management\n"
                 "• Academic program coordination\n"
                 "• Communication within organizations\n\n"
-                "Your information is never shared with third parties or used for marketing purposes."
+                "Your information is never shared with third parties"
+                "or used for marketing purposes."
             ),
             inline=False,
         )

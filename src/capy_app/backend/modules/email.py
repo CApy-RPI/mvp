@@ -1,5 +1,6 @@
-import typing
 import logging
+import typing
+
 from mailjet_rest import Client
 
 from config import settings
@@ -61,6 +62,4 @@ class Email:
         result = self.mailjet.send.create(data=data)
         if result.status_code == 200:
             return result.json()
-        raise EmailSendError(
-            f"Failed to send email: {result.status_code} - {result.json()}"
-        )
+        raise EmailSendError(f"Failed to send email: {result.status_code} - {result.json()}")
