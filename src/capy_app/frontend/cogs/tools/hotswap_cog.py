@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 from typing import Any, Literal, cast
 
 import discord
@@ -69,7 +70,7 @@ class HotswapCog(commands.Cog, name="hotswap"):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.logger = logging.getLogger(f"discord.cog.{self.__class__.__name__.lower()}")
-        self.cogs_path = os.path.join(os.path.dirname(__file__), "..")
+        self.cogs_path = Path(__file__).parent / ".."
 
     def get_cog_from_path(self, path: str) -> str | None:
         """Convert a file path to a cog import path."""
@@ -90,7 +91,7 @@ class HotswapCog(commands.Cog, name="hotswap"):
         for root, _, files in os.walk(self.cogs_path):
             for file in files:
                 if file.endswith("_cog.py"):
-                    full_path = os.path.join(root, file)
+                    full_path = Path(root) / file
                     if cog_path := self.get_cog_from_path(full_path):
                         cog_paths.append(cog_path)
         return cog_paths

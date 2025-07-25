@@ -77,7 +77,8 @@ class PrivacyPolicyCog(commands.Cog):
                 "• Event participation management\n"
                 "• Academic program coordination\n"
                 "• Communication within organizations\n\n"
-                "Your information is never shared with third parties or used for marketing purposes."
+                "Your information is never shared with third parties"
+                "or used for marketing purposes."
             ),
             inline=False,
         )

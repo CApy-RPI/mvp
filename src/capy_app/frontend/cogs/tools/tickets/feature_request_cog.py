@@ -65,7 +65,8 @@ class FeatureRequestCog(TicketBase):
                         },
                         {
                             "label": "Feature Description",
-                            "placeholder": "Please describe the feature you'd like to see in detail...",
+                            "placeholder": "Please describe the feature you'd like"
+                            "to see in detail...",
                             "style": TextStyle.paragraph,
                             "required": True,
                             "max_length": 1000,

@@ -158,7 +158,8 @@ class PurgeCog(commands.Cog):
         if not time_delta:
             return (
                 False,
-                "Invalid duration format. Use format: 1d2h3m (e.g., 1d = 1 day, 2h = 2 hours, 3m = 3 minutes)",
+                "Invalid duration format. Use format: 1d2h3m (e.g., 1d = 1 day,"
+                "2h = 2 hours, 3m = 3 minutes)",
             )
 
         after_time = datetime.utcnow() - time_delta
@@ -174,7 +175,8 @@ class PurgeCog(commands.Cog):
         deleted = await channel.purge(after=date)
         return (
             True,
-            f"✨ Successfully deleted {len(deleted)} messages since {date.strftime('%Y-%m-%d %H:%M')}!",
+            f"✨ Successfully deleted {len(deleted)} messages"
+            "since {date.strftime('%Y-%m-%d %H:%M')}!",
         )
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
@@ -209,7 +211,8 @@ class PurgeCog(commands.Cog):
 
             if success:
                 self.logger.info(
-                    f"{interaction.user} purged messages in {interaction.channel} using {view.mode} mode"
+                    f"{interaction.user} purged messages in {interaction.channel}"
+                    f" using {view.mode} mode"
                 )
 
         except discord.Forbidden:
