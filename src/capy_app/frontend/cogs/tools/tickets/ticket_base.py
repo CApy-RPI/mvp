@@ -21,32 +21,27 @@ class TicketBase(commands.Cog):
         self,
         bot: commands.Bot,
         status_emoji: dict[str, str],
-        cmd_name: str,
-        cmd_name_verbose: str,
-        cmd_emoji: str,
-        description,
-        request_channel_id,
-        unmarked_color: Color,
-        marked_colors: dict[str, Color],
+        command_config: dict[str, Any],
+        color_config: dict[str, Any],
         reaction_footer,
     ) -> None:
         self.bot = bot
         self.logger = logging.getLogger(f"discord.cog.{self.__class__.__name__.lower()}")
 
         self.status_emoji: dict[str, str] = status_emoji
-        self.cmd_name: str = cmd_name
-        self.cmd_name_verbose: str = cmd_name_verbose
-        self.cmd_emoji: str = cmd_emoji
+        self.cmd_name: str = command_config["cmd_name"]
+        self.cmd_name_verbose: str = command_config["cmd_name_verbose"]
+        self.cmd_emoji: str = command_config["cmd_emoji"]
 
         self.MODAL_CONFIGS: dict[Any, Any] = {}
 
         self.ticket.name = self.cmd_name
-        self.ticket.description = description
+        self.ticket.description = command_config["description"]
 
-        self.request_channel_id: int = request_channel_id
+        self.request_channel_id: int = command_config["request_channel_id"]
 
-        self.unmarked_color = unmarked_color
-        self.marked_colors = marked_colors
+        self.unmarked_color = color_config["unmarked_color"]
+        self.marked_colors = color_config["marked_colors"]
         self.reaction_footer = reaction_footer
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))

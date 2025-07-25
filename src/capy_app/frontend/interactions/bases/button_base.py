@@ -100,9 +100,9 @@ class ConfirmDeleteView(AcceptCancelView):
 
     def __init__(self, **options) -> None:
         super().__init__(**options)
-        self.accept.label = "Confirm Delete"  # type: ignore
-        self.accept.style = ButtonStyle.danger  # type: ignore
-        self.cancel.style = ButtonStyle.secondary  # type: ignore
+        self.accept.label = "Confirm Delete"
+        self.accept.style = ButtonStyle.danger
+        self.cancel.style = ButtonStyle.secondary
 
 
 class ConfirmView(AcceptCancelView):

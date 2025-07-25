@@ -20,6 +20,21 @@ from .ticket_base import TicketBase
 
 class FeatureRequestCog(TicketBase):
     def __init__(self, bot):
+        command_config = {
+            "cmd_name": "feature",
+            "cmd_name_verbose": "Feature Request",
+            "cmd_emoji": "💡",
+            "description": "Request a new feature",
+            "request_channel_id": settings.TICKET_FEATURE_REQUEST_CHANNEL_ID,
+        }
+        color_config = {
+            "unmarked_color": STATUS_UNMARKED,
+            "marked_colors": {
+                "Completed": STATUS_RESOLVED,
+                "Approved": STATUS_IMPORTANT,
+                "Ignored": STATUS_IGNORED,
+            },
+        }
         super().__init__(
             bot,
             {
@@ -28,17 +43,8 @@ class FeatureRequestCog(TicketBase):
                 "❌": "Ignored",
                 "🔄": "Unmarked",
             },
-            "feature",
-            "Feature Request",
-            "💡",
-            "Request a new feature",
-            settings.TICKET_FEATURE_REQUEST_CHANNEL_ID,
-            STATUS_UNMARKED,
-            {
-                "Completed": STATUS_RESOLVED,
-                "Approved": STATUS_IMPORTANT,
-                "Ignored": STATUS_IGNORED,
-            },
+            command_config,
+            color_config,
             " ✅ Complete • 👍 Approve • ❌ Ignore • 🔄 Reset",
         )
         self.MODAL_CONFIGS = {
