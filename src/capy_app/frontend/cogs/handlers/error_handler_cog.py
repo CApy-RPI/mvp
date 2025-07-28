@@ -19,10 +19,8 @@ from config import settings
 
 class ErrorHandlerCog(commands.Cog):
     async def _delete_messages(
-        self,
-        ctx: commands.Context[typing.Any],
-        messages: list[discord.Message],
-        status_str: str) -> int:
+        self, ctx: commands.Context[typing.Any], messages: list[discord.Message], status_str: str
+    ) -> int:
         """Delete the provided messages and return the count of deleted messages."""
         deleted = 0
         for message in messages:
@@ -30,6 +28,7 @@ class ErrorHandlerCog(commands.Cog):
             deleted += 1
         await ctx.send(f"Successfully deleted {deleted} error messages with status: {status_str}")
         return deleted
+
     async def _count_matching_messages(
         self,
         error_channel: discord.TextChannel,
@@ -53,6 +52,7 @@ class ErrorHandlerCog(commands.Cog):
                 count += 1
                 matching_messages.append(message)
         return count, matching_messages
+
     """Cog for handling error messages and their resolution status."""
 
     STATUS_MAP: dict[str, tuple[discord.Color, str]]
@@ -445,6 +445,7 @@ class ErrorHandlerCog(commands.Cog):
             return True
 
         return False
+
     async def stringcheck(
         self,
         ctx,
@@ -463,12 +464,11 @@ class ErrorHandlerCog(commands.Cog):
             return True
 
         if time_range not in time_ranges:
-            await ctx.send(
-                "Invalid time range. Use: 1h, 1d, 7d, 30d, or all"
-            )
+            await ctx.send("Invalid time range. Use: 1h, 1d, 7d, 30d, or all")
             return True
 
         return False
+
     @commands.command(name="ehc", hidden=True)
     @commands.has_permissions(manage_messages=True)
     async def error_handler_command(
@@ -487,7 +487,7 @@ class ErrorHandlerCog(commands.Cog):
             time_range: Time range to look back (1h/1d/7d/30d/all)
         """
         # Check if command is used in the correct guild and channel
-        returncheck=False
+        returncheck = False
         if self.error_handler_helper(ctx):
             return
         try:
@@ -506,7 +506,6 @@ class ErrorHandlerCog(commands.Cog):
         status_str = status_str.lower()
         time_range_str = time_range_str.lower()
 
-
         time_ranges: dict[str, int | None] = {
             "1h": 3600,
             "1d": 86400,
@@ -515,12 +514,12 @@ class ErrorHandlerCog(commands.Cog):
             "all": None,
         }
         if await self.stringcheck(ctx, operation_str, status_str, time_range_str, time_ranges):
-            returncheck=True
+            returncheck = True
 
         error_channel = await self._get_error_channel()
         if not error_channel:
             await ctx.send("Error channel not found")
-            returncheck=True
+            returncheck = True
         if returncheck:
             return
         status_map: dict[str, str] = {

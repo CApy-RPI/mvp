@@ -209,7 +209,7 @@ class DynamicDropdownView(View):
         dropdowns: list[dict[str, Any]] | None = None,
         page_number: int = 0,
         ephemeral: bool = True,
-        buttons: tuple[bool, bool] = (True, False), #auto, add
+        buttons: tuple[bool, bool] = (True, False),  # auto, add
         collection: dict[str, list[str]] | None = None,
         **options,
     ) -> None:
@@ -233,12 +233,9 @@ class DynamicDropdownView(View):
         self._auto_buttons, self._add_buttons = buttons
         self._collection = collection if collection is not None else {}
         dropdowns = dropdowns or []
-        if (
-            (len(dropdowns) > self.MAX_DROPDOWNS)
-            or (
-                (len(dropdowns) > (self.MAX_DROPDOWNS - 1))
-                and (self._auto_buttons or self._add_buttons)
-            )
+        if (len(dropdowns) > self.MAX_DROPDOWNS) or (
+            (len(dropdowns) > (self.MAX_DROPDOWNS - 1))
+            and (self._auto_buttons or self._add_buttons)
         ):
             raise ValueError(f"Number of dropdowns exceeds Discord limit of {self.MAX_DROPDOWNS}.")
 
