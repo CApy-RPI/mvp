@@ -108,7 +108,7 @@ class ConfigConstructor:
         """Get configuration view settings."""
         return {
             "ephemeral": False,
-            "add_buttons": True,
+            "buttons": (True, True),
         }
 
     @staticmethod

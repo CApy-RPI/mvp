@@ -9,7 +9,7 @@ from config import settings
 DROPDOWN_CONFIGS = {
     "simple_selection": {
         "ephemeral": False,
-        "add_buttons": False,
+        "buttons": (True, False),
         "dropdowns": [
             {
                 "placeholder": "Make your selection",
@@ -41,7 +41,7 @@ DROPDOWN_CONFIGS = {
     },
     "multi_selection": {
         "ephemeral": False,
-        "add_buttons": True,
+        "buttons": (True, True),
         "dropdowns": [
             {
                 "placeholder": "Choose a fruit",
@@ -74,7 +74,7 @@ DROPDOWN_CONFIGS = {
     },
     "paint_step1": {
         "ephemeral": False,
-        "add_buttons": False,
+        "buttons": (True, False),
         "dropdowns": [
             {
                 "placeholder": "Select color family",
@@ -105,7 +105,7 @@ DROPDOWN_CONFIGS = {
     },
     "paint_step2_warm": {
         "ephemeral": False,
-        "add_buttons": False,
+        "buttons": (True, False),
         "dropdowns": [
             {
                 "placeholder": "Select specific colors",
@@ -122,7 +122,7 @@ DROPDOWN_CONFIGS = {
     },
     "paint_step2_cool": {
         "ephemeral": False,
-        "add_buttons": False,
+        "buttons": (True, False),
         "dropdowns": [
             {
                 "placeholder": "Select specific colors",
@@ -139,7 +139,7 @@ DROPDOWN_CONFIGS = {
     },
     "paint_step2_neutral": {
         "ephemeral": False,
-        "add_buttons": False,
+        "buttons": (True, False),
         "dropdowns": [
             {
                 "placeholder": "Select specific colors",
@@ -156,7 +156,7 @@ DROPDOWN_CONFIGS = {
     },
     "paint_step3": {
         "ephemeral": False,
-        "add_buttons": True,
+        "buttons": (True, True),
         "dropdowns": [
             {
                 "placeholder": "Select 1-2 finishes",
