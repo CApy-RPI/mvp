@@ -80,7 +80,7 @@ class Guild(RestrictedDocument):
 
     meta: ClassVar[dict[str, Any]] = {
         "collection": "events",
-        "indexes": ["created_at", "updated_at"]
+        "indexes": ["created_at", "updated_at"],
     }
 
     def save(self, *args: typing.Any, **kwargs: typing.Any) -> "Guild":
