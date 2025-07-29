@@ -85,7 +85,6 @@ def test_restricted_document_autoupdate(db):
     first_updated_ms = first_updated.replace(microsecond=(first_updated.microsecond // 1000) * 1000)
     updated_at_ms = updated_at.replace(microsecond=(updated_at.microsecond // 1000) * 1000)
 
-
     assert (
         updated_at_ms >= first_updated_ms
     ), f"Expected updated_at ({updated_at_ms}) to be later than first_updated ({first_updated_ms})"

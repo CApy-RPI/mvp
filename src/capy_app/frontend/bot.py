@@ -132,7 +132,7 @@ class Bot(commands.AutoShardedBot):
             return
 
         dev_channel = self.get_channel(settings.DEV_LOCKED_CHANNEL_ID)
-        if not isinstance(dev_channel, discord.TextChannel | discord.Thread):
+        if not isinstance(dev_channel, discord.TextChannel, discord.Thread):
             await ctx.send("Developer channel not found. Ensure it is set correctly.")
             self.logger.error(f"Developer channel {settings.DEV_LOCKED_CHANNEL_ID} not found")
             return

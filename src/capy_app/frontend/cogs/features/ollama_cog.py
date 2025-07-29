@@ -60,9 +60,7 @@ class OllamaCog(commands.Cog):
 
         return [c for c in chunks if c]  # Remove empty chunks
 
-    async def delete_think_block_messages(
-        self,  messages: list[discord.Message]
-    ) -> None:
+    async def delete_think_block_messages(self, messages: list[discord.Message]) -> None:
         """Delete messages between think tags.
 
         Args:

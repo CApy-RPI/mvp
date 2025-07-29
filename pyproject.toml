@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
 asyncio_mode = "auto"
-addopts = "--cov=src --cov-report=term"
+addopts = "--cov=src --cov-report=term --tb=short"
 testpaths = [
     "tests",
 ]

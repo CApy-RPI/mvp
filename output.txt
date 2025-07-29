@@ -1,0 +1,1071 @@
+mypy.....................................................................[41mFailed[m
+[2m- hook id: mypy[m
+[2m- duration: 0.31s[m
+[2m- exit code: 1[m
+
+src/capy_app/frontend/cogs/tools/purge_cog.py:22: [1m[31merror:(B[m Unexpected keyword argument (B[m[1m"title"(B[m for (B[m[1m"__init_subclass__"(B[m of (B[m[1m"object"(B[m  (B[m[33m[call-arg](B[m
+src/capy_app/frontend/cogs/tools/hotswap_cog.py:69: [1m[31merror:(B[m Unexpected keyword argument (B[m[1m"name"(B[m for (B[m[1m"__init_subclass__"(B[m of (B[m[1m"object"(B[m  (B[m[33m[call-arg](B[m
+src/capy_app/frontend/cogs/tools/hotswap_cog.py:95: [1m[31merror:(B[m Argument 1 to (B[m[1m"get_cog_from_path"(B[m of (B[m[1m"HotswapCog"(B[m has incompatible type (B[m[1m"Path"(B[m; expected (B[m[1m"str"(B[m  (B[m[33m[arg-type](B[m
+src/capy_app/frontend/cogs/features/event_cog.py:10: [1m[31merror:(B[m Library stubs not installed for (B[m[1m"pytz"(B[m  (B[m[33m[import-untyped](B[m
+src/capy_app/frontend/cogs/features/event_cog.py:10: [34mnote:(B[m Hint: (B[m[1m"python3 -m pip install types-pytz"(B[m(B[m
+src/capy_app/frontend/cogs/features/event_cog.py:10: [34mnote:(B[m (or run (B[m[1m"mypy --install-types"(B[m to install all missing stub packages)(B[m
+src/capy_app/frontend/cogs/features/event_cog.py:10: [34mnote:(B[m See [4mhttps://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports(B[m(B[m
+src/capy_app/frontend/cogs/features/event_cog.py:1297: [1m[31merror:(B[m Missing type parameters for generic type (B[m[1m"dict"(B[m  (B[m[33m[type-arg](B[m
+src/capy_app/frontend/bot.py:135: [1m[31merror:(B[m Too many arguments for (B[m[1m"isinstance"(B[m  (B[m[33m[call-arg](B[m
+tests/capy_app/backend/db/documents/restrict_test.py:16: [1m[31merror:(B[m Cannot override class variable (previously declared on base class (B[m[1m"RestrictedDocument"(B[m) with instance variable  (B[m[33m[misc](B[m
+tests/capy_app/frontend/test_profile_handlers.py:19: [1m[31merror:(B[m Module has no attribute (B[m[1m"Email"(B[m  (B[m[33m[attr-defined](B[m
+tests/capy_app/frontend/test_profile_handlers.py:20: [1m[31merror:(B[m Module has no attribute (B[m[1m"email"(B[m  (B[m[33m[attr-defined](B[m
+tests/capy_app/frontend/test_profile_handlers.py:21: [1m[31merror:(B[m Module has no attribute (B[m[1m"modules"(B[m  (B[m[33m[attr-defined](B[m
+src/capy_app/frontend/interactions/bases/dropdown_base.py:47: [1m[31merror:(B[m Returning Any from function declared to return (B[m[1m"None"(B[m  (B[m[33m[no-any-return](B[m
+src/capy_app/frontend/interactions/bases/dropdown_base.py:79: [1m[31merror:(B[m Returning Any from function declared to return (B[m[1m"None"(B[m  (B[m[33m[no-any-return](B[m
+src/capy_app/frontend/interactions/bases/dropdown_base.py:260: [1m[31merror:(B[m Returning Any from function declared to return (B[m[1m"tuple[dict[str, list[str]] | None, Any | None]"(B[m  (B[m[33m[no-any-return](B[m
+src/capy_app/frontend/interactions/bases/dropdown_base.py:274: [1m[31merror:(B[m Returning Any from function declared to return (B[m[1m"tuple[dict[str, list[str]] | None, Any | None]"(B[m  (B[m[33m[no-any-return](B[m
+src/capy_app/frontend/interactions/bases/dropdown_base.py:304: [1m[31merror:(B[m Missing return statement  (B[m[33m[return](B[m
+src/capy_app/frontend/interactions/bases/dropdown_base.py:329: [1m[31merror:(B[m Missing return statement  (B[m[33m[return](B[m
+[1m[31mFound 16 errors in 7 files (checked 70 source files)(B[m
+
+black....................................................................[42mPassed[m
+ruff.....................................................................[41mFailed[m
+[2m- hook id: ruff[m
+[2m- exit code: 1[m
+
+[1msrc/capy_app/frontend/cogs/features/event_cog.py[0m[36m:[0m83[36m:[0m13[36m:[0m [1;31mB904[0m Within an `except` clause, raise exceptions with `raise ... from err` or `raise ... from None` to distinguish them from errors in exception handling
+[1;38;5;12m   |[0m
+[1;38;5;12m81 |[0m         except Exception as e:
+[1;38;5;12m82 |[0m             self.logger.error(f"Error parsing date/time: {e}")
+[1;38;5;12m83 |[0m             raise ValueError(f"Invalid date/time format: {date_str} {time_str}")
+[1;38;5;12m   |[0m[1;38;5;9m             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1;38;5;9mB904[0m
+[1;38;5;12m84 |[0m 
+[1;38;5;12m85 |[0m     def format_datetime(self, dt: datetime, timezone_str: str = "US/Eastern") -> str:
+[1;38;5;12m   |[0m
+
+[1msrc/capy_app/frontend/cogs/features/event_cog.py[0m[36m:[0m146[36m:[0m15[36m:[0m [1;31mC901[0m `event` is too complex (13 > 10)
+[1;38;5;12m    |[0m
+[1;38;5;12m144 |[0m         ]
+[1;38;5;12m145 |[0m     )
+[1;38;5;12m146 |[0m     async def event(self, interaction: discord.Interaction, action: str) -> None:
+[1;38;5;12m    |[0m[1;38;5;9m               ^^^^^[0m [1;38;5;9mC901[0m
+[1;38;5;12m147 |[0m         """Handle event actions."""
+[1;38;5;12m148 |[0m         should_defer = action in ["list", "show", "announce", "myevents"]
+[1;38;5;12m    |[0m
+
+[1msrc/capy_app/frontend/cogs/features/event_cog.py[0m[36m:[0m193[36m:[0m15[36m:[0m [1;31mC901[0m `create_event` is too complex (18 > 10)
+[1;38;5;12m    |[0m
+[1;38;5;12m191 |[0m             await self.my_events(interaction)
+[1;38;5;12m192 |[0m 
+[1;38;5;12m193 |[0m     async def create_event(self, interaction: discord.Interaction) -> None:
+[1;38;5;12m    |[0m[1;38;5;9m               ^^^^^^^^^^^^[0m [1;38;5;9mC901[0m
+[1;38;5;12m194 |[0m         """Handle event creation."""
+[1;38;5;12m195 |[0m         self.logger.info(f"Event creation requested by {interaction.user}")
+[1;38;5;12m    |[0m
+
+[1msrc/capy_app/frontend/cogs/features/event_cog.py[0m[36m:[0m193[36m:[0m15[36m:[0m [1;31mPLR0912[0m Too many branches (18 > 12)
+[1;38;5;12m    |[0m
+[1;38;5;12m191 |[0m             await self.my_events(interaction)
+[1;38;5;12m192 |[0m 
+[1;38;5;12m193 |[0m     async def create_event(self, interaction: discord.Interaction) -> None:
+[1;38;5;12m    |[0m[1;38;5;9m               ^^^^^^^^^^^^[0m [1;38;5;9mPLR0912[0m
+[1;38;5;12m194 |[0m         """Handle event creation."""
+[1;38;5;12m195 |[0m         self.logger.info(f"Event creation requested by {interaction.user}")
+[1;38;5;12m    |[0m
+
+[1msrc/capy_app/frontend/cogs/features/event_cog.py[0m[36m:[0m193[36m:[0m15[36m:[0m [1;31mPLR0915[0m Too many statements (65 > 50)
+[1;38;5;12m    |[0m
+[1;38;5;12m191 |[0m             await self.my_events(interaction)
+[1;38;5;12m192 |[0m 
+[1;38;5;12m193 |[0m     async def create_event(self, interaction: discord.Interaction) -> None:
+[1;38;5;12m    |[0m[1;38;5;9m               ^^^^^^^^^^^^[0m [1;38;5;9mPLR0915[0m
+[1;38;5;12m194 |[0m         """Handle event creation."""
+[1;38;5;12m195 |[0m         self.logger.info(f"Event creation requested by {interaction.user}")
+[1;38;5;12m    |[0m
+
+[1msrc/capy_app/frontend/cogs/features/event_cog.py[0m[36m:[0m397[36m:[0m15[36m:[0m [1;31mC901[0m `get_event_selection` is too complex (33 > 10)
+[1;38;5;12m    |[0m
+[1;38;5;12m395 |[0m         await interaction.followup.send(embed=embed, ephemeral=True)
+[1;38;5;12m396 |[0m 
+[1;38;5;12m397 |[0m     async def get_event_selection(
+[1;38;5;12m    |[0m[1;38;5;9m               ^^^^^^^^^^^^^^^^^^^[0m [1;38;5;9mC901[0m
+[1;38;5;12m398 |[0m         self, interaction: discord.Interaction, action: str
+[1;38;5;12m399 |[0m     ) -> tuple[Event | None, discord.Message | None]:
+[1;38;5;12m    |[0m
+
+[1msrc/capy_app/frontend/cogs/features/event_cog.py[0m[36m:[0m397[36m:[0m15[36m:[0m [1;31mPLR0911[0m Too many return statements (11 > 6)
+[1;38;5;12m    |[0m
+[1;38;5;12m395 |[0m         await interaction.followup.send(embed=embed, ephemeral=True)
+[1;38;5;12m396 |[0m 
+[1;38;5;12m397 |[0m     async def get_event_selection(
+[1;38;5;12m    |[0m[1;38;5;9m               ^^^^^^^^^^^^^^^^^^^[0m [1;38;5;9mPLR0911[0m
+[1;38;5;12m398 |[0m         self, interaction: discord.Interaction, action: str
+[1;38;5;12m399 |[0m     ) -> tuple[Event | None, discord.Message | None]:
+[1;38;5;12m    |[0m
+
+[1msrc/capy_app/frontend/cogs/features/event_cog.py[0m[36m:[0m397[36m:[0m15[36m:[0m [1;31mPLR0912[0m Too many branches (38 > 12)
+[1;38;5;12m    |[0m
+[1;38;5;12m395 |[0m         await interaction.followup.send(embed=embed, ephemeral=True)
+[1;38;5;12m396 |[0m 
+[1;38;5;12m397 |[0m     async def get_event_selection(
+[1;38;5;12m    |[0m[1;38;5;9m               ^^^^^^^^^^^^^^^^^^^[0m [1;38;5;9mPLR0912[0m
+[1;38;5;12m398 |[0m         self, interaction: discord.Interaction, action: str
+[1;38;5;12m399 |[0m     ) -> tuple[Event | None, discord.Message | None]:
+[1;38;5;12m    |[0m
+
+[1msrc/capy_app/frontend/cogs/features/event_cog.py[0m[36m:[0m397[36m:[0m15[36m:[0m [1;31mPLR0915[0m Too many statements (95 > 50)
+[1;38;5;12m    |[0m
+[1;38;5;12m395 |[0m         await interaction.followup.send(embed=embed, ephemeral=True)
+[1;38;5;12m396 |[0m 
+[1;38;5;12m397 |[0m     async def get_event_selection(
+[1;38;5;12m    |[0m[1;38;5;9m               ^^^^^^^^^^^^^^^^^^^[0m [1;38;5;9mPLR0915[0m
+[1;38;5;12m398 |[0m         self, interaction: discord.Interaction, action: str
+[1;38;5;12m399 |[0m     ) -> tuple[Event | None, discord.Message | None]:
+[1;38;5;12m    |[0m
+
+[1msrc/capy_app/frontend/cogs/features/event_cog.py[0m[36m:[0m624[36m:[0m15[36m:[0m [1;31mC901[0m `edit_event_selection` is too complex (12 > 10)
+[1;38;5;12m    |[0m
+[1;38;5;12m622 |[0m         await self.show_event_embed(message, event)
+[1;38;5;12m623 |[0m 
+[1;38;5;12m624 |[0m     async def edit_event_selection(self, interaction: discord.Interaction) -> None:
+[1;38;5;12m    |[0m[1;38;5;9m               ^^^^^^^^^^^^^^^^^^^^[0m [1;38;5;9mC901[0m
+[1;38;5;12m625 |[0m         """Edit a specific event selected from dropdown."""
+[1;38;5;12m626 |[0m         # Prompt the user to select an event to edit
+[1;38;5;12m    |[0m
+
+[1msrc/capy_app/frontend/cogs/features/event_cog.py[0m[36m:[0m728[36m:[0m15[36m:[0m [1;31mC901[0m `delete_event_selection` is too complex (14 > 10)
+[1;38;5;12m    |[0m
+[1;38;5;12m726 |[0m                 )
+[1;38;5;12m727 |[0m 
+[1;38;5;12m728 |[0m     async def delete_event_selection(self, interaction: discord.Interaction) -> None:
+[1;38;5;12m    |[0m[1;38;5;9m               ^^^^^^^^^^^^^^^^^^^^^^[0m [1;38;5;9mC901[0m
+[1;38;5;12m729 |[0m         """Delete a specific event selected from dropdown."""
+[1;38;5;12m730 |[0m         # Get both event and the message from the dropdown interaction
+[1;38;5;12m    |[0m
+
+[1msrc/capy_app/frontend/cogs/features/event_cog.py[0m[36m:[0m728[36m:[0m15[36m:[0m [1;31mPLR0912[0m Too many branches (15 > 12)
+[1;38;5;12m    |[0m
+[1;38;5;12m726 |[0m                 )
+[1;38;5;12m727 |[0m 
+[1;38;5;12m728 |[0m     async def delete_event_selection(self, interaction: discord.Interaction) -> None:
+[1;38;5;12m    |[0m[1;38;5;9m               ^^^^^^^^^^^^^^^^^^^^^^[0m [1;38;5;9mPLR0912[0m
+[1;38;5;12m729 |[0m         """Delete a specific event selected from dropdown."""
+[1;38;5;12m730 |[0m         # Get both event and the message from the dropdown interaction
+[1;38;5;12m    |[0m
+
+[1msrc/capy_app/frontend/cogs/features/event_cog.py[0m[36m:[0m1041[36m:[0m15[36m:[0m [1;31mC901[0m `on_raw_reaction_add` is too complex (11 > 10)
+[1;38;5;12m     |[0m
+[1;38;5;12m1040 |[0m     @commands.Cog.listener()
+[1;38;5;12m1041 |[0m     async def on_raw_reaction_add(self, payload) -> None:
+[1;38;5;12m     |[0m[1;38;5;9m               ^^^^^^^^^^^^^^^^^^^[0m [1;38;5;9mC901[0m
+[1;38;5;12m1042 |[0m         """Handle reactions to event announcements."""
+[1;38;5;12m1043 |[0m         # Ignore bot reactions
+[1;38;5;12m     |[0m
+
+[1msrc/capy_app/frontend/cogs/features/event_cog.py[0m[36m:[0m1085[36m:[0m15[36m:[0m [1;31mC901[0m `handle_attendance_add` is too complex (11 > 10)
+[1;38;5;12m     |[0m
+[1;38;5;12m1083 |[0m             await self.handle_attendance_maybe(payload.user_id, event)
+[1;38;5;12m1084 |[0m 
+[1;38;5;12m1085 |[0m     async def handle_attendance_add(self, user_id: int, event: Event) -> None:
+[1;38;5;12m     |[0m[1;38;5;9m               ^^^^^^^^^^^^^^^^^^^^^[0m [1;38;5;9mC901[0m
+[1;38;5;12m1086 |[0m         """Handle adding a user to event attendance with "yes" response."""
+[1;38;5;12m1087 |[0m         user = Database.get_document(User, user_id)
+[1;38;5;12m     |[0m
+
+[1msrc/capy_app/frontend/cogs/features/event_cog.py[0m[36m:[0m1223[36m:[0m15[36m:[0m [1;31mC901[0m `on_raw_reaction_remove` is too complex (14 > 10)
+[1;38;5;12m     |[0m
+[1;38;5;12m1222 |[0m     @commands.Cog.listener()
+[1;38;5;12m1223 |[0m     async def on_raw_reaction_remove(self, payload) -> None:
+[1;38;5;12m     |[0m[1;38;5;9m               ^^^^^^^^^^^^^^^^^^^^^^[0m [1;38;5;9mC901[0m
+[1;38;5;12m1224 |[0m         """Handle reaction removal from event announcements."""
+[1;38;5;12m1225 |[0m         # Ignore bot reactions
+[1;38;5;12m     |[0m
+
+[1msrc/capy_app/frontend/cogs/features/event_cog.py[0m[36m:[0m1223[36m:[0m15[36m:[0m [1;31mPLR0912[0m Too many branches (13 > 12)
+[1;38;5;12m     |[0m
+[1;38;5;12m1222 |[0m     @commands.Cog.listener()
+[1;38;5;12m1223 |[0m     async def on_raw_reaction_remove(self, payload) -> None:
+[1;38;5;12m     |[0m[1;38;5;9m               ^^^^^^^^^^^^^^^^^^^^^^[0m [1;38;5;9mPLR0912[0m
+[1;38;5;12m1224 |[0m         """Handle reaction removal from event announcements."""
+[1;38;5;12m1225 |[0m         # Ignore bot reactions
+[1;38;5;12m     |[0m
+
+[1msrc/capy_app/frontend/cogs/handlers/error_handler_cog.py[0m[36m:[0m32[36m:[0m15[36m:[0m [1;31mPLR0913[0m Too many arguments in function definition (6 > 5)
+[1;38;5;12m   |[0m
+[1;38;5;12m30 |[0m         return deleted
+[1;38;5;12m31 |[0m 
+[1;38;5;12m32 |[0m     async def _count_matching_messages(
+[1;38;5;12m   |[0m[1;38;5;9m               ^^^^^^^^^^^^^^^^^^^^^^^^[0m [1;38;5;9mPLR0913[0m
+[1;38;5;12m33 |[0m         self,
+[1;38;5;12m34 |[0m         error_channel: discord.TextChannel,
+[1;38;5;12m   |[0m
+
+[1msrc/capy_app/frontend/cogs/handlers/error_handler_cog.py[0m[36m:[0m449[36m:[0m15[36m:[0m [1;31mPLR0913[0m Too many arguments in function definition (6 > 5)
+[1;38;5;12m    |[0m
+[1;38;5;12m447 |[0m         return False
+[1;38;5;12m448 |[0m 
+[1;38;5;12m449 |[0m     async def _stringcheck(
+[1;38;5;12m    |[0m[1;38;5;9m               ^^^^^^^^^^^^[0m [1;38;5;9mPLR0913[0m
+[1;38;5;12m450 |[0m         self,
+[1;38;5;12m451 |[0m         ctx,
+[1;38;5;12m    |[0m
+
+[1msrc/capy_app/frontend/cogs/tools/tickets/ticket_base.py[0m[36m:[0m22[36m:[0m9[36m:[0m [1;31mPLR0913[0m Too many arguments in function definition (6 > 5)
+[1;38;5;12m   |[0m
+[1;38;5;12m21 |[0m class TicketBase(commands.Cog):
+[1;38;5;12m22 |[0m     def __init__(
+[1;38;5;12m   |[0m[1;38;5;9m         ^^^^^^^^[0m [1;38;5;9mPLR0913[0m
+[1;38;5;12m23 |[0m         self,
+[1;38;5;12m24 |[0m         bot: commands.Bot,
+[1;38;5;12m   |[0m
+
+[1msrc/capy_app/frontend/interactions/bases/dropdown_base.py[0m[36m:[0m207[36m:[0m9[36m:[0m [1;31mPLR0913[0m Too many arguments in function definition (6 > 5)
+[1;38;5;12m    |[0m
+[1;38;5;12m205 |[0m     MAX_DROPDOWNS = 5  # Discord's limit for components in a view
+[1;38;5;12m206 |[0m 
+[1;38;5;12m207 |[0m     def __init__(
+[1;38;5;12m    |[0m[1;38;5;9m         ^^^^^^^^[0m [1;38;5;9mPLR0913[0m
+[1;38;5;12m208 |[0m         self,
+[1;38;5;12m209 |[0m         dropdowns: list[dict[str, Any]] | None = None,
+[1;38;5;12m    |[0m
+
+[1mtests/capy_app/backend/db/database_test.py[0m[36m:[0m101[36m:[0m26[36m:[0m [1;31mPLR2004[0m Magic value used in comparison, consider replacing `2` with a constant variable
+[1;38;5;12m    |[0m
+[1;38;5;12m 99 |[0m     db.add_document(user2)
+[1;38;5;12m100 |[0m     users = db.list_documents(User)
+[1;38;5;12m101 |[0m     assert len(users) == 2
+[1;38;5;12m    |[0m[1;38;5;9m                          ^[0m [1;38;5;9mPLR2004[0m
+[1;38;5;12m    |[0m
+
+[1mtests/capy_app/backend/db/documents/event_test.py[0m[36m:[0m26[36m:[0m25[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m   |[0m
+[1;38;5;12m26 |[0m def test_event_creation(db):
+[1;38;5;12m   |[0m[1;38;5;9m                         ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m27 |[0m     details = EventDetails(
+[1;38;5;12m28 |[0m         name="Test Event",
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/event_test.py[0m[36m:[0m52[36m:[0m36[36m:[0m [1;31mPLR2004[0m Magic value used in comparison, consider replacing `789` with a constant variable
+[1;38;5;12m   |[0m
+[1;38;5;12m50 |[0m     assert saved_event.maybe_users == [102]
+[1;38;5;12m51 |[0m     assert saved_event.no_users == []
+[1;38;5;12m52 |[0m     assert saved_event.guild_id == 789
+[1;38;5;12m   |[0m[1;38;5;9m                                    ^^^[0m [1;38;5;9mPLR2004[0m
+[1;38;5;12m53 |[0m     assert saved_event.message_id == 111
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/event_test.py[0m[36m:[0m53[36m:[0m38[36m:[0m [1;31mPLR2004[0m Magic value used in comparison, consider replacing `111` with a constant variable
+[1;38;5;12m   |[0m
+[1;38;5;12m51 |[0m     assert saved_event.no_users == []
+[1;38;5;12m52 |[0m     assert saved_event.guild_id == 789
+[1;38;5;12m53 |[0m     assert saved_event.message_id == 111
+[1;38;5;12m   |[0m[1;38;5;9m                                      ^^^[0m [1;38;5;9mPLR2004[0m
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/event_test.py[0m[36m:[0m56[36m:[0m35[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m   |[0m
+[1;38;5;12m56 |[0m def test_event_reactions_defaults(db):
+[1;38;5;12m   |[0m[1;38;5;9m                                   ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m57 |[0m     details = EventDetails(name="Event With Reactions", time=datetime(2030, 5, 5, 10, 0))
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/event_test.py[0m[36m:[0m67[36m:[0m30[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m   |[0m
+[1;38;5;12m67 |[0m def test_event_required_name(db):
+[1;38;5;12m   |[0m[1;38;5;9m                              ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m68 |[0m     from mongoengine import ValidationError
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/event_test.py[0m[36m:[0m83[36m:[0m30[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m   |[0m
+[1;38;5;12m83 |[0m def test_event_required_time(db):
+[1;38;5;12m   |[0m[1;38;5;9m                              ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m84 |[0m     from mongoengine import ValidationError
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/event_test.py[0m[36m:[0m99[36m:[0m35[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m    |[0m
+[1;38;5;12m 99 |[0m def test_add_users_after_creation(db):
+[1;38;5;12m    |[0m[1;38;5;9m                                   ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m100 |[0m     details = EventDetails(name="Modifiable Event", time=datetime(2025, 1, 1, 12, 0))
+[1;38;5;12m101 |[0m     event = Event(
+[1;38;5;12m    |[0m
+
+[1mtests/capy_app/backend/db/documents/event_test.py[0m[36m:[0m119[36m:[0m35[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m    |[0m
+[1;38;5;12m119 |[0m def test_set_reactions_explicitly(db):
+[1;38;5;12m    |[0m[1;38;5;9m                                   ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m120 |[0m     reactions = EventReactions(yes=5, maybe=3, no=2)
+[1;38;5;12m121 |[0m     details = EventDetails(
+[1;38;5;12m    |[0m
+
+[1mtests/capy_app/backend/db/documents/event_test.py[0m[36m:[0m128[36m:[0m43[36m:[0m [1;31mPLR2004[0m Magic value used in comparison, consider replacing `5` with a constant variable
+[1;38;5;12m    |[0m
+[1;38;5;12m127 |[0m     event = Event.objects(_id=204).first()
+[1;38;5;12m128 |[0m     assert event.details.reactions.yes == 5
+[1;38;5;12m    |[0m[1;38;5;9m                                           ^[0m [1;38;5;9mPLR2004[0m
+[1;38;5;12m129 |[0m     assert event.details.reactions.maybe == 3
+[1;38;5;12m130 |[0m     assert event.details.reactions.no == 2
+[1;38;5;12m    |[0m
+
+[1mtests/capy_app/backend/db/documents/event_test.py[0m[36m:[0m129[36m:[0m45[36m:[0m [1;31mPLR2004[0m Magic value used in comparison, consider replacing `3` with a constant variable
+[1;38;5;12m    |[0m
+[1;38;5;12m127 |[0m     event = Event.objects(_id=204).first()
+[1;38;5;12m128 |[0m     assert event.details.reactions.yes == 5
+[1;38;5;12m129 |[0m     assert event.details.reactions.maybe == 3
+[1;38;5;12m    |[0m[1;38;5;9m                                             ^[0m [1;38;5;9mPLR2004[0m
+[1;38;5;12m130 |[0m     assert event.details.reactions.no == 2
+[1;38;5;12m    |[0m
+
+[1mtests/capy_app/backend/db/documents/event_test.py[0m[36m:[0m130[36m:[0m42[36m:[0m [1;31mPLR2004[0m Magic value used in comparison, consider replacing `2` with a constant variable
+[1;38;5;12m    |[0m
+[1;38;5;12m128 |[0m     assert event.details.reactions.yes == 5
+[1;38;5;12m129 |[0m     assert event.details.reactions.maybe == 3
+[1;38;5;12m130 |[0m     assert event.details.reactions.no == 2
+[1;38;5;12m    |[0m[1;38;5;9m                                          ^[0m [1;38;5;9mPLR2004[0m
+[1;38;5;12m    |[0m
+
+[1mtests/capy_app/backend/db/documents/guild_test.py[0m[36m:[0m33[36m:[0m32[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m   |[0m
+[1;38;5;12m33 |[0m def test_create_guild_defaults(db):
+[1;38;5;12m   |[0m[1;38;5;9m                                ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m34 |[0m     guild = Guild(_id=1, users=[101, 102], events=[201, 202])
+[1;38;5;12m35 |[0m     guild.save()
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/guild_test.py[0m[36m:[0m45[36m:[0m39[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m   |[0m
+[1;38;5;12m45 |[0m def test_create_guild_custom_channels(db):
+[1;38;5;12m   |[0m[1;38;5;9m                                       ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m46 |[0m     custom_channels = GuildChannels(reports=123, announcements=456, moderator=789)
+[1;38;5;12m47 |[0m     guild = Guild(_id=2, users=[103], events=[203], channels=custom_channels)
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/guild_test.py[0m[36m:[0m51[36m:[0m44[36m:[0m [1;31mPLR2004[0m Magic value used in comparison, consider replacing `123` with a constant variable
+[1;38;5;12m   |[0m
+[1;38;5;12m50 |[0m     saved_guild = Guild.objects.get(_id=2)
+[1;38;5;12m51 |[0m     assert saved_guild.channels.reports == 123
+[1;38;5;12m   |[0m[1;38;5;9m                                            ^^^[0m [1;38;5;9mPLR2004[0m
+[1;38;5;12m52 |[0m     assert saved_guild.channels.announcements == 456
+[1;38;5;12m53 |[0m     assert saved_guild.channels.moderator == 789
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/guild_test.py[0m[36m:[0m52[36m:[0m50[36m:[0m [1;31mPLR2004[0m Magic value used in comparison, consider replacing `456` with a constant variable
+[1;38;5;12m   |[0m
+[1;38;5;12m50 |[0m     saved_guild = Guild.objects.get(_id=2)
+[1;38;5;12m51 |[0m     assert saved_guild.channels.reports == 123
+[1;38;5;12m52 |[0m     assert saved_guild.channels.announcements == 456
+[1;38;5;12m   |[0m[1;38;5;9m                                                  ^^^[0m [1;38;5;9mPLR2004[0m
+[1;38;5;12m53 |[0m     assert saved_guild.channels.moderator == 789
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/guild_test.py[0m[36m:[0m53[36m:[0m46[36m:[0m [1;31mPLR2004[0m Magic value used in comparison, consider replacing `789` with a constant variable
+[1;38;5;12m   |[0m
+[1;38;5;12m51 |[0m     assert saved_guild.channels.reports == 123
+[1;38;5;12m52 |[0m     assert saved_guild.channels.announcements == 456
+[1;38;5;12m53 |[0m     assert saved_guild.channels.moderator == 789
+[1;38;5;12m   |[0m[1;38;5;9m                                              ^^^[0m [1;38;5;9mPLR2004[0m
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/guild_test.py[0m[36m:[0m56[36m:[0m36[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m   |[0m
+[1;38;5;12m56 |[0m def test_create_guild_custom_roles(db):
+[1;38;5;12m   |[0m[1;38;5;9m                                    ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m57 |[0m     custom_roles = GuildRoles(eboard="President", admin="AdminRole")
+[1;38;5;12m58 |[0m     guild = Guild(_id=3, users=[104], events=[204], roles=custom_roles)
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/guild_test.py[0m[36m:[0m66[36m:[0m31[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m   |[0m
+[1;38;5;12m66 |[0m def test_add_users_and_events(db):
+[1;38;5;12m   |[0m[1;38;5;9m                               ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m67 |[0m     guild = Guild(_id=4, users=[], events=[])
+[1;38;5;12m68 |[0m     guild.save()
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/guild_test.py[0m[36m:[0m73[36m:[0m12[36m:[0m [1;31mPLR2004[0m Magic value used in comparison, consider replacing `105` with a constant variable
+[1;38;5;12m   |[0m
+[1;38;5;12m71 |[0m     guild.update(push__users=105, push__events=205)
+[1;38;5;12m72 |[0m     updated_guild = Guild.objects.get(_id=4)
+[1;38;5;12m73 |[0m     assert 105 in updated_guild.users
+[1;38;5;12m   |[0m[1;38;5;9m            ^^^[0m [1;38;5;9mPLR2004[0m
+[1;38;5;12m74 |[0m     assert 205 in updated_guild.events
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/guild_test.py[0m[36m:[0m74[36m:[0m12[36m:[0m [1;31mPLR2004[0m Magic value used in comparison, consider replacing `205` with a constant variable
+[1;38;5;12m   |[0m
+[1;38;5;12m72 |[0m     updated_guild = Guild.objects.get(_id=4)
+[1;38;5;12m73 |[0m     assert 105 in updated_guild.users
+[1;38;5;12m74 |[0m     assert 205 in updated_guild.events
+[1;38;5;12m   |[0m[1;38;5;9m            ^^^[0m [1;38;5;9mPLR2004[0m
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/guild_test.py[0m[36m:[0m77[36m:[0m32[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m   |[0m
+[1;38;5;12m77 |[0m def test_update_channels_roles(db):
+[1;38;5;12m   |[0m[1;38;5;9m                                ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m78 |[0m     guild = Guild(_id=5, users=[106], events=[206])
+[1;38;5;12m79 |[0m     guild.save()
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/guild_test.py[0m[36m:[0m87[36m:[0m46[36m:[0m [1;31mPLR2004[0m Magic value used in comparison, consider replacing `111` with a constant variable
+[1;38;5;12m   |[0m
+[1;38;5;12m85 |[0m     )
+[1;38;5;12m86 |[0m     updated_guild = Guild.objects.get(_id=5)
+[1;38;5;12m87 |[0m     assert updated_guild.channels.reports == 111
+[1;38;5;12m   |[0m[1;38;5;9m                                              ^^^[0m [1;38;5;9mPLR2004[0m
+[1;38;5;12m88 |[0m     assert updated_guild.channels.announcements == 222
+[1;38;5;12m89 |[0m     assert updated_guild.channels.moderator == 333
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/guild_test.py[0m[36m:[0m88[36m:[0m52[36m:[0m [1;31mPLR2004[0m Magic value used in comparison, consider replacing `222` with a constant variable
+[1;38;5;12m   |[0m
+[1;38;5;12m86 |[0m     updated_guild = Guild.objects.get(_id=5)
+[1;38;5;12m87 |[0m     assert updated_guild.channels.reports == 111
+[1;38;5;12m88 |[0m     assert updated_guild.channels.announcements == 222
+[1;38;5;12m   |[0m[1;38;5;9m                                                    ^^^[0m [1;38;5;9mPLR2004[0m
+[1;38;5;12m89 |[0m     assert updated_guild.channels.moderator == 333
+[1;38;5;12m90 |[0m     assert updated_guild.roles.eboard == "VicePresident"
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/guild_test.py[0m[36m:[0m89[36m:[0m48[36m:[0m [1;31mPLR2004[0m Magic value used in comparison, consider replacing `333` with a constant variable
+[1;38;5;12m   |[0m
+[1;38;5;12m87 |[0m     assert updated_guild.channels.reports == 111
+[1;38;5;12m88 |[0m     assert updated_guild.channels.announcements == 222
+[1;38;5;12m89 |[0m     assert updated_guild.channels.moderator == 333
+[1;38;5;12m   |[0m[1;38;5;9m                                                ^^^[0m [1;38;5;9mPLR2004[0m
+[1;38;5;12m90 |[0m     assert updated_guild.roles.eboard == "VicePresident"
+[1;38;5;12m91 |[0m     assert updated_guild.roles.admin == "ModeratorRole"
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/restrict_test.py[0m[36m:[0m16[36m:[0m28[36m:[0m [1;31mRUF012[0m Mutable class attributes should be annotated with `typing.ClassVar`
+[1;38;5;12m   |[0m
+[1;38;5;12m15 |[0m class ConcreteRestrictedDocument(RestrictedDocument):
+[1;38;5;12m16 |[0m     meta: dict[str, Any] = {"collection": "test_restricted_document"}
+[1;38;5;12m   |[0m[1;38;5;9m                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1;38;5;9mRUF012[0m
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/restrict_test.py[0m[36m:[0m34[36m:[0m46[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m   |[0m
+[1;38;5;12m34 |[0m def test_restricted_document_set_known_field(db):
+[1;38;5;12m   |[0m[1;38;5;9m                                              ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m35 |[0m     """
+[1;38;5;12m36 |[0m     Test that setting an existing field (created_at) on a RestrictedDocument is allowed.
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/restrict_test.py[0m[36m:[0m51[36m:[0m48[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m   |[0m
+[1;38;5;12m51 |[0m def test_restricted_document_set_unknown_field(db):
+[1;38;5;12m   |[0m[1;38;5;9m                                                ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m52 |[0m     """
+[1;38;5;12m53 |[0m     Test that setting a non-existent field raises AttributeError.
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/restrict_test.py[0m[36m:[0m60[36m:[0m47[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m   |[0m
+[1;38;5;12m60 |[0m def test_restricted_document_delete_attribute(db):
+[1;38;5;12m   |[0m[1;38;5;9m                                               ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m61 |[0m     """
+[1;38;5;12m62 |[0m     Test that deleting any attribute raises AttributeError.
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/restrict_test.py[0m[36m:[0m69[36m:[0m41[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m   |[0m
+[1;38;5;12m69 |[0m def test_restricted_document_autoupdate(db):
+[1;38;5;12m   |[0m[1;38;5;9m                                         ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m70 |[0m     """
+[1;38;5;12m71 |[0m     Test that `updated_at` automatically updates when saving the document after changes.
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/restrict_test.py[0m[36m:[0m93[36m:[0m55[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m   |[0m
+[1;38;5;12m93 |[0m def test_restricted_embedded_document_set_known_field(db):
+[1;38;5;12m   |[0m[1;38;5;9m                                                       ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m94 |[0m     """
+[1;38;5;12m95 |[0m     Test that setting fields on a RestrictedEmbeddedDocument is allowed only if they exist.
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/restrict_test.py[0m[36m:[0m107[36m:[0m56[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m    |[0m
+[1;38;5;12m107 |[0m def test_restricted_embedded_document_delete_attribute(db):
+[1;38;5;12m    |[0m[1;38;5;9m                                                        ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m108 |[0m     """
+[1;38;5;12m109 |[0m     Test that deleting an attribute on RestrictedEmbeddedDocument raises AttributeError.
+[1;38;5;12m    |[0m
+
+[1mtests/capy_app/backend/db/documents/user_test.py[0m[36m:[0m25[36m:[0m30[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m   |[0m
+[1;38;5;12m25 |[0m def test_create_user_success(db):
+[1;38;5;12m   |[0m[1;38;5;9m                              ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m26 |[0m     """
+[1;38;5;12m27 |[0m     Test creating a user with all required fields.
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/user_test.py[0m[36m:[0m97[36m:[0m34[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m   |[0m
+[1;38;5;12m97 |[0m def test_missing_required_fields(db):
+[1;38;5;12m   |[0m[1;38;5;9m                                  ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m98 |[0m     """
+[1;38;5;12m99 |[0m     Test that creating a user without required fields raises ValidationError.
+[1;38;5;12m   |[0m
+
+[1mtests/capy_app/backend/db/documents/user_test.py[0m[36m:[0m123[36m:[0m30[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m    |[0m
+[1;38;5;12m123 |[0m def test_unique_school_email(db):
+[1;38;5;12m    |[0m[1;38;5;9m                              ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m124 |[0m     """
+[1;38;5;12m125 |[0m     Test that creating two users with the same school_email raises NotUniqueError.
+[1;38;5;12m    |[0m
+
+[1mtests/capy_app/backend/db/documents/user_test.py[0m[36m:[0m155[36m:[0m28[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m    |[0m
+[1;38;5;12m155 |[0m def test_unique_student_id(db):
+[1;38;5;12m    |[0m[1;38;5;9m                            ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m156 |[0m     """
+[1;38;5;12m157 |[0m     Test that creating two users with the same student_id raises NotUniqueError.
+[1;38;5;12m    |[0m
+
+[1mtests/capy_app/backend/db/documents/user_test.py[0m[36m:[0m187[36m:[0m25[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m    |[0m
+[1;38;5;12m187 |[0m def test_optional_phone(db):
+[1;38;5;12m    |[0m[1;38;5;9m                         ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m188 |[0m     """
+[1;38;5;12m189 |[0m     Test that the phone field can be set or left as None without error.
+[1;38;5;12m    |[0m
+
+[1mtests/capy_app/backend/db/documents/user_test.py[0m[36m:[0m203[36m:[0m40[36m:[0m [1;31mPLR2004[0m Magic value used in comparison, consider replacing `1234567890` with a constant variable
+[1;38;5;12m    |[0m
+[1;38;5;12m202 |[0m     saved_user = User.objects(_id=7).first()
+[1;38;5;12m203 |[0m     assert saved_user.profile.phone == 1234567890
+[1;38;5;12m    |[0m[1;38;5;9m                                        ^^^^^^^^^^[0m [1;38;5;9mPLR2004[0m
+[1;38;5;12m204 |[0m 
+[1;38;5;12m205 |[0m     # Update phone to None
+[1;38;5;12m    |[0m
+
+[1mtests/capy_app/backend/db/documents/user_test.py[0m[36m:[0m213[36m:[0m32[36m:[0m [1;31mARG001[0m Unused function argument: `db`
+[1;38;5;12m    |[0m
+[1;38;5;12m213 |[0m def test_add_guilds_and_events(db):
+[1;38;5;12m    |[0m[1;38;5;9m                                ^^[0m [1;38;5;9mARG001[0m
+[1;38;5;12m214 |[0m     """
+[1;38;5;12m215 |[0m     Test adding guild and event references to an existing user.
+[1;38;5;12m    |[0m
+
+[1mtests/capy_app/backend/modules/email_test.py[0m[36m:[0m77[36m:[0m5[36m:[0m [1;31mSIM117[0m Use a single `with` statement with multiple contexts instead of nested `with` statements
+[1;38;5;12m   |[0m
+[1;38;5;12m75 |[0m       original_error = EmailSendError("Failed to send email")
+[1;38;5;12m76 |[0m   
+[1;38;5;12m77 |[0m       with patch.object(email_client.mailjet, "send", Mock(**{"create.side_effect": original_error})):
+[1;38;5;12m   |[0m  [1;38;5;9m_____^[0m
+[1;38;5;12m78 |[0m [1;38;5;9m|[0m         with pytest.raises(EmailSendError):
+[1;38;5;12m   |[0m [1;38;5;9m|[0m[1;38;5;9m___________________________________________^[0m [1;38;5;9mSIM117[0m
+[1;38;5;12m79 |[0m               email_client.send_mail("test@example.com", "123456")
+[1;38;5;12m   |[0m
+   [1;38;5;12m=[0m [1;38;5;14mhelp[0m: Combine `with` statements
+
+[1mtests/conftest.py[0m[36m:[0m5[36m:[0m20[36m:[0m [1;31mPTH100[0m `os.path.abspath()` should be replaced by `Path.resolve()`
+[1;38;5;12m  |[0m
+[1;38;5;12m4 |[0m # Add the src directory to the Python path
+[1;38;5;12m5 |[0m sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src/capy_app")))
+[1;38;5;12m  |[0m[1;38;5;9m                    ^^^^^^^^^^^^^^^[0m [1;38;5;9mPTH100[0m
+[1;38;5;12m  |[0m
+
+[1mtests/conftest.py[0m[36m:[0m5[36m:[0m36[36m:[0m [1;31mPTH118[0m `os.path.join()` should be replaced by `Path` with `/` operator
+[1;38;5;12m  |[0m
+[1;38;5;12m4 |[0m # Add the src directory to the Python path
+[1;38;5;12m5 |[0m sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src/capy_app")))
+[1;38;5;12m  |[0m[1;38;5;9m                                    ^^^^^^^^^^^^[0m [1;38;5;9mPTH118[0m
+[1;38;5;12m  |[0m
+
+[1mtests/conftest.py[0m[36m:[0m5[36m:[0m49[36m:[0m [1;31mPTH120[0m `os.path.dirname()` should be replaced by `Path.parent`
+[1;38;5;12m  |[0m
+[1;38;5;12m4 |[0m # Add the src directory to the Python path
+[1;38;5;12m5 |[0m sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src/capy_app")))
+[1;38;5;12m  |[0m[1;38;5;9m                                                 ^^^^^^^^^^^^^^^[0m [1;38;5;9mPTH120[0m
+[1;38;5;12m  |[0m
+
+Found 63 errors.
+
+ruff-format..............................................................[42mPassed[m
+xenon complexity check...................................................[41mFailed[m
+[2m- hook id: xenon[m
+[2m- exit code: 1[m
+
+ERROR:xenon:block "src/capy_app/frontend/bot.py:54 _load_cogs_recursive" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/modal_base.py:175 _get_data" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:329 _set_data" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:134 DynamicDropdown" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:139 __init__" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:207 __init__" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:311 _add_accept_cancel_buttons_if_needed" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:174 callback" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/purge_cog.py:185 purge" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/purge_cog.py:134 parse_duration" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:51 ticket" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:21 TicketBase" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:134 on_raw_reaction_add" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:57 send_cog_help" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:25 send_bot_help" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:11 HelpCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:101 send_command_help" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/major_handler.py:30 _calculate_ranges" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:359 _finish" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:281 _handle_edit" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:457 generate_weekly_schedule_embed" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:248 OfficeHoursCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:121 show_settings" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:163 edit_settings" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:62 _process_configuration" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:29 chunk_message" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:63 delete_think_block_messages" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:88 handle_chat_response" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:225 chat" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:161 handle_profile" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:41 ProfileCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:52 _load_major_list" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:139 verify_email" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:397 get_event_selection" has a rank of F
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1223 on_raw_reaction_remove" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:193 create_event" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:728 delete_event_selection" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:146 event" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1085 handle_attendance_add" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1133 handle_attendance_remove" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:938 my_events" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1041 on_raw_reaction_add" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1178 handle_attendance_maybe" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:26 EventCog" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:40 parse_datetime" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:336 list_events" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:821 announce_event_selection" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1297 get_prefilled__modal_config" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tests/dropdown_base_test_cog.py:250 test_sequential_dropdowns" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tests/modal_base_test_cog.py:114 test_modal_sequential" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:270 _handle_invite_reaction" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:474 error_handler_command" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:208 _extract_ids_from_context" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:562 on_reaction_add" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:32 _count_matching_messages" has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/tools/tickets/ticket_base.py' has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/features/office_hours_cog.py' has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/features/event_cog.py' has a rank of C
+[0mERROR:xenon:block "src/capy_app/frontend/bot.py:54 _load_cogs_recursive" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/modal_base.py:175 _get_data" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:329 _set_data" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:134 DynamicDropdown" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:139 __init__" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:207 __init__" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:311 _add_accept_cancel_buttons_if_needed" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:174 callback" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/purge_cog.py:185 purge" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/purge_cog.py:134 parse_duration" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:51 ticket" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:21 TicketBase" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:134 on_raw_reaction_add" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:57 send_cog_help" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:25 send_bot_help" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:11 HelpCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:101 send_command_help" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/major_handler.py:30 _calculate_ranges" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:359 _finish" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:281 _handle_edit" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:457 generate_weekly_schedule_embed" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:248 OfficeHoursCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:121 show_settings" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:163 edit_settings" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:62 _process_configuration" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:29 chunk_message" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:63 delete_think_block_messages" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:88 handle_chat_response" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:225 chat" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:161 handle_profile" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:41 ProfileCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:52 _load_major_list" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:139 verify_email" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:397 get_event_selection" has a rank of F
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1223 on_raw_reaction_remove" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:193 create_event" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:728 delete_event_selection" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:146 event" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1085 handle_attendance_add" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1133 handle_attendance_remove" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:938 my_events" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1041 on_raw_reaction_add" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1178 handle_attendance_maybe" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:26 EventCog" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:40 parse_datetime" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:336 list_events" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:821 announce_event_selection" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1297 get_prefilled__modal_config" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tests/dropdown_base_test_cog.py:250 test_sequential_dropdowns" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tests/modal_base_test_cog.py:114 test_modal_sequential" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:270 _handle_invite_reaction" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:474 error_handler_command" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:208 _extract_ids_from_context" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:562 on_reaction_add" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:32 _count_matching_messages" has a rank of B
+ERROR:xenon:block "tests/capy_app/backend/db/documents/guild_test.py:33 test_create_guild_defaults" has a rank of B
+ERROR:xenon:block "tests/capy_app/backend/db/documents/guild_test.py:77 test_update_channels_roles" has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/tools/tickets/ticket_base.py' has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/features/office_hours_cog.py' has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/features/event_cog.py' has a rank of C
+[0mERROR:xenon:block "src/capy_app/frontend/bot.py:54 _load_cogs_recursive" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/modal_base.py:175 _get_data" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:329 _set_data" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:134 DynamicDropdown" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:139 __init__" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:207 __init__" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:311 _add_accept_cancel_buttons_if_needed" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:174 callback" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/purge_cog.py:185 purge" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/purge_cog.py:134 parse_duration" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:51 ticket" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:21 TicketBase" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:134 on_raw_reaction_add" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:57 send_cog_help" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:25 send_bot_help" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:11 HelpCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:101 send_command_help" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/major_handler.py:30 _calculate_ranges" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:359 _finish" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:281 _handle_edit" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:457 generate_weekly_schedule_embed" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:248 OfficeHoursCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:121 show_settings" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:163 edit_settings" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:62 _process_configuration" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:29 chunk_message" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:63 delete_think_block_messages" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:88 handle_chat_response" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:225 chat" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:161 handle_profile" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:41 ProfileCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:52 _load_major_list" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:139 verify_email" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:397 get_event_selection" has a rank of F
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1223 on_raw_reaction_remove" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:193 create_event" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:728 delete_event_selection" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:146 event" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1085 handle_attendance_add" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1133 handle_attendance_remove" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:938 my_events" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1041 on_raw_reaction_add" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1178 handle_attendance_maybe" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:26 EventCog" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:40 parse_datetime" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:336 list_events" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:821 announce_event_selection" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1297 get_prefilled__modal_config" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tests/dropdown_base_test_cog.py:250 test_sequential_dropdowns" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tests/modal_base_test_cog.py:114 test_modal_sequential" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:270 _handle_invite_reaction" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:474 error_handler_command" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:208 _extract_ids_from_context" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:562 on_reaction_add" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:32 _count_matching_messages" has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/tools/tickets/ticket_base.py' has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/features/office_hours_cog.py' has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/features/event_cog.py' has a rank of C
+[0mERROR:xenon:block "src/capy_app/frontend/bot.py:54 _load_cogs_recursive" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/modal_base.py:175 _get_data" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:329 _set_data" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:134 DynamicDropdown" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:139 __init__" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:207 __init__" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:311 _add_accept_cancel_buttons_if_needed" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:174 callback" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/purge_cog.py:185 purge" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/purge_cog.py:134 parse_duration" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:51 ticket" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:21 TicketBase" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:134 on_raw_reaction_add" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:57 send_cog_help" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:25 send_bot_help" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:11 HelpCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:101 send_command_help" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/major_handler.py:30 _calculate_ranges" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:359 _finish" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:281 _handle_edit" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:457 generate_weekly_schedule_embed" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:248 OfficeHoursCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:121 show_settings" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:163 edit_settings" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:62 _process_configuration" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:29 chunk_message" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:63 delete_think_block_messages" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:88 handle_chat_response" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:225 chat" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:161 handle_profile" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:41 ProfileCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:52 _load_major_list" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:139 verify_email" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:397 get_event_selection" has a rank of F
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1223 on_raw_reaction_remove" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:193 create_event" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:728 delete_event_selection" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:146 event" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1085 handle_attendance_add" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1133 handle_attendance_remove" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:938 my_events" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1041 on_raw_reaction_add" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1178 handle_attendance_maybe" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:26 EventCog" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:40 parse_datetime" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:336 list_events" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:821 announce_event_selection" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1297 get_prefilled__modal_config" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tests/dropdown_base_test_cog.py:250 test_sequential_dropdowns" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tests/modal_base_test_cog.py:114 test_modal_sequential" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:270 _handle_invite_reaction" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:474 error_handler_command" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:208 _extract_ids_from_context" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:562 on_reaction_add" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:32 _count_matching_messages" has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/tools/tickets/ticket_base.py' has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/features/office_hours_cog.py' has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/features/event_cog.py' has a rank of C
+[0mERROR:xenon:block "src/capy_app/frontend/bot.py:54 _load_cogs_recursive" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/modal_base.py:175 _get_data" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:329 _set_data" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:134 DynamicDropdown" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:139 __init__" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:207 __init__" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:311 _add_accept_cancel_buttons_if_needed" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:174 callback" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/purge_cog.py:185 purge" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/purge_cog.py:134 parse_duration" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:51 ticket" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:21 TicketBase" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:134 on_raw_reaction_add" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:57 send_cog_help" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:25 send_bot_help" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:11 HelpCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:101 send_command_help" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/major_handler.py:30 _calculate_ranges" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:359 _finish" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:281 _handle_edit" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:457 generate_weekly_schedule_embed" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:248 OfficeHoursCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:121 show_settings" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:163 edit_settings" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:62 _process_configuration" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:29 chunk_message" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:63 delete_think_block_messages" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:88 handle_chat_response" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:225 chat" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:161 handle_profile" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:41 ProfileCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:52 _load_major_list" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:139 verify_email" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:397 get_event_selection" has a rank of F
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1223 on_raw_reaction_remove" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:193 create_event" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:728 delete_event_selection" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:146 event" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1085 handle_attendance_add" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1133 handle_attendance_remove" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:938 my_events" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1041 on_raw_reaction_add" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1178 handle_attendance_maybe" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:26 EventCog" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:40 parse_datetime" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:336 list_events" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:821 announce_event_selection" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1297 get_prefilled__modal_config" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tests/dropdown_base_test_cog.py:250 test_sequential_dropdowns" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tests/modal_base_test_cog.py:114 test_modal_sequential" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:270 _handle_invite_reaction" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:474 error_handler_command" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:208 _extract_ids_from_context" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:562 on_reaction_add" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:32 _count_matching_messages" has a rank of B
+ERROR:xenon:block "tests/capy_app/backend/db/documents/event_test.py:26 test_event_creation" has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/tools/tickets/ticket_base.py' has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/features/office_hours_cog.py' has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/features/event_cog.py' has a rank of C
+[0mERROR:xenon:block "src/capy_app/frontend/bot.py:54 _load_cogs_recursive" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/modal_base.py:175 _get_data" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:329 _set_data" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:134 DynamicDropdown" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:139 __init__" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:207 __init__" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:311 _add_accept_cancel_buttons_if_needed" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:174 callback" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/purge_cog.py:185 purge" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/purge_cog.py:134 parse_duration" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:51 ticket" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:21 TicketBase" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:134 on_raw_reaction_add" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:57 send_cog_help" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:25 send_bot_help" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:11 HelpCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:101 send_command_help" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/major_handler.py:30 _calculate_ranges" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:359 _finish" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:281 _handle_edit" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:457 generate_weekly_schedule_embed" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:248 OfficeHoursCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:121 show_settings" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:163 edit_settings" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:62 _process_configuration" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:29 chunk_message" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:63 delete_think_block_messages" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:88 handle_chat_response" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:225 chat" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:161 handle_profile" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:41 ProfileCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:52 _load_major_list" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:139 verify_email" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:397 get_event_selection" has a rank of F
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1223 on_raw_reaction_remove" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:193 create_event" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:728 delete_event_selection" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:146 event" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1085 handle_attendance_add" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1133 handle_attendance_remove" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:938 my_events" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1041 on_raw_reaction_add" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1178 handle_attendance_maybe" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:26 EventCog" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:40 parse_datetime" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:336 list_events" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:821 announce_event_selection" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1297 get_prefilled__modal_config" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tests/dropdown_base_test_cog.py:250 test_sequential_dropdowns" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tests/modal_base_test_cog.py:114 test_modal_sequential" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:270 _handle_invite_reaction" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:474 error_handler_command" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:208 _extract_ids_from_context" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:562 on_reaction_add" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:32 _count_matching_messages" has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/tools/tickets/ticket_base.py' has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/features/office_hours_cog.py' has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/features/event_cog.py' has a rank of C
+[0mERROR:xenon:block "src/capy_app/frontend/bot.py:54 _load_cogs_recursive" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/modal_base.py:175 _get_data" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:329 _set_data" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:134 DynamicDropdown" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:139 __init__" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:207 __init__" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:311 _add_accept_cancel_buttons_if_needed" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:174 callback" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/purge_cog.py:185 purge" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/purge_cog.py:134 parse_duration" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:51 ticket" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:21 TicketBase" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:134 on_raw_reaction_add" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:57 send_cog_help" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:25 send_bot_help" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:11 HelpCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:101 send_command_help" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/major_handler.py:30 _calculate_ranges" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:359 _finish" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:281 _handle_edit" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:457 generate_weekly_schedule_embed" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:248 OfficeHoursCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:121 show_settings" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:163 edit_settings" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:62 _process_configuration" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:29 chunk_message" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:63 delete_think_block_messages" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:88 handle_chat_response" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:225 chat" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:161 handle_profile" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:41 ProfileCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:52 _load_major_list" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:139 verify_email" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:397 get_event_selection" has a rank of F
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1223 on_raw_reaction_remove" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:193 create_event" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:728 delete_event_selection" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:146 event" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1085 handle_attendance_add" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1133 handle_attendance_remove" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:938 my_events" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1041 on_raw_reaction_add" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1178 handle_attendance_maybe" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:26 EventCog" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:40 parse_datetime" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:336 list_events" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:821 announce_event_selection" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1297 get_prefilled__modal_config" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tests/dropdown_base_test_cog.py:250 test_sequential_dropdowns" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tests/modal_base_test_cog.py:114 test_modal_sequential" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:270 _handle_invite_reaction" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:474 error_handler_command" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:208 _extract_ids_from_context" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:562 on_reaction_add" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:32 _count_matching_messages" has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/tools/tickets/ticket_base.py' has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/features/office_hours_cog.py' has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/features/event_cog.py' has a rank of C
+[0mERROR:xenon:block "src/capy_app/frontend/bot.py:54 _load_cogs_recursive" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/modal_base.py:175 _get_data" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:329 _set_data" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:134 DynamicDropdown" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:139 __init__" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:207 __init__" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:311 _add_accept_cancel_buttons_if_needed" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/interactions/bases/dropdown_base.py:174 callback" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/purge_cog.py:185 purge" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/purge_cog.py:134 parse_duration" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:51 ticket" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:21 TicketBase" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tools/tickets/ticket_base.py:134 on_raw_reaction_add" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:57 send_cog_help" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:25 send_bot_help" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:11 HelpCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/help_cog.py:101 send_command_help" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/major_handler.py:30 _calculate_ranges" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:359 _finish" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:281 _handle_edit" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:457 generate_weekly_schedule_embed" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/office_hours_cog.py:248 OfficeHoursCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:121 show_settings" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:163 edit_settings" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/guild_cog.py:62 _process_configuration" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:29 chunk_message" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:63 delete_think_block_messages" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:88 handle_chat_response" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/ollama_cog.py:225 chat" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:161 handle_profile" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:41 ProfileCog" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:52 _load_major_list" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/profile_cog.py:139 verify_email" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:397 get_event_selection" has a rank of F
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1223 on_raw_reaction_remove" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:193 create_event" has a rank of D
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:728 delete_event_selection" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:146 event" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1085 handle_attendance_add" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1133 handle_attendance_remove" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:938 my_events" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1041 on_raw_reaction_add" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1178 handle_attendance_maybe" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:26 EventCog" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:40 parse_datetime" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:336 list_events" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:821 announce_event_selection" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/features/event_cog.py:1297 get_prefilled__modal_config" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tests/dropdown_base_test_cog.py:250 test_sequential_dropdowns" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/tests/modal_base_test_cog.py:114 test_modal_sequential" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:270 _handle_invite_reaction" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:474 error_handler_command" has a rank of C
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:208 _extract_ids_from_context" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:562 on_reaction_add" has a rank of B
+ERROR:xenon:block "src/capy_app/frontend/cogs/handlers/error_handler_cog.py:32 _count_matching_messages" has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/tools/tickets/ticket_base.py' has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/features/office_hours_cog.py' has a rank of B
+ERROR:xenon:module 'src/capy_app/frontend/cogs/features/event_cog.py' has a rank of C
+[0m
+
+radon maintainability index..............................................[41mFailed[m
+[2m- hook id: radon-mi[m
+[2m- exit code: 1[m
+
+src/capy_app/frontend/cogs/features/event_cog.py - C (1.65)
+src/capy_app/frontend/cogs/features/event_cog.py - C (1.65)
+src/capy_app/frontend/cogs/features/event_cog.py - C (1.65)
+src/capy_app/frontend/cogs/features/event_cog.py - C (1.65)
+src/capy_app/frontend/cogs/features/event_cog.py - C (1.65)
+src/capy_app/frontend/cogs/features/event_cog.py - C (1.65)
+src/capy_app/frontend/cogs/features/event_cog.py - C (1.65)
+src/capy_app/frontend/cogs/features/event_cog.py - C (1.65)
+
+pytest...................................................................[42mPassed[m
