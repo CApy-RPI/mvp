@@ -19,6 +19,20 @@ from .ticket_base import TicketBase
 
 class FeedbackCog(TicketBase):
     def __init__(self, bot):
+        command_config = {
+            "cmd_name": "feedback",
+            "cmd_name_verbose": "Feedback Report",
+            "cmd_emoji": "📝",
+            "description": "Provide general feedback",
+            "request_channel_id": settings.TICKET_FEEDBACK_CHANNEL_ID,
+        }
+        color_config = {
+            "unmarked_color": STATUS_INFO,
+            "marked_colors": {
+                "Acknowledged": STATUS_RESOLVED,
+                "Ignored": STATUS_IGNORED,
+            },
+        }
         super().__init__(
             bot,
             {
@@ -26,16 +40,8 @@ class FeedbackCog(TicketBase):
                 "❌": "Ignored",
                 "🔄": "Unmarked",
             },
-            "feedback",
-            "Feedback Report",
-            "📝",
-            "Provide general feedback",
-            settings.TICKET_FEEDBACK_CHANNEL_ID,
-            STATUS_INFO,
-            {
-                "Acknowledged": STATUS_RESOLVED,
-                "Ignored": STATUS_IGNORED,
-            },
+            command_config,
+            color_config,
             " ✅ Acknowledge • ❌ Ignore • 🔄 Reset",
         )
         self.MODAL_CONFIGS = {
