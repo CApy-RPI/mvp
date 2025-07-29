@@ -135,7 +135,10 @@ class GuildCog(commands.Cog):
         # Show channels
         channel_text = "\n".join(
             f"{prompt['label']}: "
-            f"{'<#' + str(getattr(guild_data.channels, name)) + '>' if getattr(guild_data.channels, name) else 'Not Set'}"
+            f"{'<#'
+               + str(getattr(guild_data.channels, name))
+               + '>' if getattr(guild_data.channels, name) else 'Not Set'
+               }"
             for name, prompt in self.config.get_channel_prompts().items()
         )
         embed.add_field(
@@ -147,7 +150,10 @@ class GuildCog(commands.Cog):
         # Show roles
         role_text = "\n".join(
             f"{prompt['label']}: "
-            f"{'<@&' + str(getattr(guild_data.roles, name)) + '>' if getattr(guild_data.roles, name) else 'Not Set'}"
+            f"{'<@&'
+               + str(getattr(guild_data.roles, name))
+               + '>' if getattr(guild_data.roles, name) else 'Not Set'
+               }"
             for name, prompt in self.config.get_role_prompts().items()
         )
         embed.add_field(name="Roles", value=role_text or "No roles configured", inline=False)
