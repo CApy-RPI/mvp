@@ -74,7 +74,7 @@ class User(RestrictedDocument):
     updated_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
     office_hours: OfficeHours = mongoengine.EmbeddedDocumentField(OfficeHours, default=OfficeHours)
 
-    meta: dict[str, typing.Any] = {
+    meta: typing.ClassVar[dict[str, typing.Any]] = {
         "collection": "users",
         "indexes": ["created_at", "updated_at"],
     }

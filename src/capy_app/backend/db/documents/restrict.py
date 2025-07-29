@@ -1,6 +1,6 @@
 import datetime
 import logging
-from typing import Any
+from typing import Any, ClassVar
 
 from mongoengine import DateTimeField, Document, EmbeddedDocument
 from mongoengine.base import BaseDocument
@@ -9,8 +9,8 @@ from mongoengine.base import BaseDocument
 class RestrictedBase(BaseDocument):
     """Base class for restricted documents with proper type hints."""
 
-    meta: dict[str, Any] = {"abstract": True, "allow_inheritance": True}
-    logger = logging.getLogger(__name__)
+    meta: ClassVar[dict[str, Any]] = {"abstract": True, "allow_inheritance": True}
+    logger: ClassVar[logging.Logger] = logging.getLogger(__name__)
 
     def __setattr__(self, name, value):
         if not name.startswith("_") and name not in self._fields:
@@ -33,7 +33,7 @@ class RestrictedDocument(RestrictedBase, Document):
     created_at = DateTimeField(default=lambda: datetime.datetime.now(datetime.UTC))
     updated_at = DateTimeField(default=lambda: datetime.datetime.now(datetime.UTC), auto_now=True)
 
-    meta: dict[str, Any] = {"abstract": True}
+    meta: ClassVar[dict[str, Any]] = {"abstract": True}
 
 
 class RestrictedEmbeddedDocument(RestrictedBase, EmbeddedDocument):
