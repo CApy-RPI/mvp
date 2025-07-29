@@ -430,7 +430,7 @@ class ErrorHandlerCog(commands.Cog):
 
         return operation, status, time_range
 
-    async def error_handler_helper(
+    async def _error_handler_helper(
         self,
         ctx: commands.Context[typing.Any],
     ) -> bool:
@@ -446,7 +446,7 @@ class ErrorHandlerCog(commands.Cog):
 
         return False
 
-    async def stringcheck(
+    async def _stringcheck(
         self,
         ctx,
         operation: str,
@@ -488,7 +488,7 @@ class ErrorHandlerCog(commands.Cog):
         """
         # Check if command is used in the correct guild and channel
         returncheck = False
-        if self.error_handler_helper(ctx):
+        if self._error_handler_helper(ctx):
             return
         try:
             if any(param is None for param in [operation, status, time_range]):
@@ -513,7 +513,7 @@ class ErrorHandlerCog(commands.Cog):
             "30d": 2592000,
             "all": None,
         }
-        if await self.stringcheck(ctx, operation_str, status_str, time_range_str, time_ranges):
+        if await self._stringcheck(ctx, operation_str, status_str, time_range_str, time_ranges):
             returncheck = True
 
         error_channel = await self._get_error_channel()
