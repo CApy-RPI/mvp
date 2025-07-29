@@ -20,6 +20,10 @@ pip install --upgrade pip
 echo "Installing development requirements..."
 pip install -r requirements_dev.txt
 
+# Install the package in development mode
+echo "Installing package in development mode..."
+pip install -e .
+
 # Install pre-commit hooks
 echo "Installing pre-commit hooks..."
 pre-commit install
