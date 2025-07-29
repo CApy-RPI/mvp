@@ -5,6 +5,9 @@ from mailjet_rest import Client
 
 from config import settings
 
+# HTTP status codes
+HTTP_OK = 200
+
 
 class EmailError(Exception):
     """Base exception for email-related errors."""
@@ -60,6 +63,6 @@ class Email:
         }
 
         result = self.mailjet.send.create(data=data)
-        if result.status_code == 200:
+        if result.status_code == HTTP_OK:
             return result.json()
         raise EmailSendError(f"Failed to send email: {result.status_code} - {result.json()}")

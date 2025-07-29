@@ -19,7 +19,7 @@ class ChannelSelectView(BaseDropdownView):
         super().__init__()
         self.selected_channels: dict[str, int] = {}
 
-        for name, desc in channels.items():
+        for name, _desc in channels.items():
             select = ui.ChannelSelect(
                 placeholder=f"Select {name.title()} channel",
                 channel_types=[discord.ChannelType.text],
@@ -50,7 +50,7 @@ class RoleSelectView(BaseDropdownView):
         super().__init__()
         self.selected_roles: dict[str, int] = {}
 
-        for name, desc in roles.items():
+        for name, _desc in roles.items():
             select = ui.RoleSelect(
                 placeholder=f"Select {name.title()} role", custom_id=f"role_{name}"
             )
@@ -139,7 +139,7 @@ class ClearSettingsView(BaseDropdownView):
             custom_id="clear_select",
         )
 
-        async def clear_callback(interaction: Interaction) -> None:
+        async def clear_callback(_interaction: Interaction) -> None:
             self.selected_setting = select.values[0]
 
         select.callback = clear_callback

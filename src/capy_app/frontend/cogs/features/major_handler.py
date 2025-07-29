@@ -33,7 +33,7 @@ class MajorHandler:
             return {}
 
         # Get unique first letters and sort them
-        first_letters = sorted(set(major[0].upper() for major in self.major_list))
+        first_letters = sorted({major[0].upper() for major in self.major_list})
 
         # Calculate approximately how many letters per group
         letters_per_group = ceil(len(first_letters) / self.num_groups)
@@ -104,7 +104,7 @@ class MajorHandler:
         }
 
         text = "Select your major(s) from any group (max 2 total):\n"
-        for group_id, (start, end) in self._ranges.items():
+        for _group_id, (start, end) in self._ranges.items():
             end_letter = chr(ord(end) - 1)
             example_letter = start
             if example_letter in examples:
