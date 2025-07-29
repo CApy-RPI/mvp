@@ -6,7 +6,7 @@
 import logging
 
 import discord
-from backend.db.database import Database as db
+from backend.db.database import Database
 from discord import app_commands
 from discord.ext import commands
 from frontend import config_colors as colors
@@ -135,7 +135,10 @@ class GuildCog(commands.Cog):
         # Show channels
         channel_text = "\n".join(
             f"{prompt['label']}: "
-            f"{'<#' + str(getattr(guild_data.channels, name)) + '>' if getattr(guild_data.channels, name) else 'Not Set'}"
+            f"{'<#'
+               + str(getattr(guild_data.channels, name))
+               + '>' if getattr(guild_data.channels, name) else 'Not Set'
+               }"
             for name, prompt in self.config.get_channel_prompts().items()
         )
         embed.add_field(
@@ -147,7 +150,10 @@ class GuildCog(commands.Cog):
         # Show roles
         role_text = "\n".join(
             f"{prompt['label']}: "
-            f"{'<@&' + str(getattr(guild_data.roles, name)) + '>' if getattr(guild_data.roles, name) else 'Not Set'}"
+            f"{'<@&'
+               + str(getattr(guild_data.roles, name))
+               + '>' if getattr(guild_data.roles, name) else 'Not Set'
+               }"
             for name, prompt in self.config.get_role_prompts().items()
         )
         embed.add_field(name="Roles", value=role_text or "No roles configured", inline=False)
@@ -173,7 +179,7 @@ class GuildCog(commands.Cog):
                 await message.edit(content="Failed to access guild data.", view=None)
                 return
 
-            db.update_document(guild_data, updates)
+            Database.update_document(guild_data, updates)
             await self.show_settings(interaction)
 
         except Exception as e:
@@ -198,7 +204,7 @@ class GuildCog(commands.Cog):
                 "channels": {},
                 "roles": {},
             }
-            db.update_document(guild_data, updates)
+            Database.update_document(guild_data, updates)
 
 
 async def setup(bot: commands.Bot) -> None:

@@ -2,12 +2,13 @@
 
 import logging
 import re
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any, cast
 
 import discord
 import pytz
-from backend.db.database import Database as db
+from backend.db.database import Database
 from backend.db.documents.event import Event, EventDetails, EventReactions
 from backend.db.documents.guild import Guild
 from backend.db.documents.user import User
@@ -44,7 +45,8 @@ class EventCog(commands.Cog):
             # Extract timezone from time string if not provided separately
             if timezone_str is None:
                 time_parts_check = time_str.split()
-                if len(time_parts_check) > 2:
+                min_time_parts_with_tz = 2
+                if len(time_parts_check) > min_time_parts_with_tz:
                     timezone_str = time_parts_check[-1]
                     time_str = " ".join(time_parts_check[:-1])
             # Default to Eastern Time if no timezone is specified
@@ -53,16 +55,19 @@ class EventCog(commands.Cog):
 
             # Parse the date (expected format: MM/DD/YY)
             month, day, year = map(int, date_str.split("/"))
-            year = 2000 + year if year < 100 else year  # Convert 2-digit year to 4-digit
+            two_digit_year_threshold = 100
+            if year < two_digit_year_threshold:
+                year = 2000 + year  # Convert 2-digit year to 4-digit
 
             # Parse the time (expected format: HH:MM AM/PM)
             time_parts = time_str.strip().split()
             hour, minute = map(int, time_parts[0].split(":"))
 
             # Adjust for AM/PM
-            if time_parts[1].upper() == "PM" and hour < 12:
-                hour += 12
-            elif time_parts[1].upper() == "AM" and hour == 12:
+            noon_hour = 12
+            if time_parts[1].upper() == "PM" and hour < noon_hour:
+                hour += noon_hour
+            elif time_parts[1].upper() == "AM" and hour == noon_hour:
                 hour = 0
 
             # Create datetime object
@@ -115,14 +120,14 @@ class EventCog(commands.Cog):
 
         # Validate time format (HH:MM AM/PM)
         time_str = form_data.get("event_time", "")
-        if not re.match(
-            r"^(0?[1-9]|1[0-2]):([0-5][0-9])\s+(AM|PM)(\s+[A-Z]{2,4})?$",
-            time_str,
-            re.IGNORECASE,
-        ):
-            return False
-
-        return True
+        return (
+            re.match(
+                r"^(0?[1-9]|1[0-2]):([0-5][0-9])\s+(AM|PM)(\s+[A-Z]{2,4})?$",
+                time_str,
+                re.IGNORECASE,
+            )
+            is not None
+        )
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="event", description="Manage events")
@@ -156,7 +161,7 @@ class EventCog(commands.Cog):
             await self.edit_event_selection(interaction)
         elif action == "delete":
             # This ensures we always respond to the interaction before it expires
-            guild = db.get_document(Guild, interaction.guild_id)
+            guild = Database.get_document(Guild, interaction.guild_id)
             if not guild or not hasattr(guild, "events") or not guild.events:
                 # No events exist, so respond immediately
                 await interaction.response.send_message(
@@ -167,7 +172,7 @@ class EventCog(commands.Cog):
             # Check if there are any events that can be deleted
             has_events = False
             for event_id in guild.events:
-                event = db.get_document(Event, event_id)
+                event = Database.get_document(Event, event_id)
                 if event and hasattr(event, "details"):
                     has_events = True
                     break
@@ -300,19 +305,19 @@ class EventCog(commands.Cog):
             )
 
             # Save the event to the database
-            db.add_document(new_event)
+            Database.add_document(new_event)
             self.logger.info(f"Event saved to database with ID {event_id}")
 
             # Update the guild document to include this event
-            guild = db.get_document(Guild, interaction.guild_id)
+            guild = Database.get_document(Guild, interaction.guild_id)
             if not guild:
                 guild = Guild(_id=interaction.guild_id, events=[])
-                db.add_document(guild)
+                Database.add_document(guild)
             elif not hasattr(guild, "events"):
                 guild.events = []
 
             guild.events.append(event_id)
-            db.update_document(guild, {"events": guild.events})
+            Database.update_document(guild, {"events": guild.events})
             self.logger.info(f"Guild document updated with event ID {event_id}")
 
             # Show the event details
@@ -332,7 +337,7 @@ class EventCog(commands.Cog):
         """List all upcoming events for the guild."""
         self.logger.info(f"Listing events for guild {interaction.guild_id}")
 
-        guild = db.get_document(Guild, interaction.guild_id)
+        guild = Database.get_document(Guild, interaction.guild_id)
         if not guild or not hasattr(guild, "events") or not guild.events:
             self.logger.info(f"No events found for guild {interaction.guild_id}")
             await interaction.followup.send("No events found for this server.", ephemeral=True)
@@ -344,7 +349,7 @@ class EventCog(commands.Cog):
 
         self.logger.info(f"Found {len(guild.events)} events for guild {interaction.guild_id}")
         for event_id in guild.events:
-            event = db.get_document(Event, event_id)
+            event = Database.get_document(Event, event_id)
             if event and hasattr(event, "details"):
                 event_time = event.details.time
                 # If the event time is offset-naive,
@@ -396,7 +401,7 @@ class EventCog(commands.Cog):
         message: discord.Message | None = None  # Initialize message variable
         try:
             # Get all events for this guild
-            guild = db.get_document(Guild, interaction.guild_id)
+            guild = Database.get_document(Guild, interaction.guild_id)
             if not guild or not hasattr(guild, "events") or not guild.events:
                 try:
                     if interaction.response.is_done():
@@ -417,7 +422,7 @@ class EventCog(commands.Cog):
             guild_events = []
 
             for event_id in guild.events:
-                event = db.get_document(Event, event_id)
+                event = Database.get_document(Event, event_id)
                 if event and hasattr(event, "details"):
                     event_time = event.details.time
                     if event_time.tzinfo is None:
@@ -454,7 +459,7 @@ class EventCog(commands.Cog):
             # Create dropdown config
             dropdown_config = {
                 "ephemeral": True,
-                "add_buttons": True,
+                "buttons": (True, True),
                 "timeout": 180,
                 "dropdowns": [
                     {
@@ -487,6 +492,15 @@ class EventCog(commands.Cog):
                             selections[dropdown.custom_id] = dropdown.selected_values
                     values = selections if view.accepted else None
 
+                    # Add explicit feedback for cancel button
+                    if hasattr(view, "cancelled") and view.cancelled:
+                        await message.edit(
+                            content=f"Event selection for {action} was cancelled.",
+                            view=None,
+                            embed=None,
+                        )
+                        return None, None
+
                 else:
                     # Use initiate_from_interaction if the response hasn't been sent
                     # This sends the initial response message
@@ -510,16 +524,35 @@ class EventCog(commands.Cog):
             # --- Process the selection ---
             if not view.accepted or not values or not message:
                 # User cancelled, timed out, or interaction failed
-                if message and not view.is_finished():  # Check if view finished itself
-                    try:
+                if not view.accepted and getattr(view, "_timed_out", False):
+                    cancel_msg = "Event selection timed out."
+                elif not view.accepted:
+                    cancel_msg = "Event selection cancelled."
+                elif not values:
+                    cancel_msg = "No event selected."
+                elif not message:
+                    cancel_msg = "Event selection failed."
+                else:
+                    cancel_msg = "Event selection cancelled."
+
+                # Always try to update the dropdown message if possible
+                if message:
+                    with suppress(discord.NotFound, discord.HTTPException):
                         await message.edit(
-                            content="Event selection cancelled or timed out.",
+                            content=cancel_msg,
                             view=None,
                             embed=None,
                         )
-                    except (discord.NotFound, discord.HTTPException):
-                        pass  # Ignore if message is already gone
-                return None, None  # Return None for both
+                # If no message, send a followup or response
+                try:
+                    if not message:
+                        if interaction.response.is_done():
+                            await interaction.followup.send(cancel_msg, ephemeral=True)
+                        else:
+                            await interaction.response.send_message(cancel_msg, ephemeral=True)
+                except (discord.NotFound, discord.HTTPException):
+                    pass
+                return None, None
 
             # Get the selected event ID string
             selected_id_str = values.get("event_selection", [None])[0]
@@ -533,29 +566,25 @@ class EventCog(commands.Cog):
             except ValueError:
                 self.logger.error(f"Invalid event ID selected: {selected_id_str}")
                 # Try to edit the message to show error
-                try:
+                with suppress(discord.NotFound, discord.HTTPException):
                     await message.edit(
                         content=f"Error: Invalid event ID selected ({selected_id_str}).",
                         view=None,
                         embed=None,
                     )
-                except (discord.NotFound, discord.HTTPException):
-                    pass
                 return None, None  # Return None for both
 
             # Fetch the event document
-            selected_event = db.get_document(Event, selected_id)
+            selected_event = Database.get_document(Event, selected_id)
             if not selected_event:
                 # Event ID was valid int but not found in DB (maybe deleted?)
                 self.logger.warning(f"Selected event ID {selected_id} not found in database.")
-                try:
+                with suppress(discord.NotFound, discord.HTTPException):
                     await message.edit(
                         content=f"Error: Event with ID {selected_id} not found.",
                         view=None,
                         embed=None,
                     )
-                except (discord.NotFound, discord.HTTPException):
-                    pass
                 return None, message  # Return None for event, but keep message context
 
             # Success: Return the event document and the message
@@ -597,6 +626,7 @@ class EventCog(commands.Cog):
         # Prompt the user to select an event to edit
         event, message = await self.get_event_selection(interaction, "edit")
         if not event or not message:
+            # Error/cancel message already handled within get_event_selection if possible
             return
 
         # Define the callback for when the "Edit" button is pressed
@@ -658,7 +688,7 @@ class EventCog(commands.Cog):
                 event.details.description = form_data["event_description"]
                 event.details.time = event_time
                 event.details.location = form_data["event_location"]
-                db.update_document(event, {"details": event.details})
+                Database.update_document(event, {"details": event.details})
 
                 # Notify the user of success
                 success_message = "Event updated successfully!"
@@ -688,14 +718,12 @@ class EventCog(commands.Cog):
         await view.wait()
         # If the user cancels, update the message accordingly
         if view.value is False:
-            try:
+            with suppress(discord.NotFound, discord.HTTPException):
                 await message.edit(
                     content="Event editing cancelled.",
                     view=None,
                     embed=None,
                 )
-            except (discord.NotFound, discord.HTTPException):
-                pass
 
     async def delete_event_selection(self, interaction: discord.Interaction) -> None:
         """Delete a specific event selected from dropdown."""
@@ -719,23 +747,21 @@ class EventCog(commands.Cog):
 
         await view.wait()
         if view.value is None:  # Timed out
-            try:
+            with suppress(discord.NotFound, discord.HTTPException):
                 await message.edit(
                     content="Event deletion timed out.",
                     view=None,
                     embed=None,
                 )
-            except (discord.NotFound, discord.HTTPException):
-                pass
             return
 
         if view.value:  # Confirmed delete
             # Remove event from guild's events list
             try:
-                guild = db.get_document(Guild, interaction.guild_id)
+                guild = Database.get_document(Guild, interaction.guild_id)
                 if guild and hasattr(guild, "events") and event._id in guild.events:
                     guild.events.remove(event._id)
-                    db.update_document(guild, {"events": guild.events})
+                    Database.update_document(guild, {"events": guild.events})
                     self.logger.info(f"Removed event {event._id} from guild {interaction.guild_id}")
             except Exception as e:
                 self.logger.error(f"Error removing event {event._id} from guild: {e}")
@@ -748,7 +774,7 @@ class EventCog(commands.Cog):
             )
             for user_id in all_users:
                 try:
-                    user = db.get_document(User, user_id)
+                    user = Database.get_document(User, user_id)
                     if user and hasattr(user, "events") and event._id in user.events:
                         user.events.remove(event._id)
                         user.save()
@@ -759,7 +785,7 @@ class EventCog(commands.Cog):
             # Delete the event from the database
             delete_error = None
             try:
-                db.delete_document(event)
+                Database.delete_document(event)
                 self.logger.info(f"Event {event._id} '{event.details.name}' deleted")
             except Exception as e:
                 self.logger.error(f"Error deleting event {event._id}: {e}")
@@ -820,14 +846,12 @@ class EventCog(commands.Cog):
 
         # Check if announcement was cancelled early
         if not view.value:
-            try:
+            with suppress(discord.NotFound, discord.HTTPException):
                 await message.edit(
                     content="Event announcement cancelled.",
                     view=None,
                     embed=None,  # Clear embed
-                )
-            except (discord.NotFound, discord.HTTPException):
-                pass  # Best effort
+                )  # Best effort
             return
 
         # Checking valididty of interaction.guild for finding/creation of announcements channel
@@ -845,14 +869,12 @@ class EventCog(commands.Cog):
         )  # Use your actual channel name
 
         if not announcement_channel:
-            try:
+            with suppress(discord.Forbidden, discord.HTTPException):
                 await message.edit(
                     content="Error: Could not find or create the announcements channel.",
                     view=None,
                     embed=None,
                 )
-            except (discord.NotFound, discord.HTTPException):
-                pass
             return
 
         # Create announcement embed
@@ -882,7 +904,7 @@ class EventCog(commands.Cog):
 
             # Save message ID to event
             event.message_id = announcement.id
-            db.update_document(event, {"message_id": announcement.id})
+            Database.update_document(event, {"message_id": announcement.id})
 
             # Update the original confirmation message
             await message.edit(
@@ -895,7 +917,7 @@ class EventCog(commands.Cog):
                 f"Permission error announcing event {event._id} "
                 f"in channel {announcement_channel.id}"
             )
-            try:
+            with suppress(discord.NotFound, discord.HTTPException):
                 await message.edit(
                     content=(
                         "Error: I don't have permission to send messages or add reactions "
@@ -904,22 +926,18 @@ class EventCog(commands.Cog):
                     view=None,
                     embed=None,  # Clear embed
                 )
-            except (discord.NotFound, discord.HTTPException):
-                pass
         except Exception as e:
             self.logger.error(f"Error during event announcement send/react: {e}", exc_info=True)
-            try:
+            with suppress(discord.NotFound, discord.HTTPException):
                 await message.edit(
                     content="An error occurred while sending the announcement.",
                     view=None,
                     embed=None,  # Clear embed
                 )
-            except (discord.NotFound, discord.HTTPException):
-                pass
 
     async def my_events(self, interaction: discord.Interaction) -> None:
         """Show events the user is registered for with registration status."""
-        user = db.get_document(User, interaction.user.id)
+        user = Database.get_document(User, interaction.user.id)
         if not user or not hasattr(user, "events") or not user.events:
             await interaction.followup.send("You're not registered for any events.", ephemeral=True)
             return
@@ -929,7 +947,7 @@ class EventCog(commands.Cog):
         current_time = self.now()
 
         for event_id in user.events:
-            event = db.get_document(Event, event_id)
+            event = Database.get_document(Event, event_id)
             if event and hasattr(event, "details"):
                 event_time = event.details.time
                 # If the event time is offset-naive, assume it's in UTC
@@ -1031,11 +1049,9 @@ class EventCog(commands.Cog):
         if not channel:
             return
 
-        if isinstance(channel, (discord.TextChannel, discord.Thread)):
-            try:
+        if isinstance(channel, (discord.TextChannel | discord.Thread)):
+            with suppress(discord.NotFound, discord.Forbidden):
                 message = await channel.fetch_message(payload.message_id)
-            except (discord.NotFound, discord.Forbidden):
-                return
         else:
             return  # Or log unsupported channel type
 
@@ -1055,10 +1071,8 @@ class EventCog(commands.Cog):
         # Remove any other reactions from this user on this message
         for reaction in message.reactions:
             if str(reaction.emoji) != emoji and user:
-                try:
+                with suppress(discord.NotFound, discord.HTTPException):
                     await reaction.remove(user)
-                except (discord.Forbidden, discord.NotFound, discord.HTTPException):
-                    pass
 
         # Update event attendance based on reaction
         if emoji == "✅":
@@ -1070,7 +1084,7 @@ class EventCog(commands.Cog):
 
     async def handle_attendance_add(self, user_id: int, event: Event) -> None:
         """Handle adding a user to event attendance with "yes" response."""
-        user = db.get_document(User, user_id)
+        user = Database.get_document(User, user_id)
 
         if not user:
             self.logger.info(f"User {user_id} not registered; ignoring attendance add.")
@@ -1118,7 +1132,7 @@ class EventCog(commands.Cog):
 
     async def handle_attendance_remove(self, user_id: int, event: Event) -> None:
         """Handle marking a user with "no" response (not attending)."""
-        user = db.get_document(User, user_id)
+        user = Database.get_document(User, user_id)
 
         if not user:
             self.logger.info(f"User {user_id} not registered; ignoring attendance removal.")
@@ -1163,7 +1177,7 @@ class EventCog(commands.Cog):
 
     async def handle_attendance_maybe(self, user_id: int, event: Event) -> None:
         """Handle marking a user as maybe for event attendance."""
-        user = db.get_document(User, user_id)
+        user = Database.get_document(User, user_id)
 
         if not user:
             self.logger.info(f"User {user_id} not registered; ignoring maybe attendance.")
@@ -1232,49 +1246,46 @@ class EventCog(commands.Cog):
         modified = False
 
         # Process the removal of reaction based on which emoji was removed
-        if emoji == "✅":
+        if emoji == "✅" and user_id in event.yes_users:
             # Remove from yes list
-            if user_id in event.yes_users:
-                event.yes_users.remove(user_id)
-                if event.details and event.details.reactions:
-                    event.details.reactions.yes = max(0, event.details.reactions.yes - 1)
-                modified = True
+            event.yes_users.remove(user_id)
+            if event.details and event.details.reactions:
+                event.details.reactions.yes = max(0, event.details.reactions.yes - 1)
+            modified = True
 
-                # Remove event from user's list
-                user = db.get_document(User, user_id)
-                if user and hasattr(user, "events") and event._id in user.events:
-                    user.events.remove(event._id)
-                    user.save()
-                    self.logger.info(
-                        f"Removed event {event._id} "
-                        f"from user {user_id}'s event list after reaction removal."
-                    )
+            # Remove event from user's list
+            user = Database.get_document(User, user_id)
+            if user and hasattr(user, "events") and event._id in user.events:
+                user.events.remove(event._id)
+                user.save()
+                self.logger.info(
+                    f"Removed event {event._id} "
+                    f"from user {user_id}'s event list after reaction removal."
+                )
 
-        elif emoji == "❌":
+        elif emoji == "❌" and user_id in event.no_users:
             # Remove from no list
-            if user_id in event.no_users:
-                event.no_users.remove(user_id)
-                if event.details and event.details.reactions:
-                    event.details.reactions.no = max(0, event.details.reactions.no - 1)
-                modified = True
+            event.no_users.remove(user_id)
+            if event.details and event.details.reactions:
+                event.details.reactions.no = max(0, event.details.reactions.no - 1)
+            modified = True
 
-        elif emoji == "❔":
+        elif emoji == "❔" and user_id in event.maybe_users:
             # Remove from maybe list
-            if user_id in event.maybe_users:
-                event.maybe_users.remove(user_id)
-                if event.details and event.details.reactions:
-                    event.details.reactions.maybe = max(0, event.details.reactions.maybe - 1)
-                modified = True
+            event.maybe_users.remove(user_id)
+            if event.details and event.details.reactions:
+                event.details.reactions.maybe = max(0, event.details.reactions.maybe - 1)
+            modified = True
 
-                # Remove event from user's list
-                user = db.get_document(User, user_id)
-                if user and hasattr(user, "events") and event._id in user.events:
-                    user.events.remove(event._id)
-                    user.save()
-                    self.logger.info(
-                        f"Removed event {event._id}"
-                        f"from user {user_id}'s event list after maybe reaction removal."
-                    )
+            # Remove event from user's list
+            user = Database.get_document(User, user_id)
+            if user and hasattr(user, "events") and event._id in user.events:
+                user.events.remove(event._id)
+                user.save()
+                self.logger.info(
+                    f"Removed event {event._id}"
+                    f"from user {user_id}'s event list after maybe reaction removal."
+                )
 
         # Save the event document if modified
         if modified:
