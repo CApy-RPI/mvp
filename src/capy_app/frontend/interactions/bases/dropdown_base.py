@@ -82,8 +82,7 @@ class LeftButton(Button["DynamicDropdownView"]):
             dropdowns=old_view._dropdowns_data,
             page_number=prev_page,
             ephemeral=old_view._ephemeral,
-            auto_buttons=old_view._auto_buttons,
-            add_buttons=old_view._add_buttons,
+            buttons=(old_view._auto_buttons, old_view._add_buttons),
             collection=old_view._collection,
         )
         new_view._message = old_view._message  # Maintain message reference
@@ -210,7 +209,7 @@ class DynamicDropdownView(View):
         dropdowns: list[dict[str, Any]] | None = None,
         page_number: int = 0,
         ephemeral: bool = True,
-        buttons: tuple[bool, bool] = (True, False),
+        buttons: tuple[bool, bool] = (True, False),  # auto, add
         collection: dict[str, list[str]] | None = None,
         **options,
     ) -> None:
@@ -227,13 +226,12 @@ class DynamicDropdownView(View):
         self._dropdowns_data = dropdowns or []
         self._dropdowns: list[DynamicDropdown] = []
         self._completed: bool = False
-        self._collection: tuple[dict[str, list[str]]] = {}
         self._timed_out: bool = False
         self._has_buttons: bool = False
         self._message: Message | None = None
         self._ephemeral: bool = ephemeral
         self._auto_buttons, self._add_buttons = buttons
-        self._collection = collection
+        self._collection = collection if collection is not None else {}
         dropdowns = dropdowns or []
         if (len(dropdowns) > self.MAX_DROPDOWNS) or (
             (len(dropdowns) > (self.MAX_DROPDOWNS - 1))

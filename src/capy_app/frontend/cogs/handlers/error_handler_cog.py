@@ -18,6 +18,41 @@ from config import settings
 
 
 class ErrorHandlerCog(commands.Cog):
+    async def _delete_messages(
+        self, ctx: commands.Context[typing.Any], messages: list[discord.Message], status_str: str
+    ) -> int:
+        """Delete the provided messages and return the count of deleted messages."""
+        deleted = 0
+        for message in messages:
+            await message.delete()
+            deleted += 1
+        await ctx.send(f"Successfully deleted {deleted} error messages with status: {status_str}")
+        return deleted
+
+    async def _count_matching_messages(
+        self,
+        error_channel: discord.TextChannel,
+        status_str: str,
+        status_map: dict[str, str],
+        cutoff_time: datetime.datetime | None = None,
+        seconds: int | None = None,
+    ) -> tuple[int, list[discord.Message]]:
+        """Count and collect matching messages in error channel."""
+        if seconds is not None:
+            cutoff_time = discord.utils.utcnow() - datetime.timedelta(seconds=float(seconds))
+        count = 0
+        matching_messages: list[discord.Message] = []
+        async for message in error_channel.history(limit=None):
+            if cutoff_time and message.created_at < cutoff_time:
+                break
+            if not message.embeds:
+                continue
+            current_status = self._get_message_status(message.embeds[0])
+            if status_str == "all" or current_status == status_map.get(status_str):
+                count += 1
+                matching_messages.append(message)
+        return count, matching_messages
+
     """Cog for handling error messages and their resolution status."""
 
     STATUS_MAP: dict[str, tuple[discord.Color, str]]
@@ -363,6 +398,7 @@ class ErrorHandlerCog(commands.Cog):
         async def get_selection(
             message: discord.Message, options: dict[str, str], prompt: str
         ) -> str:
+            self.logger.info(f"Prompting user with: {prompt}")
             for emoji in options:
                 await message.add_reaction(emoji)
 
@@ -373,7 +409,7 @@ class ErrorHandlerCog(commands.Cog):
                 reaction, _ = await self.bot.wait_for("reaction_add", timeout=30.0, check=check)
                 return options[str(reaction.emoji)]
             except TimeoutError:
-                raise commands.CommandError("Selection timed out")
+                raise commands.CommandError("Selection timed out") from None
 
         # Operation selection
         op_msg = await ctx.send("Select operation:\n📋 List\n🗑️ Clear")
@@ -394,6 +430,45 @@ class ErrorHandlerCog(commands.Cog):
 
         return operation, status, time_range
 
+    async def _error_handler_helper(
+        self,
+        ctx: commands.Context[typing.Any],
+    ) -> bool:
+        if not ctx.guild or ctx.guild.id != settings.FAILED_COMMANDS_GUILD_ID:
+            await ctx.send("This command can only be used in the designated error handling server.")
+            return True
+
+        if ctx.channel.id != settings.FAILED_COMMANDS_CHANNEL_ID:
+            await ctx.send(
+                "This command can only be used in the designated error handling channel."
+            )
+            return True
+
+        return False
+
+    async def _stringcheck(
+        self,
+        ctx,
+        operation: str,
+        status: str,
+        time_range: str,
+        time_ranges: dict[str, int | None],
+    ) -> bool:
+        """Check if the provided operation, status, and time range are valid."""
+        if operation not in ["list", "clear"]:
+            await ctx.send("Invalid operation. Use: list or clear")
+            return True
+
+        if status not in ["resolved", "ignored", "unmarked", "all"]:
+            await ctx.send("Invalid status. Use: resolved, ignored, unmarked, or all")
+            return True
+
+        if time_range not in time_ranges:
+            await ctx.send("Invalid time range. Use: 1h, 1d, 7d, 30d, or all")
+            return True
+
+        return False
+
     @commands.command(name="ehc", hidden=True)
     @commands.has_permissions(manage_messages=True)
     async def error_handler_command(
@@ -412,23 +487,15 @@ class ErrorHandlerCog(commands.Cog):
             time_range: Time range to look back (1h/1d/7d/30d/all)
         """
         # Check if command is used in the correct guild and channel
-        if not ctx.guild or ctx.guild.id != settings.FAILED_COMMANDS_GUILD_ID:
-            await ctx.send("This command can only be used in the designated error handling server.")
+        returncheck = False
+        if self._error_handler_helper(ctx):
             return
-
-        if ctx.channel.id != settings.FAILED_COMMANDS_CHANNEL_ID:
-            await ctx.send(
-                "This command can only be used in the designated error handling channel."
-            )
-            return
-
         try:
             if any(param is None for param in [operation, status, time_range]):
                 operation, status, time_range = await self._create_interactive_menu(ctx)
         except commands.CommandError as e:
             await ctx.send(f"Error: {e!s}")
             return
-
         # These are now guaranteed to be strings after _create_interactive_menu
         operation_str = str(operation)
         status_str = str(status)
@@ -439,14 +506,6 @@ class ErrorHandlerCog(commands.Cog):
         status_str = status_str.lower()
         time_range_str = time_range_str.lower()
 
-        if operation_str not in ["list", "clear"]:
-            await ctx.send("Invalid operation. Use: list or clear")
-            return
-
-        if status_str not in ["resolved", "ignored", "unmarked", "all"]:
-            await ctx.send("Invalid status. Use: resolved, ignored, unmarked, or all")
-            return
-
         time_ranges: dict[str, int | None] = {
             "1h": 3600,
             "1d": 86400,
@@ -454,17 +513,16 @@ class ErrorHandlerCog(commands.Cog):
             "30d": 2592000,
             "all": None,
         }
-
-        if time_range_str not in time_ranges:
-            await ctx.send("Invalid time range. Use: 1h, 1d, 7d, 30d, or all")
-            return
+        if await self._stringcheck(ctx, operation_str, status_str, time_range_str, time_ranges):
+            returncheck = True
 
         error_channel = await self._get_error_channel()
         if not error_channel:
             await ctx.send("Error channel not found")
+            returncheck = True
+        if returncheck:
             return
-
-        STATUS_MAP: dict[str, str] = {
+        status_map: dict[str, str] = {
             "resolved": self.STATUS_RESOLVED,
             "ignored": self.STATUS_IGNORED,
             "unmarked": self.STATUS_UNMARKED,
@@ -473,24 +531,11 @@ class ErrorHandlerCog(commands.Cog):
         # Calculate cutoff time if needed
         cutoff_time: datetime.datetime | None = None
         seconds = time_ranges[time_range_str]
-        if seconds is not None:
-            cutoff_time = discord.utils.utcnow() - datetime.timedelta(seconds=float(seconds))
 
         # Count matching messages
-        count = 0
-        matching_messages: list[discord.Message] = []
-        async for message in error_channel.history(limit=None):
-            if cutoff_time and message.created_at < cutoff_time:
-                break
-
-            if not message.embeds:
-                continue
-
-            current_status = self._get_message_status(message.embeds[0])
-            if status_str == "all" or current_status == STATUS_MAP.get(status_str):
-                count += 1
-                matching_messages.append(message)
-
+        count, matching_messages = await self._count_matching_messages(
+            error_channel, status_str, status_map, cutoff_time, seconds
+        )
         if count == 0:
             await ctx.send(f"No messages found with status: {status_str}")
             return
@@ -511,12 +556,7 @@ class ErrorHandlerCog(commands.Cog):
             await ctx.send("Deletion cancelled.")
             return
 
-        deleted = 0
-        for message in matching_messages:
-            await message.delete()
-            deleted += 1
-
-        await ctx.send(f"Successfully deleted {deleted} error messages with status: {status_str}")
+        await self._delete_messages(ctx, matching_messages, status_str)
 
     @commands.Cog.listener()
     async def on_reaction_add(
@@ -532,10 +572,7 @@ class ErrorHandlerCog(commands.Cog):
         if not isinstance(message.channel, discord.TextChannel):
             return
 
-        if message.channel.id != settings.FAILED_COMMANDS_CHANNEL_ID:
-            return
-
-        if not message.embeds:
+        if message.channel.id != settings.FAILED_COMMANDS_CHANNEL_ID or not message.embeds:
             return
 
         embed = message.embeds[0]
