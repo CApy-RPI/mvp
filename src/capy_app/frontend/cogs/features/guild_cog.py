@@ -6,7 +6,7 @@
 import logging
 
 import discord
-from backend.db.database import Database as db
+from backend.db.database import Database
 from discord import app_commands
 from discord.ext import commands
 from frontend import config_colors as colors
@@ -179,7 +179,7 @@ class GuildCog(commands.Cog):
                 await message.edit(content="Failed to access guild data.", view=None)
                 return
 
-            db.update_document(guild_data, updates)
+            Database.update_document(guild_data, updates)
             await self.show_settings(interaction)
 
         except Exception as e:
@@ -204,7 +204,7 @@ class GuildCog(commands.Cog):
                 "channels": {},
                 "roles": {},
             }
-            db.update_document(guild_data, updates)
+            Database.update_document(guild_data, updates)
 
 
 async def setup(bot: commands.Bot) -> None:
