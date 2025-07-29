@@ -61,7 +61,7 @@ class OllamaCog(commands.Cog):
         return [c for c in chunks if c]  # Remove empty chunks
 
     async def delete_think_block_messages(
-        self, ctx: commands.Context[typing.Any], messages: list[discord.Message]
+        self,  messages: list[discord.Message]
     ) -> None:
         """Delete messages between think tags.
 
@@ -132,7 +132,7 @@ class OllamaCog(commands.Cog):
                 sent_msg = await ctx.send(chunk)
                 sent_messages.append(sent_msg)
 
-        await self.delete_think_block_messages(ctx, sent_messages)
+        await self.delete_think_block_messages(sent_messages)
         return complete_response
 
     async def handle_conversation(
@@ -272,15 +272,13 @@ class OllamaCog(commands.Cog):
         channel_id = ctx.channel.id
         user_id = ctx.author.id
 
-        if target in ["channel", "all"]:
-            if channel_id in self.channel_conversations:
-                del self.channel_conversations[channel_id]
-                await ctx.send("Channel chat history cleared.")
+        if target in ["channel", "all"] and channel_id in self.channel_conversations:
+            del self.channel_conversations[channel_id]
+            await ctx.send("Channel chat history cleared.")
 
-        if target in ["user", "all"]:
-            if user_id in self.user_conversations:
-                del self.user_conversations[user_id]
-                await ctx.send("Personal chat history cleared.")
+        if target in ["user", "all"] and user_id in self.user_conversations:
+            del self.user_conversations[user_id]
+            await ctx.send("Personal chat history cleared.")
 
 
 async def setup(bot: commands.Bot) -> None:
