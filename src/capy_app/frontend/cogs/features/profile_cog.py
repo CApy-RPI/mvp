@@ -118,6 +118,7 @@ class ProfileCog(commands.Cog):
         values, message = await view.initiate_from_message(
             message, self.major_handler.get_help_text()
         )
+        print(values)
 
         if not values:
             return ["Not Set"], message
@@ -150,47 +151,12 @@ class ProfileCog(commands.Cog):
             await message.edit(content="Failed to send verification email.")
             return False
 
-        max_attempts = 5
-        attempt = 0
+        verify_view = ButtonDynamicModalView(**self.config["verify_modal"])
+        values, _ = await verify_view.initiate_from_message(message)
 
-        # Base prompt from config for first attempt
-        base_prompt: str | None = self.config["verify_modal"].get("message_prompt")
-
-        while attempt < max_attempts:
-            # Create a fresh view each attempt to avoid state conflicts
-            verify_view = ButtonDynamicModalView(**self.config["verify_modal"])
-
-            # Custom prompt for retries after the first failed attempt
-            if attempt == 0:
-                prompt_msg = base_prompt
-            else:
-                remaining = max_attempts - attempt
-                prompt_msg = (
-                    f"❌ Incorrect verification code. You have {remaining} attempt{'s' if remaining != 1 else ''} left.\n"
-                    "Click below to try again:"
-                )
-
-            values, message = await verify_view.initiate_from_message(message, prompt=prompt_msg)
-
-            # User closed the modal or it timed-out
-            if not values:
-                return False
-
-            is_valid = self.email_verifier.verify_code(
-                message.author.id, values["verification_code"]
-            )
-
-            if is_valid:
-                return True
-
-            attempt += 1
-
-        # Exhausted attempts – inform the user and fail validation
-        await message.edit(
-            content="❌ Too many incorrect verification attempts. Verification failed.",
-            view=None,
-        )
-        return False
+        if not values:
+            return False
+        return self.email_verifier.verify_code(message.author.id, values["verification_code"])
 
     async def handle_profile(self, interaction: discord.Interaction, action: str) -> None:
         """Handle profile creation and updates."""
@@ -251,9 +217,10 @@ class ProfileCog(commands.Cog):
 
                 await message.edit(content="⚠️ Please select 1 or 2 majors.")
                 time.sleep(1)
+
             except Exception as e:
-                await message.edit(content="⚠️ Please select 1 or 2 majors.")
-                time.sleep(1)
+                await message.edit(content=e)
+                time.sleep(5)
 
         # Verify email if needed using previous message
         if not await self.verify_email(message, profile_data["school_email"], user):

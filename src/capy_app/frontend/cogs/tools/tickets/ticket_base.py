@@ -15,6 +15,8 @@ from frontend.interactions.bases.modal_base import (
 
 from config import settings
 
+REQUIRED_FIELD_COUNT = 2
+
 
 class TicketBase(commands.Cog):
     def __init__(
@@ -53,9 +55,10 @@ class TicketBase(commands.Cog):
                 interaction, prompt="Click below to start the survey!"
             )
 
-            if not values or not message or len(values.items()) != 2:
+            if not values or not message or len(values.items()) != REQUIRED_FIELD_COUNT:
                 self.logger.warning(
-                    f"{self.cmd_name_verbose} missing required fields from user {interaction.user.id}"
+                    f"{self.cmd_name_verbose} missing required fields from user "
+                    f"{interaction.user.id}"
                 )
 
             channel = self.bot.get_channel(self.request_channel_id)
@@ -63,23 +66,29 @@ class TicketBase(commands.Cog):
             if not channel:
                 self.logger.error(f"{self.cmd_name_verbose} channel not found")
                 await interaction.followup.send(
-                    f"❌ {self.cmd_name_verbose} channel not configured. Please contact an administrator.",
+                    f"❌ {self.cmd_name_verbose} channel not configured. "
+                    "Please contact an administrator.",
                     ephemeral=True,
                 )
                 return
             if channel is not TextChannel:
                 self.logger.error(
-                    f"{self.request_channel_id} for {self.cmd_name_verbose} tickets is not a Text Channel"
+                    f"{self.request_channel_id} for {self.cmd_name_verbose} "
+                    "tickets is not a Text Channel"
                 )
                 await interaction.followup.send(
-                    "The channel for receiving this type of ticket is invalid due to not being a text channel, please contact the bot administrators.",
+                    "The channel for receiving this type of ticket is invalid "
+                    "due to not being a text channel, please contact the bot "
+                    "administrators.",
                     ephemeral=True,
                 )
                 return
 
             embed = discord.Embed(
-                title=f"{self.cmd_emoji} {self.cmd_name_verbose}: "
-                + values.get(f"{self.cmd_name}_title"),
+                title=(
+                    f"{self.cmd_emoji} {self.cmd_name_verbose}: "
+                    + values.get(f"{self.cmd_name}_title")
+                ),
                 description=values.get(f"{self.cmd_name}_description"),
                 color=STATUS_ERROR,
             )
@@ -93,21 +102,23 @@ class TicketBase(commands.Cog):
             embed.set_footer(text=footer_text)
 
             message = await channel.send(embed=embed)
-            for emoji in self.status_emoji.keys():
+            for emoji in self.status_emoji:
                 await message.add_reaction(emoji)
 
             await interaction.followup.send(
                 f"{self.cmd_name_verbose} submitted successfully!", ephemeral=True
             )
             self.logger.info(
-                f"{self.cmd_name_verbose} '{values.get(f'{self.cmd_name}_title')}' submitted by user {interaction.user.id}"
+                f"{self.cmd_name_verbose} "
+                f"'{values.get(f'{self.cmd_name}_title')}' submitted by user "
+                f"{interaction.user.id}"
             )
 
         except discord.HTTPException as e:
             self.logger.error(f"HTTP error processing {self.cmd_name_verbose}: {e!s}")
             if not interaction.response.is_done():
                 await interaction.response.send_message(
-                    f"❌ Failed to submit {self.cmd_name_verbose}. Please try again later.",
+                    f"❌ Failed to submit {self.cmd_name_verbose}. " "Please try again later.",
                     ephemeral=True,
                 )
 
@@ -124,7 +135,8 @@ class TicketBase(commands.Cog):
         if payload.channel_id != self.request_channel_id:
             return
 
-        if payload.user_id == self.bot.user.id:  # Ignore bot's own reactions
+        # Ignore bot's own reactions
+        if payload.user_id == self.bot.user.id:
             return
 
         channel = self.bot.get_channel(payload.channel_id)
