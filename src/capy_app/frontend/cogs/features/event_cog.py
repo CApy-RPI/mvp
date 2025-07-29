@@ -13,6 +13,7 @@ from backend.db.documents.guild import Guild
 from backend.db.documents.user import User
 from discord import app_commands
 from discord.ext import commands
+
 from frontend.interactions.bases.button_base import ConfirmDeleteView, ConfirmView, EditView
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 from frontend.interactions.bases.modal_base import DynamicModalView
@@ -1168,55 +1169,71 @@ class EventCog(commands.Cog):
         # Handle different reactions being removed
         emoji = str(payload.emoji)
         user_id = payload.user_id
-        modified = False
 
         # Process the removal of reaction based on which emoji was removed
-        if emoji == "✅" and user_id in event.yes_users:
+        if emoji == "✅":
+            await self.handle_yes_reaction_remove(event, user_id)
+        elif emoji == "❌":
+            await self.handle_no_reaction_remove(event, user_id)
+        elif emoji == "❔":
+            await self.handle_maybe_reaction_remove(event, user_id)
+
+    async def remove_event_from_user(self, event, user_id):
+        # Remove event from user's list
+        user = Database.get_document(User, user_id)
+        if user and hasattr(user, "events") and event._id in user.events:
+            user.events.remove(event._id)
+            user.save()
+            self.logger.info(
+                f"Removed event {event._id}"
+                f"from user {user_id}'s event list after maybe reaction removal."
+            )
+
+    async def handle_yes_reaction_remove(self, event, user_id):
+        # Process the removal of reaction For "yes" response
+        modified = False
+        if user_id in event.yes_users:
             # Remove from yes list
             event.yes_users.remove(user_id)
             if event.details and event.details.reactions:
                 event.details.reactions.yes = max(0, event.details.reactions.yes - 1)
             modified = True
+            await self.remove_event_from_user(event, user_id)
+        if modified:
+            event.save()
+            self.logger.info(
+                f"Updated event {event._id} for user {user_id} after reaction removal."
+            )
 
-            # Remove event from user's list
-            user = Database.get_document(User, user_id)
-            if user and hasattr(user, "events") and event._id in user.events:
-                user.events.remove(event._id)
-                user.save()
-                self.logger.info(
-                    f"Removed event {event._id} "
-                    f"from user {user_id}'s event list after reaction removal."
-                )
-
-        elif emoji == "❌" and user_id in event.no_users:
+    async def handle_no_reaction_remove(self, event, user_id):
+        # Process the removal of reaction For "no" response
+        modified = False
+        if user_id in event.no_users:
             # Remove from no list
             event.no_users.remove(user_id)
             if event.details and event.details.reactions:
                 event.details.reactions.no = max(0, event.details.reactions.no - 1)
             modified = True
+        if modified:
+            event.save()
+            self.logger.info(
+                f"Updated event {event._id} for user {user_id} after reaction removal."
+            )
 
-        elif emoji == "❔" and user_id in event.maybe_users:
+    async def handle_maybe_reaction_remove(self, event, user_id):
+        # Process the removal of reaction For "maybe" response
+        modified = False
+        if user_id in event.maybe_users:
             # Remove from maybe list
             event.maybe_users.remove(user_id)
             if event.details and event.details.reactions:
                 event.details.reactions.maybe = max(0, event.details.reactions.maybe - 1)
             modified = True
-
-            # Remove event from user's list
-            user = Database.get_document(User, user_id)
-            if user and hasattr(user, "events") and event._id in user.events:
-                user.events.remove(event._id)
-                user.save()
-                self.logger.info(
-                    f"Removed event {event._id}"
-                    f"from user {user_id}'s event list after maybe reaction removal."
-                )
-
-        # Save the event document if modified
+            await self.remove_event_from_user(event, user_id)
         if modified:
             event.save()
             self.logger.info(
-                f"Updated event {event._id} for user {user_id} after reaction removal."
+                f"Updated event {event._id} for user {user_id} after maybe reaction removal."
             )
 
     async def get_prefilled__modal_config(self, event: Event) -> dict:
