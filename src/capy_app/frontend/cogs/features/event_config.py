@@ -55,7 +55,7 @@ EVENT_CONFIG = {
     },
     "timezone_dropdown": {
         "ephemeral": True,
-        "add_buttons": True,
+        "buttons": (True, True),
         "placeholder": "Select Timezone",
         "dropdowns": [
             {
