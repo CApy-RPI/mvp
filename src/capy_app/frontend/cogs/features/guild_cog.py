@@ -14,7 +14,6 @@ from frontend.cogs.features.guild_config import ConfigConstructor
 from frontend.cogs.handlers.guild_handler_cog import GuildHandlerCog
 from frontend.interactions.bases.button_base import ConfirmDeleteView
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
-from frontend.interactions.checks.scopes import is_guild
 
 from config import settings
 
