@@ -22,7 +22,7 @@ def db():
     mongoengine.disconnect(alias="default")  # Ensure proper cleanup
 
 
-def test_create_user_success(db):
+def test_create_user_success(db):  # noqa: ARG001
     """
     Test creating a user with all required fields.
     """
@@ -94,7 +94,7 @@ def test_create_user_success(db):
         User(_id=6, profile=invalid_profile).save()
 
 
-def test_missing_required_fields(db):
+def test_missing_required_fields(db):  # noqa: ARG001
     """
     Test that creating a user without required fields raises ValidationError.
     We'll omit various required fields in both UserProfile and UserName.
@@ -120,7 +120,7 @@ def test_missing_required_fields(db):
     assert "major" in error_msg, "Should complain about missing 'major'"
 
 
-def test_unique_school_email(db):
+def test_unique_school_email(db):  # noqa: ARG001
     """
     Test that creating two users with the same school_email raises NotUniqueError.
     """
@@ -152,7 +152,7 @@ def test_unique_school_email(db):
     assert "E11000" in str(excinfo.value), "Expected a duplicate key error for school_email"
 
 
-def test_unique_student_id(db):
+def test_unique_student_id(db):  # noqa: ARG001
     """
     Test that creating two users with the same student_id raises NotUniqueError.
     """
@@ -184,7 +184,7 @@ def test_unique_student_id(db):
     assert "E11000" in str(excinfo.value), "Expected a duplicate key error for student_id"
 
 
-def test_optional_phone(db):
+def test_optional_phone(db):  # noqa: ARG001
     """
     Test that the phone field can be set or left as None without error.
     """
@@ -200,7 +200,8 @@ def test_optional_phone(db):
     User(_id=7, profile=profile).save()
 
     saved_user = User.objects(_id=7).first()
-    assert saved_user.profile.phone == 1234567890
+    saved_user_phone = 1234567890
+    assert saved_user.profile.phone == saved_user_phone
 
     # Update phone to None
     saved_user.profile.phone = None
@@ -210,7 +211,7 @@ def test_optional_phone(db):
     assert updated_user.profile.phone is None
 
 
-def test_add_guilds_and_events(db):
+def test_add_guilds_and_events(db):  # noqa: ARG001
     """
     Test adding guild and event references to an existing user.
     """
