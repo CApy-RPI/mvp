@@ -4,6 +4,7 @@ import logging
 import re
 from contextlib import suppress
 from datetime import UTC, datetime
+from typing import Any
 
 import discord
 import pytz
@@ -13,7 +14,6 @@ from backend.db.documents.guild import Guild
 from backend.db.documents.user import User
 from discord import app_commands
 from discord.ext import commands
-
 from frontend.interactions.bases.button_base import ConfirmDeleteView, ConfirmView, EditView
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 from frontend.interactions.bases.modal_base import DynamicModalView
@@ -129,7 +129,10 @@ class EventCog(commands.Cog):
             is not None
         )
 
-    @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
+    # Register the /event command for the debug guild only
+    @app_commands.guilds(
+        discord.Object(id=settings.DEBUG_GUILD_ID if settings.DEBUG_GUILD_ID is not None else 0)
+    )
     @app_commands.command(name="event", description="Manage events")
     @app_commands.describe(action="The action to perform with events")
     @app_commands.choices(
@@ -144,13 +147,15 @@ class EventCog(commands.Cog):
         ]
     )
     async def event(self, interaction: discord.Interaction, action: str) -> None:
-        """Handle event actions."""
+        """Handle event actions based on user selection."""
+        # Determine if the response should be deferred and if it should be ephemeral
         should_defer = action in ["list", "show", "announce", "myevents"]
         is_ephemeral = action in ["list", "show", "delete", "announce", "myevents"]
 
         if should_defer:
             await interaction.response.defer(ephemeral=is_ephemeral)
 
+        # Route to the appropriate handler based on the action
         if action == "create":
             await self.create_event(interaction)
         elif action == "list":
@@ -167,14 +172,16 @@ class EventCog(commands.Cog):
             await self.my_events(interaction)
 
     async def _handle_delete_action(self, interaction: discord.Interaction) -> None:
-        """Handle the delete action for events."""
+        """Handle the delete action for events, checking for event existence first."""
         guild = Database.get_document(Guild, interaction.guild_id)
+        # Check if the guild has any events
         if not guild or not hasattr(guild, "events") or not guild.events:
             await interaction.response.send_message(
                 "No events found for this server.", ephemeral=True
             )
             return
 
+        # Check if any events exist with details
         has_events = any(
             Database.get_document(Event, event_id)
             and hasattr(Database.get_document(Event, event_id), "details")
@@ -187,6 +194,7 @@ class EventCog(commands.Cog):
             )
             return
 
+        # Proceed to event deletion selection
         await self.delete_event_selection(interaction)
 
     async def create_event(self, interaction: discord.Interaction) -> None:
@@ -252,7 +260,7 @@ class EventCog(commands.Cog):
                     f"Error creating event: {e!s}", ephemeral=True
                 )
 
-    async def _get_timezone_selection(self, modal_message) -> tuple[str, any]:
+    async def _get_timezone_selection(self, modal_message) -> tuple[str, Any]:
         """Helper to handle timezone selection dropdown."""
         self.logger.info("Creating timezone dropdown")
         timezone_config = self.config["timezone_dropdown"].copy()
@@ -391,137 +399,171 @@ class EventCog(commands.Cog):
         self, interaction: discord.Interaction, action: str
     ) -> tuple[Event | None, discord.Message | None]:
         """Get event selection from dropdown. Returns (Event, Message) or (None, None)."""
-        message: discord.Message | None = None
+        selected_event = None
+        message = None
         error_msg = None
-        guild_events: list = []
-        result: tuple = (None, None)
         try:
-            guild = Database.get_document(Guild, interaction.guild_id)
-            if not guild or not hasattr(guild, "events") or not guild.events:
-                error_msg = "No events found for this server."
+            # Get all events for the guild based on the action (e.g., delete, edit, view)
+            guild_events = self._get_guild_events_for_action(interaction.guild_id, action)
+            if not guild_events:
+                # If no events found, set error message
+                error_msg = self._get_event_error_msg(interaction.guild_id)
             else:
-                current_time = self.now()
-                for event_id in getattr(guild, "events", []):
-                    event = Database.get_document(Event, event_id)
-                    if event and hasattr(event, "details"):
-                        event_time = event.details.time
-                        if event_time.tzinfo is None:
-                            event_time = pytz.UTC.localize(event_time)
-                        if action == "delete" or event_time >= current_time:
-                            guild_events.append(event)
-                if not guild_events:
-                    error_msg = "No matching events found."
-            if error_msg:
-                await self._send_event_selection_error(interaction, error_msg)
-                return result
-
-            options = [
-                {
-                    "label": f"{event.details.name}",
-                    "description": self.format_datetime(event.details.time)[:99],
-                    "value": str(event._id),
-                }
-                for event in guild_events
-            ]
-            dropdown_config = {
-                "ephemeral": True,
-                "buttons": (True, True),
-                "timeout": 180,
-                "dropdowns": [
-                    {
-                        "custom_id": "event_selection",
-                        "placeholder": f"Select an event to {action}",
-                        "min_values": 1,
-                        "max_values": 1,
-                        "selections": options,
-                    }
-                ],
-            }
-            view = DynamicDropdownView(**dropdown_config)
-            values = None
-            try:
-                if interaction.response.is_done():
-                    message = await interaction.followup.send(
-                        f"Please select an event to {action}:",
-                        view=view,
-                        ephemeral=True,
-                        wait=True,
-                    )
-                    await view.wait()
-                    selections = {}
-                    for dropdown in getattr(view, "_dropdowns", []):
-                        if hasattr(dropdown, "selected_values") and dropdown.selected_values:
-                            selections[getattr(dropdown, "custom_id", "event_selection")] = (
-                                dropdown.selected_values
-                            )
-                    values = selections if getattr(view, "accepted", False) else None
-                    if hasattr(view, "cancelled") and getattr(view, "cancelled", False):
-                        await message.edit(
-                            content=f"Event selection for {action} was cancelled.",
-                            view=None,
-                            embed=None,
-                        )
-                        error_msg = "Event selection cancelled."
+                # Build dropdown options and config for event selection
+                options = self._build_event_dropdown_options(guild_events)
+                dropdown_config = self._build_event_dropdown_config(options, action)
+                view = DynamicDropdownView(**dropdown_config)
+                # Show dropdown to user and get selection
+                values, message = await self._get_dropdown_selection(interaction, view, action)
+                if not values or not message:
+                    # If no selection made, set error message
+                    error_msg = "No event selected."
                 else:
-                    values, message = await view.initiate_from_interaction(
-                        interaction, f"Please select an event to {action}:"
-                    )
-            except (discord.NotFound, discord.HTTPException) as e:
-                self.logger.warning(
-                    f"Interaction/HTTP error during event selection for {action}: {e}"
-                )
-                error_msg = "Event selection failed."
-            except Exception as e:
-                self.logger.error(
-                    f"Unexpected error during dropdown view handling: {e}",
-                    exc_info=True,
-                )
-                error_msg = "Event selection failed."
-
-            # Defensive: ensure message and values are defined
-            if error_msg or not getattr(view, "accepted", False) or not values or not message:
-                if not error_msg:
-                    if not getattr(view, "accepted", False) and getattr(view, "_timed_out", False):
-                        error_msg = "Event selection timed out."
-                    elif not getattr(view, "accepted", False):
-                        error_msg = "Event selection cancelled."
-                    elif not values:
+                    # Get selected event ID from dropdown values
+                    selected_id_str = values.get("event_selection", [None])[0]
+                    if not selected_id_str:
                         error_msg = "No event selected."
-                    elif not message:
-                        error_msg = "Event selection failed."
                     else:
-                        error_msg = "Event selection cancelled."
-                await self._send_event_selection_error(interaction, error_msg, message)
-                return result
-
-            selected_id_str = values.get("event_selection", [None])[0]
-            if not selected_id_str:
-                error_msg = "No event selected."
-                await self._send_event_selection_error(interaction, error_msg, message)
-                return result
-
-            try:
-                selected_id = int(selected_id_str)
-            except ValueError:
-                error_msg = f"Error: Invalid event ID selected ({selected_id_str})."
-                await self._send_event_selection_error(interaction, error_msg, message)
-                return result
-
-            selected_event = Database.get_document(Event, selected_id)
-            if not selected_event:
-                error_msg = f"Error: Event with ID {selected_id} not found."
-                await self._send_event_selection_error(interaction, error_msg, message)
-                return (None, message)
-            return (selected_event, message)
+                        try:
+                            # Try to convert selected ID to int and fetch event from database
+                            selected_id = int(selected_id_str)
+                            selected_event = Database.get_document(Event, selected_id)
+                            if not selected_event:
+                                error_msg = f"Error: Event with ID {selected_id} not found."
+                        except ValueError:
+                            # If conversion fails, set error message
+                            error_msg = f"Error: Invalid event ID selected ({selected_id_str})."
         except Exception as e:
-            self.logger.error(f"Outer error in get_event_selection: {e!s}", exc_info=True)
+            # Log unexpected errors and set generic error message
+            self.logger.error(f"Error in get_event_selection: {e!s}", exc_info=True)
             error_msg = "An unexpected error occurred while selecting the event."
-            await self._send_event_selection_error(interaction, error_msg)
-            return result
+
+        if error_msg:
+            # If any error occurred, send error message and return None
+            await self._send_event_selection_error(
+                interaction,
+                error_msg,
+                message,
+            )
+            return (None, message)
+        # Return the selected event and message object
+        return (selected_event, message)
+
+    def _get_guild_events_for_action(self, guild_id, action):
+        # Fetch the guild document from the database
+        guild = Database.get_document(Guild, guild_id)
+        if not guild or not hasattr(guild, "events") or not guild.events:
+            # If no events found, return empty list
+            return []
+        current_time = self.now()
+        events = []
+        for event_id in getattr(guild, "events", []):
+            event = Database.get_document(Event, event_id)
+            if event and hasattr(event, "details"):
+                event_time = event.details.time
+                # If event time is naive, localize to UTC
+                if event_time.tzinfo is None:
+                    event_time = pytz.UTC.localize(event_time)
+                # For delete, include all events; otherwise, only future events
+                if action == "delete" or event_time >= current_time:
+                    events.append(event)
+        return events
+
+    def _get_event_error_msg(self, guild_id):
+        # Helper to return appropriate error message for event selection
+        guild = Database.get_document(Guild, guild_id)
+        if not guild or not hasattr(guild, "events") or not guild.events:
+            return "No events found for this server."
+        return "No matching events found."
+
+    def _build_event_dropdown_options(self, events):
+        # Build dropdown options for each event
+        return [
+            {
+                "label": f"{event.details.name}",
+                "description": self.format_datetime(event.details.time)[:99],
+                "value": str(event._id),
+            }
+            for event in events
+        ]
+
+    def _build_event_dropdown_config(self, options, action):
+        # Build dropdown configuration for event selection view
+        return {
+            "ephemeral": True,
+            "buttons": (True, True),
+            "timeout": 180,
+            "dropdowns": [
+                {
+                    "custom_id": "event_selection",
+                    "placeholder": f"Select an event to {action}",
+                    "min_values": 1,
+                    "max_values": 1,
+                    "selections": options,
+                }
+            ],
+        }
+
+    async def _get_dropdown_selection(self, interaction, view, action):
+        # Helper to show dropdown and get user selection
+        values = None
+        message = None
+        try:
+            if interaction.response.is_done():
+                # If response is already sent, use followup message for dropdown
+                message = await interaction.followup.send(
+                    f"Please select an event to {action}:",
+                    view=view,
+                    ephemeral=True,
+                    wait=True,
+                )
+                await view.wait()
+                selections = {}
+                # Collect selected values from dropdowns
+                for dropdown in getattr(view, "_dropdowns", []):
+                    if hasattr(dropdown, "selected_values") and dropdown.selected_values:
+                        selections[getattr(dropdown, "custom_id", "event_selection")] = (
+                            dropdown.selected_values
+                        )
+                values = selections if getattr(view, "accepted", False) else None
+                # If user cancelled selection, update message and return None
+                if hasattr(view, "cancelled") and getattr(view, "cancelled", False):
+                    await message.edit(
+                        content=f"Event selection for {action} was cancelled.",
+                        view=None,
+                        embed=None,
+                    )
+                    return None, message
+            else:
+                # If response not sent, initiate dropdown from interaction
+                values, message = await view.initiate_from_interaction(
+                    interaction, f"Please select an event to {action}:"
+                )
+        except (discord.NotFound, discord.HTTPException) as e:
+            # Log and return None on interaction/HTTP errors
+            self.logger.warning(f"Interaction/HTTP error during event selection for {action}: {e}")
+            return None, message
+        except Exception as e:
+            # Log and return None on unexpected errors
+            self.logger.error(
+                f"Unexpected error during dropdown view handling: {e}",
+                exc_info=True,
+            )
+            return None, message
+        # If user did not accept selection, handle timeout/cancel
+        if not getattr(view, "accepted", False):
+            if getattr(view, "_timed_out", False):
+                await message.edit(content="Event selection timed out.", view=None, embed=None)
+            else:
+                await message.edit(content="Event selection cancelled.", view=None, embed=None)
+            return None, message
+        # Return selected values and message object
+        return values, message
 
     async def _send_event_selection_error(self, interaction, error_msg, message=None):
         """Helper to send error message for event selection and reduce return statements."""
         if message:
+            # If a message object is provided, try to edit it with the error message
             with suppress(discord.NotFound, discord.HTTPException):
                 await message.edit(
                     content=error_msg,
@@ -529,12 +571,16 @@ class EventCog(commands.Cog):
                     embed=None,
                 )
         else:
+            # If no message object, send the error as a followup or initial response
             try:
                 if interaction.response.is_done():
+                    # If the interaction response is already sent, use followup
                     await interaction.followup.send(error_msg, ephemeral=True)
                 else:
+                    # Otherwise, send the error as the initial response
                     await interaction.response.send_message(error_msg, ephemeral=True)
             except (discord.NotFound, discord.HTTPException):
+                # Suppress common exceptions if message cannot be sent
                 pass
 
     async def show_event_selection(self, interaction: discord.Interaction) -> None:
@@ -550,101 +596,24 @@ class EventCog(commands.Cog):
 
     async def edit_event_selection(self, interaction: discord.Interaction) -> None:
         """Edit a specific event selected from dropdown."""
-        # Prompt the user to select an event to edit
         event, message = await self.get_event_selection(interaction, "edit")
         if not event or not message:
-            # Error/cancel message already handled within get_event_selection if possible
+            # If no event or message is returned, exit early
             return
 
-        # Define the callback for when the "Edit" button is pressed
-        async def handle_edit_button(button_interaction: discord.Interaction) -> None:
-            # Get a modal config with fields pre-filled from the selected event
-            modal_config = await self.get_prefilled__modal_config(event)
-
-            # Show the modal to the user and wait for their input
-            modal_view = DynamicModalView(**modal_config)
-            form_data, modal_response = await modal_view.initiate_from_interaction(
-                button_interaction
-            )
-            if not form_data:
-                return
-
-            # Validate the submitted form data
-            if not self._validate_event_form(form_data):
-                msg = "Invalid event data. Please check the format of date and time fields."
-                if modal_response:
-                    await modal_response.edit(content=msg, view=None)
-                else:
-                    await button_interaction.followup.send(msg, ephemeral=True)
-                return
-
-            try:
-                # Prepare the timezone dropdown config,
-                # setting the current event timezone as default
-                timezone_config = self.config["timezone_dropdown"].copy()
-                timezone_config.pop("placeholder", None)
-                current_tz = getattr(
-                    getattr(event.details.time, "tzinfo", None), "zone", "US/Eastern"
-                )
-                for dropdown in timezone_config.get("dropdowns", []):
-                    if "options" in dropdown:
-                        dropdown["selections"] = [
-                            {**opt, "default": opt.get("value") == current_tz}
-                            for opt in dropdown.pop("options", [])
-                        ]
-
-                # Show the timezone dropdown to the user
-                timezone_view = DynamicDropdownView(**timezone_config)
-                timezone_data, dropdown_message = await timezone_view.initiate_from_message(
-                    modal_response or await button_interaction.original_response(),
-                    "Please select a timezone for the event:",
-                )
-                timezone = (
-                    timezone_data.get("timezone_selection", [current_tz])[0]
-                    if timezone_data and timezone_data.get("timezone_selection")
-                    else current_tz
-                )
-
-                # Parse the new date and time with the selected timezone
-                event_time = self.parse_datetime(
-                    form_data["event_date"], form_data["event_time"], timezone
-                )
-
-                # Update the event details with the new data
-                event.details.name = form_data["event_name"]
-                event.details.description = form_data["event_description"]
-                event.details.time = event_time
-                event.details.location = form_data["event_location"]
-                Database.update_document(event, {"details": event.details})
-
-                # Notify the user of success
-                success_message = "Event updated successfully!"
-                target_msg = dropdown_message or modal_response
-                if target_msg:
-                    await target_msg.edit(content=success_message, view=None)
-                else:
-                    await button_interaction.followup.send(content=success_message, ephemeral=True)
-
-                # Show the updated event embed
-                await self.show_event_embed(message, event)
-
-            except Exception as e:
-                self.logger.error(f"Failed to update event: {e}", exc_info=True)
-                error_message = f"Failed to update event: {e!s}"
-                if modal_response:
-                    await modal_response.edit(content=error_message, view=None)
-                else:
-                    await button_interaction.followup.send(content=error_message, ephemeral=True)
-
-        # Show the edit/cancel button view to the user
-        view = EditView(handle_edit_button, ephemeral=True)
+        view = EditView(
+            lambda button_interaction: self._handle_edit_event_button(
+                button_interaction, event, message
+            ),
+            ephemeral=True,
+        )
         await message.edit(
             content='Press "Edit" below to edit this event or press "Cancel" to cancel editing:',
             view=view,
         )
         await view.wait()
-        # If the user cancels, update the message accordingly
         if view.value is False:
+            # If the user cancels editing, update the message accordingly
             with suppress(discord.NotFound, discord.HTTPException):
                 await message.edit(
                     content="Event editing cancelled.",
@@ -652,98 +621,168 @@ class EventCog(commands.Cog):
                     embed=None,
                 )
 
-    async def delete_event_selection(self, interaction: discord.Interaction) -> None:
-        """Delete a specific event selected from dropdown."""
-        # Get both event and the message from the dropdown interaction
-        event, message = await self.get_event_selection(interaction, "delete")
-        if not event or not message:  # Check both
-            # Error/cancel message already handled within get_event_selection if possible
+    async def _handle_edit_event_button(
+        self, button_interaction: discord.Interaction, event: Event, message: discord.Message
+    ) -> None:
+        """Helper for edit_event_selection to handle the edit button logic."""
+        modal_config = await self.get_prefilled__modal_config(event)
+        modal_view = DynamicModalView(**modal_config)
+        form_data, modal_response = await modal_view.initiate_from_interaction(button_interaction)
+        if not form_data:
+            # If no form data is submitted, exit early
             return
 
-        # Show confirmation dialog using the obtained message
+        if not self._validate_event_form(form_data):
+            # If form data is invalid, notify the user
+            msg = "Invalid event data. Please check the format of date and time fields."
+            if modal_response:
+                await modal_response.edit(content=msg, view=None)
+            else:
+                await button_interaction.followup.send(msg, ephemeral=True)
+            return
+
+        try:
+            # Prepare timezone dropdown config for selection
+            timezone_config = self.config["timezone_dropdown"].copy()
+            timezone_config.pop("placeholder", None)
+            # Get current timezone from event details
+            current_tz = getattr(getattr(event.details.time, "tzinfo", None), "zone", "US/Eastern")
+            for dropdown in timezone_config.get("dropdowns", []):
+                if "options" in dropdown:
+                    dropdown["selections"] = [
+                        {**opt, "default": opt.get("value") == current_tz}
+                        for opt in dropdown.pop("options", [])
+                    ]
+
+            # Show timezone selection dropdown to user
+            timezone_view = DynamicDropdownView(**timezone_config)
+            timezone_data, dropdown_message = await timezone_view.initiate_from_message(
+                modal_response or await button_interaction.original_response(),
+                "Please select a timezone for the event:",
+            )
+            # Use selected timezone or fallback to current
+            timezone = (
+                timezone_data.get("timezone_selection", [current_tz])[0]
+                if timezone_data and timezone_data.get("timezone_selection")
+                else current_tz
+            )
+
+            # Parse and update event details
+            event_time = self.parse_datetime(
+                form_data["event_date"], form_data["event_time"], timezone
+            )
+            event.details.name = form_data["event_name"]
+            event.details.description = form_data["event_description"]
+            event.details.time = event_time
+            event.details.location = form_data["event_location"]
+            Database.update_document(event, {"details": event.details})
+
+            # Notify user of success
+            success_message = "Event updated successfully!"
+            target_msg = dropdown_message or modal_response
+            if target_msg:
+                await target_msg.edit(content=success_message, view=None)
+            else:
+                await button_interaction.followup.send(content=success_message, ephemeral=True)
+
+            # Show updated event embed
+            await self.show_event_embed(message, event)
+
+        except Exception as e:
+            # Handle and log any errors during update
+            self.logger.error(f"Failed to update event: {e}", exc_info=True)
+            error_message = f"Failed to update event: {e!s}"
+            if modal_response:
+                await modal_response.edit(content=error_message, view=None)
+            else:
+                await button_interaction.followup.send(content=error_message, ephemeral=True)
+
+    async def delete_event_selection(self, interaction: discord.Interaction) -> None:
+        """Delete a specific event selected from dropdown."""
+        event, message = await self.get_event_selection(interaction, "delete")
+        if not event or not message:
+            # If no event or message is returned, exit early
+            return
+
+        confirmed = await self._show_delete_confirmation(message, event)
+        if confirmed is None:
+            # If confirmation times out, notify user
+            await self._edit_message_safe(message, "Event deletion timed out.")
+            return
+        if confirmed:
+            # If user confirms deletion, attempt to delete event
+            delete_error = await self._delete_event_and_cleanup(event, interaction.guild_id)
+            if delete_error:
+                # If error occurs during deletion, notify user
+                await self._edit_message_safe(
+                    message, f"Error deleting event '{event.details.name}': {delete_error}"
+                )
+            else:
+                # Notify user of successful deletion
+                await self._edit_message_safe(
+                    message, f"Event '{event.details.name}' has been deleted."
+                )
+        else:
+            # If user cancels deletion, notify user
+            await self._edit_message_safe(message, "Event deletion cancelled.")
+
+    async def _show_delete_confirmation(self, message, event):
+        """Show confirmation dialog and return True/False/None (timeout)."""
         view = ConfirmDeleteView()
         try:
-            await message.edit(  # Edit the message from the dropdown
+            # Edit message to show confirmation dialog
+            await message.edit(
                 content=f"⚠️ Are you sure you want to delete the event '{event.details.name}'?",
                 view=view,
                 embed=None,
             )
         except (discord.NotFound, discord.HTTPException) as e:
+            # If message can't be edited, log and return None
             self.logger.warning(f"Failed to edit message for delete confirmation: {e}")
-            return  # Can't proceed if message is gone
-
+            return None
         await view.wait()
-        if view.value is None:  # Timed out
-            with suppress(discord.NotFound, discord.HTTPException):
-                await message.edit(
-                    content="Event deletion timed out.",
-                    view=None,
-                    embed=None,
-                )
-            return
+        # Return user's confirmation choice (True/False/None)
+        return view.value
 
-        if view.value:  # Confirmed delete
-            # Remove event from guild's events list
+    async def _delete_event_and_cleanup(self, event, guild_id):
+        """Remove event from guild, users, and database. Returns error if any."""
+        # Remove event from guild's events list
+        try:
+            guild = Database.get_document(Guild, guild_id)
+            if guild and hasattr(guild, "events") and event._id in guild.events:
+                guild.events.remove(event._id)
+                Database.update_document(guild, {"events": guild.events})
+                self.logger.info(f"Removed event {event._id} from guild {guild_id}")
+        except Exception as e:
+            self.logger.error(f"Error removing event {event._id} from guild: {e}")
+        # Remove event from users' event lists
+        all_users = (
+            set(getattr(event, "yes_users", []))
+            | set(getattr(event, "maybe_users", []))
+            | set(getattr(event, "no_users", []))
+        )
+        for user_id in all_users:
             try:
-                guild = Database.get_document(Guild, interaction.guild_id)
-                if guild and hasattr(guild, "events") and event._id in guild.events:
-                    guild.events.remove(event._id)
-                    Database.update_document(guild, {"events": guild.events})
-                    self.logger.info(f"Removed event {event._id} from guild {interaction.guild_id}")
+                user = Database.get_document(User, user_id)
+                if user and hasattr(user, "events") and event._id in user.events:
+                    user.events.remove(event._id)
+                    user.save()
+                    self.logger.info(f"Removed event {event._id} from user {user_id}'s events")
             except Exception as e:
-                self.logger.error(f"Error removing event {event._id} from guild: {e}")
+                self.logger.error(f"Error removing event {event._id} from user {user_id}: {e}")
+        # Delete the event from the database
+        try:
+            Database.delete_document(event)
+            self.logger.info(f"Event {event._id} '{event.details.name}' deleted")
+            return None
+        except Exception as e:
+            self.logger.error(f"Error deleting event {event._id}: {e}")
+            return e
 
-            # Remove event from users' event lists
-            all_users = (
-                set(getattr(event, "yes_users", []))
-                | set(getattr(event, "maybe_users", []))
-                | set(getattr(event, "no_users", []))
-            )
-            for user_id in all_users:
-                try:
-                    user = Database.get_document(User, user_id)
-                    if user and hasattr(user, "events") and event._id in user.events:
-                        user.events.remove(event._id)
-                        user.save()
-                        self.logger.info(f"Removed event {event._id} from user {user_id}'s events")
-                except Exception as e:
-                    self.logger.error(f"Error removing event {event._id} from user {user_id}: {e}")
-
-            # Delete the event from the database
-            delete_error = None
-            try:
-                Database.delete_document(event)
-                self.logger.info(f"Event {event._id} '{event.details.name}' deleted")
-            except Exception as e:
-                self.logger.error(f"Error deleting event {event._id}: {e}")
-                delete_error = e
-
-            # Edit message based on delete result
-            try:
-                if delete_error:
-                    await message.edit(
-                        content=f"Error deleting event '{event.details.name}': {delete_error}",
-                        view=None,
-                        embed=None,
-                    )
-                else:
-                    await message.edit(
-                        content=f"Event '{event.details.name}' has been deleted.",
-                        view=None,
-                        embed=None,  # Ensure embed is cleared
-                    )
-            except (discord.NotFound, discord.HTTPException) as e:
-                self.logger.warning(f"Failed to edit message after event deletion: {e}")
-
-        else:  # Cancelled delete
-            try:
-                await message.edit(
-                    content="Event deletion cancelled.",
-                    view=None,
-                    embed=None,  # Ensure embed is cleared
-                )
-            except (discord.NotFound, discord.HTTPException) as e:
-                self.logger.warning(f"Failed to edit message after event deletion cancelled: {e}")
+    async def _edit_message_safe(self, message, content):
+        """Safely edit a message, suppressing common exceptions."""
+        with suppress(discord.NotFound, discord.HTTPException):
+            await message.edit(content=content, view=None, embed=None)
 
     async def announce_event_selection(self, interaction: discord.Interaction) -> None:
         """Announce a specific event selected from dropdown."""
@@ -961,7 +1000,7 @@ class EventCog(commands.Cog):
         # Narrow type for mypy
         if isinstance(message_or_interaction, discord.Message):
             await message_or_interaction.edit(content=None, embed=embed, view=None)
-        else:
+        elif isinstance(message_or_interaction, discord.Interaction):
             await message_or_interaction.followup.send(embed=embed, ephemeral=True)
 
     @commands.Cog.listener()
@@ -973,6 +1012,7 @@ class EventCog(commands.Cog):
 
         # Check if this is a reaction to an event announcement
         channel = self.bot.get_channel(payload.channel_id)
+        message = None
         if not channel:
             return
 
@@ -983,8 +1023,7 @@ class EventCog(commands.Cog):
             return  # Or log unsupported channel type
 
         try:
-            # Use MongoEngine directly for a query by message_id
-            event = Event.objects(message_id=payload.message_id).first()
+            event = Database.get_document(Event, payload.message_id)
             if not event:
                 return
         except Exception as e:
@@ -995,11 +1034,15 @@ class EventCog(commands.Cog):
         emoji = str(payload.emoji)
         user = self.bot.get_user(payload.user_id)
 
-        # Remove any other reactions from this user on this message
-        for reaction in message.reactions:
-            if str(reaction.emoji) != emoji and user:
-                with suppress(discord.NotFound, discord.HTTPException):
-                    await reaction.remove(user)
+        if "message" in locals() and message is not None:
+            try:
+                reactions = getattr(message, "reactions", [])
+            except NameError:
+                reactions = []
+            for reaction in reactions:
+                if str(reaction.emoji) != emoji and user:
+                    with suppress(discord.NotFound, discord.HTTPException):
+                        await reaction.remove(user)
 
         # Update event attendance based on reaction
         if emoji == "✅":
@@ -1159,7 +1202,7 @@ class EventCog(commands.Cog):
             return
 
         try:
-            event = Event.objects(message_id=payload.message_id).first()
+            event = Database.get_document(Event, payload.message_id)
             if not event:
                 return
         except Exception as e:
