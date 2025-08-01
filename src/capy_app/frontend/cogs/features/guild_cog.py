@@ -87,7 +87,6 @@ class GuildCog(commands.Cog):
             for category, name in [key.split("_")]
         }
 
-    @is_guild()
     @app_commands.command(name="server", description="Manage server settings")
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.describe(action="The action to perform with server settings")
