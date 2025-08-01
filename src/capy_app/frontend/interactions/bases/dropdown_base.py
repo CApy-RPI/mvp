@@ -195,6 +195,7 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
         if not view._has_buttons:
             view.accepted = True
             view.stop()
+            view._set_data()
 
         await interaction.response.defer()
 
