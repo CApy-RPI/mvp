@@ -1060,23 +1060,8 @@ class EventCog(commands.Cog):
             self.logger.info(f"User {user_id} not registered; ignoring attendance add.")
             return
 
-        # Create a copy of the event to modify
-        modified = False
-
-        # First, check if the user is in any of the other lists and remove them
-        # Remove from maybe_users if present
-        if user_id in event.maybe_users:
-            event.maybe_users.remove(user_id)
-            if event.details and event.details.reactions:
-                event.details.reactions.maybe = max(0, event.details.reactions.maybe - 1)
-            modified = True
-
-        # Remove from no_users if present
-        if user_id in event.no_users:
-            event.no_users.remove(user_id)
-            if event.details and event.details.reactions:
-                event.details.reactions.no = max(0, event.details.reactions.no - 1)
-            modified = True
+        # Remove user from other RSVP lists
+        modified = await self._remove_user_from_rsvp_lists(user_id, event)
 
         # Add user to yes_users list if not already there
         if user_id not in event.yes_users:
@@ -1099,6 +1084,29 @@ class EventCog(commands.Cog):
             user.events.append(event._id)
             user.save()
             self.logger.info(f"Updated user {user_id} for event {event._id} with 'yes' response.")
+
+    async def _remove_user_from_rsvp_lists(self, user_id: int, event: Event) -> bool:
+        """
+        Helper to remove user from maybe_users and no_users RSVP lists.
+        Returns True if any modification was made.
+        """
+        modified = False
+        # Remove user from maybe_users if present
+        if user_id in event.maybe_users:
+            event.maybe_users.remove(user_id)
+            # Decrement maybe reaction count, ensuring it doesn't go below zero
+            if event.details and event.details.reactions:
+                event.details.reactions.maybe = max(0, event.details.reactions.maybe - 1)
+            modified = True
+        # Remove user from no_users if present
+        if user_id in event.no_users:
+            event.no_users.remove(user_id)
+            # Decrement no reaction count, ensuring it doesn't go below zero
+            if event.details and event.details.reactions:
+                event.details.reactions.no = max(0, event.details.reactions.no - 1)
+            modified = True
+        # Return whether any RSVP list was modified
+        return modified
 
     async def handle_attendance_remove(self, user_id: int, event: Event) -> None:
         """Handle marking a user with "no" response (not attending)."""
