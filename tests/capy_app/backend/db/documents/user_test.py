@@ -7,7 +7,7 @@ from capy_app.backend.db.documents.user import User, UserName, UserProfile
 
 
 @pytest.fixture(scope="module")
-def db():
+def _db():
     """
     Create a temporary in-memory test database using mongoengine and mongomock.
     """
@@ -22,7 +22,7 @@ def db():
     mongoengine.disconnect(alias="default")  # Ensure proper cleanup
 
 
-def test_create_user_success(db):
+def test_create_user_success(_db):
     """
     Test creating a user with all required fields.
     """
@@ -94,7 +94,7 @@ def test_create_user_success(db):
         User(_id=6, profile=invalid_profile).save()
 
 
-def test_missing_required_fields(db):
+def test_missing_required_fields(_db):
     """
     Test that creating a user without required fields raises ValidationError.
     We'll omit various required fields in both UserProfile and UserName.
@@ -120,7 +120,7 @@ def test_missing_required_fields(db):
     assert "major" in error_msg, "Should complain about missing 'major'"
 
 
-def test_unique_school_email(db):
+def test_unique_school_email(_db):
     """
     Test that creating two users with the same school_email raises NotUniqueError.
     """
@@ -152,7 +152,7 @@ def test_unique_school_email(db):
     assert "E11000" in str(excinfo.value), "Expected a duplicate key error for school_email"
 
 
-def test_unique_student_id(db):
+def test_unique_student_id(_db):
     """
     Test that creating two users with the same student_id raises NotUniqueError.
     """
@@ -184,7 +184,7 @@ def test_unique_student_id(db):
     assert "E11000" in str(excinfo.value), "Expected a duplicate key error for student_id"
 
 
-def test_optional_phone(db):
+def test_optional_phone(_db):
     """
     Test that the phone field can be set or left as None without error.
     """
@@ -211,7 +211,7 @@ def test_optional_phone(db):
     assert updated_user.profile.phone is None
 
 
-def test_add_guilds_and_events(db):
+def test_add_guilds_and_events(_db):
     """
     Test adding guild and event references to an existing user.
     """
