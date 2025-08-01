@@ -1012,38 +1012,23 @@ class EventCog(commands.Cog):
 
         # Check if this is a reaction to an event announcement
         channel = self.bot.get_channel(payload.channel_id)
-        message = None
         if not channel:
             return
 
-        if isinstance(channel, (discord.TextChannel | discord.Thread)):
-            with suppress(discord.NotFound, discord.Forbidden):
-                message = await channel.fetch_message(payload.message_id)
-        else:
-            return  # Or log unsupported channel type
+        message = await self.fetch_message_if_possible(channel, payload.message_id)
+        if not message:
+            return
 
-        try:
-            event = Database.get_document(Event, payload.message_id)
-            if not event:
-                return
-        except Exception as e:
-            self.logger.error(f"Error finding event by message_id {payload.message_id}: {e}")
+        event = await self.get_event_by_message_id(payload.message_id)
+        if not event:
             return
 
         # Handle different reactions
         emoji = str(payload.emoji)
         user = self.bot.get_user(payload.user_id)
 
-        if "message" in locals() and message is not None:
-            try:
-                reactions = getattr(message, "reactions", [])
-            except NameError:
-                reactions = []
-            for reaction in reactions:
-                if str(reaction.emoji) != emoji and user:
-                    with suppress(discord.NotFound, discord.HTTPException):
-                        await reaction.remove(user)
-
+        # Remove any other reactions from this user on this message
+        await self.remove_other_reactions(message, emoji, user)
         # Update event attendance based on reaction
         if emoji == "✅":
             await self.handle_attendance_add(payload.user_id, event)
@@ -1051,6 +1036,28 @@ class EventCog(commands.Cog):
             await self.handle_attendance_remove(payload.user_id, event)
         elif emoji == "❔":
             await self.handle_attendance_maybe(payload.user_id, event)
+
+    async def fetch_message_if_possible(self, channel: discord.TextChannel, message_id):
+        if isinstance(channel, (discord.TextChannel | discord.Thread)):
+            with suppress(discord.NotFound, discord.Forbidden):
+                return await channel.fetch_message(message_id)
+        return None
+
+    async def get_event_by_message_id(self, message_id):
+        try:
+            # Use MongoEngine directly for a query by message_id
+            event = Event.objects(message_id=message_id).first()
+            if not event:
+                return
+        except Exception as e:
+            self.logger.error(f"Error finding event by message_id {message_id}: {e}")
+            return
+
+    async def remove_other_reactions(self, message, emoji, user):
+        for reaction in message.reactions:
+            if str(reaction.emoji) != emoji and user:
+                with suppress(discord.NotFound, discord.HTTPException):
+                    await reaction.remove(user)
 
     async def handle_attendance_add(self, user_id: int, event: Event) -> None:
         """Handle adding a user to event attendance with "yes" response."""
