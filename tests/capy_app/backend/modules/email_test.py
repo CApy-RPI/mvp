@@ -74,9 +74,10 @@ def test_send_mail_http_error(email_client: Email) -> None:
 def test_send_mail_exception_with_chaining(email_client: Email) -> None:
     original_error = EmailSendError("Failed to send email")
 
-    with patch.object(email_client.mailjet, "send", Mock(**{"create.side_effect": original_error})):
-        with pytest.raises(EmailSendError):
-            email_client.send_mail("test@example.com", "123456")
+    with patch.object(
+        email_client.mailjet, "send", Mock(create=Mock(side_effect=original_error))
+    ), pytest.raises(EmailSendError):
+        email_client.send_mail("test@example.com", "123456")
 
 
 def test_error_messages() -> None:
