@@ -1,17 +1,16 @@
-import discord
 import logging
-from discord.ext import commands
-from discord import app_commands
-from typing import Dict, List, Optional
-from frontend.interactions.bases.modal_base import DynamicModalView
-from frontend.interactions.bases.dropdown_base import DynamicDropdownView
-from backend.db.documents.guild import Guild
-from backend.db.documents.guild import OfficeHours as GOfficeHours
+
+import discord
 from backend.db.database import Database
-from config import settings
+from backend.db.documents.guild import Guild, OfficeHours as GOfficeHours
+from backend.db.documents.user import OfficeHours, User
+from discord import app_commands
+from discord.ext import commands
 from frontend import config_colors as colors
 from frontend.cogs.features.office_hours_config import PROFILE_CONFIG
-from backend.db.documents.user import User, OfficeHours
+from frontend.interactions.bases.modal_base import DynamicModalView
+
+from config import settings
 
 # TIME_SLOTS = [
 #     "8:00 AM",
@@ -246,7 +245,7 @@ class OfficeHoursCog(commands.Cog):
         self.bot = bot
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         # Temporary storage for first-modal results awaiting second modal
-        self._pending_schedules: Dict[str, Dict[str, str]] = {}
+        self._pending_schedules: dict[str, dict[str, str]] = {}
 
     @app_commands.command(name="office_hours", description="Manage office hours")
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
@@ -262,7 +261,7 @@ class OfficeHoursCog(commands.Cog):
         self,
         interaction: discord.Interaction,
         action: str,
-        user: Optional[discord.User] = None,
+        user: discord.User | None = None,
     ):
         """Manage office hours with a single command"""
         if action == "edit":
@@ -278,7 +277,7 @@ class OfficeHoursCog(commands.Cog):
         user_id = str(interaction.user.id)
 
         # 1) Load existing schedule from User (if they have one)
-        existing: Dict[str, List[str]] = {}
+        existing: dict[str, list[str]] = {}
         user_doc = Database.get_document(User, int(user_id))
         if user_doc and user_doc.office_hours:
             for d in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]:
@@ -302,7 +301,7 @@ class OfficeHoursCog(commands.Cog):
             for item in m1._modal.children:
                 cid = getattr(item, "custom_id", "")
                 day = cid[:-6]
-                if day in existing and existing[day]:
+                if existing.get(day):
                     item.default = ", ".join(existing[day])
 
         vals1, _ = await m1.initiate_from_interaction(interaction)
@@ -324,7 +323,7 @@ class OfficeHoursCog(commands.Cog):
         )
 
         class ContinueView(discord.ui.View):
-            def __init__(self, interim: Dict[str, str], outer: OfficeHoursCog):
+            def __init__(self, interim: dict[str, str], outer: OfficeHoursCog):
                 super().__init__(timeout=120)
                 self.interim = interim
                 self.outer = outer
@@ -352,9 +351,9 @@ class OfficeHoursCog(commands.Cog):
             view=view,
         )
 
-    async def _finish(self, interaction: discord.Interaction, user_id: str, vals: Dict[str, str]):
+    async def _finish(self, interaction: discord.Interaction, user_id: str, vals: dict[str, str]):
         # Parse the raw modal values into a schedule dict
-        schedule: Dict[str, List[str]] = {}
+        schedule: dict[str, list[str]] = {}
         for cid, txt in vals.items():
             if not cid.endswith("_hours"):
                 continue
@@ -404,7 +403,7 @@ class OfficeHoursCog(commands.Cog):
         if guild.office_hours:
             guild.office_hours = [oh for oh in guild.office_hours if oh.name != user_id]
             Database.update_document(guild, {"office_hours": guild.office_hours})
-            await interaction.response.send_message(f"Cleared your office hours", ephemeral=True)
+            await interaction.response.send_message("Cleared your office hours", ephemeral=True)
         else:
             await interaction.response.send_message(
                 "You don't have any office hours set", ephemeral=True
@@ -438,7 +437,7 @@ class OfficeHoursCog(commands.Cog):
         await interaction.response.send_message(embed=embed, ephemeral=not is_announcement)
 
     def generate_office_hours_embed(
-        self, user: discord.User, schedule: Dict[str, List[str]]
+        self, user: discord.User, schedule: dict[str, list[str]]
     ) -> discord.Embed:
         embed = discord.Embed(
             title=f"Office Hours - {user.display_name}", color=colors.STATUS_SUCCESS
@@ -450,7 +449,7 @@ class OfficeHoursCog(commands.Cog):
             )
         return embed
 
-    def generate_weekly_schedule_embed(self, schedules: List[GOfficeHours]) -> discord.Embed:
+    def generate_weekly_schedule_embed(self, schedules: list[GOfficeHours]) -> discord.Embed:
         embed = discord.Embed(title="Weekly Office Hours Schedule", color=colors.STATUS_SUCCESS)
         days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         for day in days:

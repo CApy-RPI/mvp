@@ -2,24 +2,21 @@
 
 import logging
 import time
-from typing import Union, Dict
-from pathlib import Path
 
 import discord
+from backend.db.database import Database as db
+from backend.db.documents.user import User, UserName, UserProfile
 from discord import app_commands
 from discord.ext import commands
-
-import time
-from config import settings
-from backend.db.database import Database as db
-from backend.db.documents.user import User, UserProfile, UserName
 from frontend.interactions.bases.button_base import ConfirmDeleteView
-from frontend.interactions.bases.modal_base import DynamicModalView
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
-from frontend.interactions.bases.modal_base import ButtonDynamicModalView
-from .profile_handlers import EmailVerifier
+from frontend.interactions.bases.modal_base import ButtonDynamicModalView, DynamicModalView
+
+from config import settings
+
 from .major_handler import MajorHandler
 from .profile_config import PROFILE_CONFIG
+from .profile_handlers import EmailVerifier
 
 
 class TryAgainView(discord.ui.View):
@@ -48,7 +45,7 @@ class ProfileCog(commands.Cog):
     def _load_major_list(self) -> list[str]:
         """Load the list of available majors from file."""
         try:
-            with open(settings.MAJORS_PATH, "r", encoding="utf-8") as f:
+            with open(settings.MAJORS_PATH, encoding="utf-8") as f:
                 majors = [line.strip() for line in f.readlines() if line.strip()]
                 self.logger.info(f"Loaded {len(majors)} majors from file")
                 if not majors:
@@ -90,7 +87,7 @@ class ProfileCog(commands.Cog):
 
     async def get_profile_data(
         self, interaction: discord.Interaction, action: str, user: User | None
-    ) -> tuple[Dict[str, str] | None, discord.Message | None]:
+    ) -> tuple[dict[str, str] | None, discord.Message | None]:
         """Get profile data using modal base"""
         modal_view = DynamicModalView(**self.config["profile_modal"])
 
@@ -247,7 +244,7 @@ class ProfileCog(commands.Cog):
 
     async def show_profile_embed(
         self,
-        message_or_interaction: Union[discord.Message, discord.Interaction],
+        message_or_interaction: discord.Message | discord.Interaction,
         user: User,
     ) -> None:
         """Display a user's profile in an embed.
