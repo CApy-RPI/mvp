@@ -1,6 +1,3 @@
-# mypy: ignore-errors
-# TODO Remove on rewrite ^
-
 """Guild settings management cog."""
 
 import logging

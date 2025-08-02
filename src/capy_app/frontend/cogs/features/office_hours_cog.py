@@ -1,6 +1,3 @@
-# mypy: ignore-errors
-# TODO Remove on rewrite ^
-
 import discord
 import logging
 from discord.ext import commands

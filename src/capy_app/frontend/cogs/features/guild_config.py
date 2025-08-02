@@ -1,6 +1,3 @@
-# mypy: ignore-errors
-# TODO Remove on rewrite ^
-
 """Configuration settings for guild management."""
 
 from typing import TypedDict

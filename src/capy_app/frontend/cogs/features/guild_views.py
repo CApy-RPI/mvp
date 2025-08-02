@@ -1,6 +1,3 @@
-# mypy: ignore-errors
-# TODO Remove on rewrite ^
-
 """Guild-specific view classes for Discord interactions."""
 
 from collections.abc import Callable, Coroutine

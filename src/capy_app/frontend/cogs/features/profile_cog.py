@@ -1,6 +1,3 @@
-# mypy: ignore-errors
-# TODO Remove on rewrite ^
-
 """Profile management cog for handling user profiles."""
 
 import logging
