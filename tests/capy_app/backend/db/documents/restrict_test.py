@@ -1,6 +1,6 @@
 import time
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, ClassVar
 
 import mongoengine
 import pytest
@@ -13,11 +13,11 @@ from capy_app.backend.db.documents.restrict import (
 
 
 class ConcreteRestrictedDocument(RestrictedDocument):
-    meta: dict[str, Any] = {"collection": "test_restricted_document"}
+    meta: ClassVar[dict[str, Any]] = {"collection": "test_restricted_document"}
 
 
 @pytest.fixture(scope="module")
-def db():
+def _db():
     """
     Sets up an in-memory MongoDB using mongomock for testing.
     """
@@ -31,7 +31,7 @@ def db():
     mongoengine.disconnect(alias="default")
 
 
-def test_restricted_document_set_known_field(db):
+def test_restricted_document_set_known_field(_db):
     """
     Test that setting an existing field (created_at) on a RestrictedDocument is allowed.
     """
@@ -48,7 +48,7 @@ def test_restricted_document_set_known_field(db):
     assert saved_created_at == new_time
 
 
-def test_restricted_document_set_unknown_field(db):
+def test_restricted_document_set_unknown_field(_db):
     """
     Test that setting a non-existent field raises AttributeError.
     """
@@ -57,7 +57,7 @@ def test_restricted_document_set_unknown_field(db):
         doc.some_unknown_field = "This should fail"
 
 
-def test_restricted_document_delete_attribute(db):
+def test_restricted_document_delete_attribute(_db):
     """
     Test that deleting any attribute raises AttributeError.
     """
@@ -66,7 +66,7 @@ def test_restricted_document_delete_attribute(db):
         del doc.created_at
 
 
-def test_restricted_document_autoupdate(db):
+def test_restricted_document_autoupdate(_db):
     """
     Test that `updated_at` automatically updates when saving the document after changes.
     """
@@ -90,7 +90,7 @@ def test_restricted_document_autoupdate(db):
     ), f"Expected updated_at ({updated_at_ms}) to be later than first_updated ({first_updated_ms})"
 
 
-def test_restricted_embedded_document_set_known_field(db):
+def test_restricted_embedded_document_set_known_field(_db):
     """
     Test that setting fields on a RestrictedEmbeddedDocument is allowed only if they exist.
     """
@@ -104,7 +104,7 @@ def test_restricted_embedded_document_set_known_field(db):
         parent.embedded.non_existent_field = "Nope"
 
 
-def test_restricted_embedded_document_delete_attribute(db):
+def test_restricted_embedded_document_delete_attribute(_db):
     """
     Test that deleting an attribute on RestrictedEmbeddedDocument raises AttributeError.
     """
