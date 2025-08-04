@@ -1,4 +1,5 @@
 import logging
+from contextlib import suppress
 
 import discord
 from backend.db.database import Database
@@ -267,7 +268,8 @@ class OfficeHoursCog(commands.Cog):
         if action == "edit":
             await self._handle_edit(interaction)
         elif action == "clear":
-            await self._handle_clear(interaction)
+            guild = Database.get_document(Guild, interaction.guild_id)
+            await self._handle_clear(interaction, guild)
         elif action in ["show", "announce"]:
             await self._handle_display(
                 interaction, user or interaction.user, is_announcement=(action == "announce")
@@ -277,34 +279,15 @@ class OfficeHoursCog(commands.Cog):
         user_id = str(interaction.user.id)
 
         # 1) Load existing schedule from User (if they have one)
-        existing: dict[str, list[str]] = {}
-        user_doc = Database.get_document(User, int(user_id))
-        if user_doc and user_doc.office_hours:
-            for d in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]:
-                existing[d] = list(getattr(user_doc.office_hours, d))
+        existing = self._load_existing_schedule(user_id)
 
         # 2) Prepare modal field halves
         modal_cfg = PROFILE_CONFIG["office_hour_modal"]["modal"]
         fields = modal_cfg["fields"]
         part1, part2 = fields[:5], fields[5:]
 
-        # 3) Show first modal (Mon–Fri)
-        m1 = DynamicModalView(
-            ephemeral=True,
-            modal={
-                "title": modal_cfg["title"] + " (1/2)",
-                "fields": part1,
-            },
-        )
-        # Prefill if we have existing values
-        if existing:
-            for item in m1._modal.children:
-                cid = getattr(item, "custom_id", "")
-                day = cid[:-6]
-                if existing.get(day):
-                    item.default = ", ".join(existing[day])
-
-        vals1, _ = await m1.initiate_from_interaction(interaction)
+        # 3) Show first modal (Mon-Fri)
+        vals1 = await self._show_first_modal(interaction, modal_cfg, part1, existing)
         if not vals1:
             return  # user cancelled
 
@@ -314,6 +297,37 @@ class OfficeHoursCog(commands.Cog):
             return
 
         # 5) Otherwise, set up second modal behind a Continue button
+        await self._show_second_modal(interaction, modal_cfg, part2, user_id, vals1)
+
+    def _load_existing_schedule(self, user_id: str) -> dict[str, list[str]]:
+        existing = {}
+        user_doc = Database.get_document(User, int(user_id))
+        if user_doc and user_doc.office_hours:
+            for d in ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]:
+                existing[d] = list(getattr(user_doc.office_hours, d))
+        return existing
+
+    async def _show_first_modal(self, interaction, modal_cfg, part1, existing):
+        m1 = DynamicModalView(
+            ephemeral=True,
+            modal={
+                "title": modal_cfg["title"] + " (1/2)",
+                "fields": part1,
+            },
+        )
+        # Prefill if we have existing values
+        if existing:
+            for item in m1.children:  # Corrected attribute access
+                cid = getattr(item, "custom_id", "")
+                day = cid[:-6]
+                if existing.get(day):
+                    default_value = ", ".join(existing[day])
+                    item.default = default_value  # Set the default value for the item
+
+        vals1, _ = await m1.initiate_from_interaction(interaction)
+        return vals1
+
+    async def _show_second_modal(self, interaction, modal_cfg, part2, user_id, vals1):
         m2 = DynamicModalView(
             ephemeral=True,
             modal={
@@ -339,14 +353,12 @@ class OfficeHoursCog(commands.Cog):
                 await self.outer._finish(button_inter, user_id, combined)
                 btn.disabled = True
                 self.stop()
-                try:
+                with suppress(discord.HTTPException):
                     await button_inter.edit_original_response(view=self)
-                except:
-                    pass
 
         view = ContinueView(vals1, self)
         await interaction.followup.send(
-            "Your Mon–Fri hours are saved! Click below to enter Sat & Sun:",
+            "Your Mon-Fri hours are saved! Click below to enter Sat & Sun:",
             ephemeral=True,
             view=view,
         )
@@ -392,14 +404,19 @@ class OfficeHoursCog(commands.Cog):
         embed = self.generate_office_hours_embed(interaction.user, schedule)
         try:
             await interaction.followup.send("Office hours set!", embed=embed, ephemeral=True)
-        except:
+        except Exception:
             await interaction.response.send_message(
                 "Office hours set!", embed=embed, ephemeral=True
             )
 
-    async def _handle_clear(self, interaction: discord.Interaction, guild: Guild):
+    async def _handle_clear(self, interaction: discord.Interaction, guild: Guild | None):
+        if guild is None:
+            await interaction.response.send_message(
+                "Guild not found. Please contact an administrator.", ephemeral=True
+            )
+            return
+
         user_id = str(interaction.user.id)
-        guild = Database.get_document(Guild, interaction.guild_id)
         if guild.office_hours:
             guild.office_hours = [oh for oh in guild.office_hours if oh.name != user_id]
             Database.update_document(guild, {"office_hours": guild.office_hours})
@@ -437,7 +454,7 @@ class OfficeHoursCog(commands.Cog):
         await interaction.response.send_message(embed=embed, ephemeral=not is_announcement)
 
     def generate_office_hours_embed(
-        self, user: discord.User, schedule: dict[str, list[str]]
+        self, user: discord.User | discord.Member, schedule: dict[str, list[str]]
     ) -> discord.Embed:
         embed = discord.Embed(
             title=f"Office Hours - {user.display_name}", color=colors.STATUS_SUCCESS
@@ -460,7 +477,7 @@ class OfficeHoursCog(commands.Cog):
                     try:
                         member = self.bot.get_user(int(oh.name))
                         name = member.display_name if member else f"User{oh.name}"
-                    except:
+                    except Exception:
                         name = f"User{oh.name}"
                     daily.append(f"• **{name}**: {', '.join(times)}")
             embed.add_field(
