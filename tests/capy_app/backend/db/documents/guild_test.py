@@ -4,15 +4,13 @@ from mongomock import MongoClient
 
 from capy_app.backend.db.documents.guild import Guild, GuildChannels, GuildRoles
 
-REPORTS_CHANNEL_ID = 111
-ANNOUNCEMENTS_CHANNEL_ID = 222
-MODERATOR_CHANNEL_ID = 333
+# Constants for testing
 USER_ID = 105
 EVENT_ID = 205
 
 
 @pytest.fixture(scope="module")
-def db():
+def _db():
     """
     Set up a mock MongoDB instance for testing using mongomock.
     """
@@ -49,14 +47,21 @@ def test_create_guild_defaults(_db):
 
 
 def test_create_guild_custom_channels(_db):
-    custom_channels = GuildChannels(reports=123, announcements=456, moderator=789)
+    reports_channel_id = 123
+    announcements_channel_id = 456
+    moderator_channel_id = 789
+    custom_channels = GuildChannels(
+        reports=reports_channel_id,
+        announcements=announcements_channel_id,
+        moderator=moderator_channel_id,
+    )
     guild = Guild(_id=2, users=[103], events=[203], channels=custom_channels)
     guild.save()
 
     saved_guild = Guild.objects.get(_id=2)
-    assert saved_guild.channels.reports == REPORTS_CHANNEL_ID
-    assert saved_guild.channels.announcements == ANNOUNCEMENTS_CHANNEL_ID
-    assert saved_guild.channels.moderator == MODERATOR_CHANNEL_ID
+    assert saved_guild.channels.reports == reports_channel_id
+    assert saved_guild.channels.announcements == announcements_channel_id
+    assert saved_guild.channels.moderator == moderator_channel_id
 
 
 def test_create_guild_custom_roles(_db):
@@ -81,6 +86,9 @@ def test_add_users_and_events(_db):
 
 
 def test_update_channels_roles(_db):
+    reports_channel_id = 111
+    announcements_channel_id = 222
+    moderator_channel_id = 333
     guild = Guild(_id=5, users=[106], events=[206])
     guild.save()
 
@@ -90,8 +98,8 @@ def test_update_channels_roles(_db):
         set__roles=GuildRoles(eboard="VicePresident", admin="ModeratorRole"),
     )
     updated_guild = Guild.objects.get(_id=5)
-    assert updated_guild.channels.reports == REPORTS_CHANNEL_ID
-    assert updated_guild.channels.announcements == ANNOUNCEMENTS_CHANNEL_ID
-    assert updated_guild.channels.moderator == MODERATOR_CHANNEL_ID
+    assert updated_guild.channels.reports == reports_channel_id
+    assert updated_guild.channels.announcements == announcements_channel_id
+    assert updated_guild.channels.moderator == moderator_channel_id
     assert updated_guild.roles.eboard == "VicePresident"
     assert updated_guild.roles.admin == "ModeratorRole"
