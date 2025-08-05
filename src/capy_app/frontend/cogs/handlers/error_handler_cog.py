@@ -104,7 +104,8 @@ class ErrorHandlerCog(commands.Cog):
             "server": f"https://discord.com/guilds/{ctx.guild.id}",
             "channel": f"https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}",
             "user": f"https://discord.com/users/{ctx.author.id}",
-            "message": f"https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}/{ctx.message.id}",
+            "message": f"https://discord.com/channels/"
+            f"{ctx.guild.id}/{ctx.channel.id}/{ctx.message.id}",
         }
 
     def _get_guild_info(self, guild: discord.Guild | None, url: str | None = None) -> str:
