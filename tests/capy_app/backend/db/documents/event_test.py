@@ -3,12 +3,14 @@ from datetime import datetime
 import mongoengine
 import mongomock
 import pytest
-
+from mongoengine import ValidationError
 from capy_app.backend.db.documents.event import Event, EventDetails, EventReactions
 
 REACTIONS_YES = 5
 REACTIONS_MAYBE = 3
 REACTIONS_NO = 2
+GUILD_ID = 789
+MESSAGE_ID = 111
 
 
 @pytest.fixture(scope="module")
@@ -53,8 +55,8 @@ def test_event_creation(_db):
     assert saved_event.yes_users == [101]
     assert saved_event.maybe_users == [102]
     assert saved_event.no_users == []
-    assert saved_event.guild_id == 789
-    assert saved_event.message_id == 111
+    assert saved_event.guild_id == GUILD_ID
+    assert saved_event.message_id == MESSAGE_ID
 
 
 def test_event_reactions_defaults(_db):
@@ -69,8 +71,6 @@ def test_event_reactions_defaults(_db):
 
 
 def test_event_required_name(_db):
-    from mongoengine import ValidationError
-
     details = EventDetails(
         # name missing
         time=datetime(2025, 1, 1, 12, 0)
@@ -85,7 +85,6 @@ def test_event_required_name(_db):
 
 
 def test_event_required_time(_db):
-    from mongoengine import ValidationError
 
     details = EventDetails(
         name="Missing Time"
