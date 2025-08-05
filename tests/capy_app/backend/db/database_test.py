@@ -98,7 +98,8 @@ def test_list_users(db, user, user2):
     db.add_document(user)
     db.add_document(user2)
     users = db.list_documents(User)
-    assert len(users) == 2
+    expected_user_count = 2
+    assert len(users) == expected_user_count
 
 
 def test_get_and_set_attributes(db, user):
