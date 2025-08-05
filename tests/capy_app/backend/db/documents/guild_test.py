@@ -34,7 +34,7 @@ def clean_db():
         db_instance.drop_collection(collection_name)
 
 
-def test_create_guild_defaults(db):
+def test_create_guild_defaults(_db):
     guild = Guild(_id=1, users=[101, 102], events=[201, 202])
     guild.save()
 
@@ -57,7 +57,7 @@ def test_create_guild_custom_channels(db):
     assert saved_guild.channels.moderator == MODERATOR_CHANNEL_ID
 
 
-def test_create_guild_custom_roles(db):
+def test_create_guild_custom_roles(_db):
     custom_roles = GuildRoles(eboard="President", admin="AdminRole")
     guild = Guild(_id=3, users=[104], events=[204], roles=custom_roles)
     guild.save()
@@ -78,7 +78,7 @@ def test_add_users_and_events(db):
     assert 205 in updated_guild.events
 
 
-def test_update_channels_roles(db):
+def test_update_channels_roles(_db):
     guild = Guild(_id=5, users=[106], events=[206])
     guild.save()
 
