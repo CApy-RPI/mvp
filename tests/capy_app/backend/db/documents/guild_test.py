@@ -88,8 +88,8 @@ def test_update_channels_roles(db):
         set__roles=GuildRoles(eboard="VicePresident", admin="ModeratorRole"),
     )
     updated_guild = Guild.objects.get(_id=5)
-    assert updated_guild.channels.reports == 111
-    assert updated_guild.channels.announcements == 222
-    assert updated_guild.channels.moderator == 333
+    assert updated_guild.channels.reports == REPORTS_CHANNEL_ID
+    assert updated_guild.channels.announcements == ANNOUNCEMENTS_CHANNEL_ID
+    assert updated_guild.channels.moderator == MODERATOR_CHANNEL_ID
     assert updated_guild.roles.eboard == "VicePresident"
     assert updated_guild.roles.admin == "ModeratorRole"
