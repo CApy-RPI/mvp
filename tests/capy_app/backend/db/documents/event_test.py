@@ -12,7 +12,7 @@ REACTIONS_NO = 2
 
 
 @pytest.fixture(scope="module")
-def db():
+def _db():
     """
     Connect to an in-memory MongoDB test database using mongomock,
     as required by newer versions of mongoengine (>= 0.27).
@@ -27,7 +27,7 @@ def db():
     mongoengine.disconnect()
 
 
-def test_event_creation(db):
+def test_event_creation(_db):
     details = EventDetails(
         name="Test Event",
         time=datetime(2025, 1, 1, 12, 0),
@@ -57,7 +57,7 @@ def test_event_creation(db):
     assert saved_event.message_id == 111
 
 
-def test_event_reactions_defaults(db):
+def test_event_reactions_defaults(_db):
     details = EventDetails(name="Event With Reactions", time=datetime(2030, 5, 5, 10, 0))
 
     Event(_id=200, details=details).save()
@@ -68,7 +68,7 @@ def test_event_reactions_defaults(db):
     assert retrieved.details.reactions.no == 0
 
 
-def test_event_required_name(db):
+def test_event_required_name(_db):
     from mongoengine import ValidationError
 
     details = EventDetails(
@@ -84,7 +84,7 @@ def test_event_required_name(db):
     assert "name" in str(excinfo.value)
 
 
-def test_event_required_time(db):
+def test_event_required_time(_db):
     from mongoengine import ValidationError
 
     details = EventDetails(
@@ -100,7 +100,7 @@ def test_event_required_time(db):
     assert "time" in str(excinfo.value)
 
 
-def test_add_users_after_creation(db):
+def test_add_users_after_creation(_db):
     details = EventDetails(name="Modifiable Event", time=datetime(2025, 1, 1, 12, 0))
     event = Event(
         _id=203,
@@ -120,7 +120,7 @@ def test_add_users_after_creation(db):
     assert retrieved.yes_users == [111, 444]
 
 
-def test_set_reactions_explicitly(db):
+def test_set_reactions_explicitly(_db):
     reactions = EventReactions(yes=5, maybe=3, no=2)
     details = EventDetails(
         name="Custom Reactions", time=datetime(2031, 6, 6, 15, 0), reactions=reactions
