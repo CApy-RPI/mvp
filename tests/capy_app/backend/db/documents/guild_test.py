@@ -5,6 +5,7 @@ from mongomock import MongoClient
 from capy_app.backend.db.documents.guild import Guild, GuildChannels, GuildRoles
 
 REPORTS_CHANNEL_ID = 111
+ANNOUNCEMENTS_CHANNEL_ID = 222
 
 
 @pytest.fixture(scope="module")
@@ -51,7 +52,7 @@ def test_create_guild_custom_channels(db):
 
     saved_guild = Guild.objects.get(_id=2)
     assert saved_guild.channels.reports == REPORTS_CHANNEL_ID
-    assert saved_guild.channels.announcements == 456
+    assert saved_guild.channels.announcements == ANNOUNCEMENTS_CHANNEL_ID
     assert saved_guild.channels.moderator == 789
 
 
