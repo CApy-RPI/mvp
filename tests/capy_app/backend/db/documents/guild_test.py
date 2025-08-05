@@ -48,7 +48,7 @@ def test_create_guild_defaults(_db):
     assert isinstance(saved_guild.roles, GuildRoles)
 
 
-def test_create_guild_custom_channels(db):
+def test_create_guild_custom_channels(_db):
     custom_channels = GuildChannels(reports=123, announcements=456, moderator=789)
     guild = Guild(_id=2, users=[103], events=[203], channels=custom_channels)
     guild.save()
@@ -69,7 +69,7 @@ def test_create_guild_custom_roles(_db):
     assert saved_guild.roles.admin == "AdminRole"
 
 
-def test_add_users_and_events(db):
+def test_add_users_and_events(_db):
     guild = Guild(_id=4, users=[], events=[])
     guild.save()
 
