@@ -4,6 +4,7 @@ import mongoengine
 import mongomock
 import pytest
 from mongoengine import ValidationError
+
 from capy_app.backend.db.documents.event import Event, EventDetails, EventReactions
 
 REACTIONS_YES = 5
