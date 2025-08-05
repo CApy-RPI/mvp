@@ -7,6 +7,8 @@ from capy_app.backend.db.documents.guild import Guild, GuildChannels, GuildRoles
 REPORTS_CHANNEL_ID = 111
 ANNOUNCEMENTS_CHANNEL_ID = 222
 MODERATOR_CHANNEL_ID = 333
+USER_ID = 105
+EVENT_ID = 205
 
 
 @pytest.fixture(scope="module")
@@ -74,8 +76,8 @@ def test_add_users_and_events(db):
     # Update users and events
     guild.update(push__users=105, push__events=205)
     updated_guild = Guild.objects.get(_id=4)
-    assert 105 in updated_guild.users
-    assert 205 in updated_guild.events
+    assert USER_ID in updated_guild.users
+    assert EVENT_ID in updated_guild.events
 
 
 def test_update_channels_roles(_db):
