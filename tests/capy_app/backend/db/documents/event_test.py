@@ -6,6 +6,10 @@ import pytest
 
 from capy_app.backend.db.documents.event import Event, EventDetails, EventReactions
 
+REACTIONS_YES = 5
+REACTIONS_MAYBE = 3
+REACTIONS_NO = 2
+
 
 @pytest.fixture(scope="module")
 def db():
@@ -125,6 +129,6 @@ def test_set_reactions_explicitly(db):
     Event(_id=204, details=details).save()
 
     event = Event.objects(_id=204).first()
-    assert event.details.reactions.yes == 5
-    assert event.details.reactions.maybe == 3
-    assert event.details.reactions.no == 2
+    assert event.details.reactions.yes == REACTIONS_YES
+    assert event.details.reactions.maybe == REACTIONS_MAYBE
+    assert event.details.reactions.no == REACTIONS_NO
