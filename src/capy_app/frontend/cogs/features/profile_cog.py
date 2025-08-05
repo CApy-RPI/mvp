@@ -158,29 +158,56 @@ class ProfileCog(commands.Cog):
             f"Profile {action} requested by {interaction.user} (ID: {interaction.user.id})"
         )
 
-        # Check if user exists for the given action
+        if not await self._validate_action(interaction, action, user):
+            return
+
+        profile_data, message = await self.get_profile_data(interaction, action, user)
+        if not profile_data or not message:
+            self.logger.info(f"Profile {action} cancelled by {interaction.user}")
+            return
+
+        if not await self._validate_profile_data(profile_data, message, action):
+            return
+
+        selected_majors = await self._get_valid_majors(message, user)
+        if not selected_majors:
+            return
+
+        if not await self.verify_email(message, profile_data["school_email"], user):
+            return
+
+        await self._save_profile(
+            interaction,
+            action,
+            profile_data,
+            {
+                "selected_majors": selected_majors,
+                "user": user,
+                "message": message,
+            },
+        )
+
+    async def _validate_action(self, interaction, action, user) -> bool:
         if action == "create" and user:
             self.logger.warning(f"User {interaction.user} attempted to create duplicate profile")
             await interaction.response.send_message(
                 "You already have a profile. Use /profile update to modify it.",
                 ephemeral=True,
             )
-            return
+            return False
         elif action == "update" and not user:
             self.logger.warning(f"User {interaction.user} attempted to update non-existent profile")
             await interaction.response.send_message(
                 "You don't have a profile yet! Use /profile create first.",
                 ephemeral=True,
             )
-            return
+            return False
+        return True
 
-        # Get profile data directly from modal and get first message
-        profile_data, message = await self.get_profile_data(interaction, action, user)
-        if not profile_data or not message:
-            self.logger.info(f"Profile {action} cancelled by {interaction.user}")
-            return
-        trycheck = False
+    async def _validate_profile_data(self, profile_data, message, action) -> bool:
         content = ""
+        trycheck = False
+
         if not (profile_data["first_name"].isalpha() and profile_data["last_name"].isalpha()):
             content += "Names cannot consist of numbers or special characters.\n"
             trycheck = True
@@ -198,30 +225,40 @@ class ProfileCog(commands.Cog):
         ):
             content += "Graduation year outside of acceptable bounds.\n"
             trycheck = True
+
         if trycheck:
             view = TryAgainView(self, action)
             await message.edit(content=content, view=view)
-            return
+            return False
 
-        # Get major selection with dropdown using previous message
+        return True
+
+    async def _get_valid_majors(self, message, user) -> list[str] | None:
         while True:
             try:
                 selected_majors, message = await self.get_majors(message, user)
                 if selected_majors != ["Not Set"]:
-                    break
+                    return selected_majors
 
                 await message.edit(content="⚠️ Please select 1 or 2 majors.")
                 time.sleep(1)
 
             except Exception as e:
-                await message.edit(content=e)
+                await message.edit(content=str(e))
                 time.sleep(5)
 
-        # Verify email if needed using previous message
-        if not await self.verify_email(message, profile_data["school_email"], user):
-            return
+    async def _save_profile(
+        self,
+        interaction: discord.Interaction,
+        action: str,
+        profile_data: dict,
+        context: dict,
+    ) -> None:
+        """Save the user profile to the database."""
+        selected_majors = context["selected_majors"]
+        user = context["user"]
+        message = context["message"]
 
-        # Create user profile data
         profile_data = {
             "name": UserName(first=profile_data["first_name"], last=profile_data["last_name"]),
             "major": selected_majors,
@@ -249,36 +286,20 @@ class ProfileCog(commands.Cog):
         message_or_interaction: discord.Message | discord.Interaction,
         user: User,
     ) -> None:
-        """Display a user's profile in an embed.
-
-        Args:
-            message_or_interaction: Either a Message or Interaction to respond to
-            user: The user profile to display
-
-        #TODO: Add profile customization options
-        #TODO: Add profile badges/achievements
-        """
-        # Determine if we're using a Message or Interaction
-
-        is_message = isinstance(message_or_interaction, discord.Message)
+        """Display a user's profile in an embed."""
+        is_interaction = isinstance(message_or_interaction, discord.Interaction)
 
         embed = discord.Embed(
             title=f"{user.profile.name.first}'s Profile",
             color=discord.Color.purple(),
         )
 
-        # Get the avatar URL differently based on the type
         avatar_url: str
-        if isinstance(message_or_interaction, discord.Message):
-            meta = message_or_interaction.interaction_metadata
-            avatar_url = (
-                meta.user.display_avatar.url
-                if meta
-                else message_or_interaction.author.display_avatar.url
-            )
+        if is_interaction:
+            avatar_url = message_or_interaction.user.display_avatar.url
         else:
-            avatar_url = message_or_interaction.user.display_avatar.url
-            avatar_url = message_or_interaction.user.display_avatar.url
+            avatar_url = message_or_interaction.author.display_avatar.url
+
         embed.set_thumbnail(url=avatar_url)
         embed.add_field(name="First Name", value=user.profile.name.first, inline=True)
         embed.add_field(name="Last Name", value=user.profile.name.last, inline=True)
@@ -287,12 +308,13 @@ class ProfileCog(commands.Cog):
         embed.add_field(name="School Email", value=user.profile.school_email, inline=True)
         embed.add_field(name="Student ID", value=user.profile.student_id, inline=True)
 
-        # Use followup instead of edit_original_response
-        # Send differently based on the type
-        if is_message:
-            await message_or_interaction.edit(content=None, embed=embed, view=None)
+        if is_interaction:
+            if message_or_interaction.response.is_done():
+                await message_or_interaction.edit_original_response(embed=embed)
+            else:
+                await message_or_interaction.response.send_message(embed=embed, ephemeral=True)
         else:
-            await message_or_interaction.followup.send(embed=embed, ephemeral=True)
+            await message_or_interaction.edit(content=None, embed=embed, view=None)
 
     async def show_profile(self, interaction: discord.Interaction) -> None:
         """Display the user's profile.
@@ -328,7 +350,8 @@ class ProfileCog(commands.Cog):
 
         view = ConfirmDeleteView()
         await interaction.edit_original_response(
-            content="⚠️ Are you sure you want to delete your profile? This action cannot be undone.",
+            content="⚠️ Are you sure you want to delete your profile? "
+            "This action cannot be undone.",
             view=view,
         )
 
