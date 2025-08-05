@@ -2,9 +2,10 @@
 
 import logging
 import time
+from pathlib import Path
 
 import discord
-from backend.db.database import Database as db
+from backend.db.database import Database
 from backend.db.documents.user import User, UserName, UserProfile
 from discord import app_commands
 from discord.ext import commands
@@ -26,7 +27,7 @@ class TryAgainView(discord.ui.View):
         self.action = action
 
     @discord.ui.button(label="Try Again", style=discord.ButtonStyle.primary)
-    async def retry_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def retry_button(self, interaction: discord.Interaction, _: discord.ui.Button):
         await self.parent_cog.handle_profile(interaction, self.action)
         self.stop()
 
@@ -45,7 +46,7 @@ class ProfileCog(commands.Cog):
     def _load_major_list(self) -> list[str]:
         """Load the list of available majors from file."""
         try:
-            with open(settings.MAJORS_PATH, encoding="utf-8") as f:
+            with Path(settings.MAJORS_PATH).open(encoding="utf-8") as f:
                 majors = [line.strip() for line in f.readlines() if line.strip()]
                 self.logger.info(f"Loaded {len(majors)} majors from file")
                 if not majors:
@@ -102,7 +103,7 @@ class ProfileCog(commands.Cog):
         return await modal_view.initiate_from_interaction(interaction)
 
     async def get_majors(
-        self, message: discord.Message, user: User | None
+        self, message: discord.Message, _user: User | None
     ) -> tuple[list[str], discord.Message]:
         """Get selected majors using dropdown base"""
         config = self.major_handler.get_dropdown_config(self.config["major_dropdown"])
@@ -111,7 +112,7 @@ class ProfileCog(commands.Cog):
         values, message = await view.initiate_from_message(
             message, self.major_handler.get_help_text()
         )
-        print(values)
+        self.logger.debug(f"Dropdown values: {values}")
 
         if not values:
             return ["Not Set"], message
@@ -121,11 +122,10 @@ class ProfileCog(commands.Cog):
         for dropdown_id in values:
             selected.extend(values[dropdown_id])
 
-        if len(selected) > 2:
-            await message.edit(content="You can only select up to 2 majors.", view=10)
+        max_majors = 2
+        if len(selected) > max_majors:
+            await message.edit(content=f"You can only select up to {max_majors} majors.", view=10)
             return ["Not Set"], message  # Limit to max 2 majors total
-
-        # TODO Check if more than 2-3 majors and warn
 
         return selected, message  # Limit to max 2 majors total
 
@@ -153,7 +153,7 @@ class ProfileCog(commands.Cog):
 
     async def handle_profile(self, interaction: discord.Interaction, action: str) -> None:
         """Handle profile creation and updates."""
-        user = db.get_document(User, interaction.user.id)
+        user = Database.get_document(User, interaction.user.id)
         self.logger.info(
             f"Profile {action} requested by {interaction.user} (ID: {interaction.user.id})"
         )
@@ -190,13 +190,15 @@ class ProfileCog(commands.Cog):
         if not (profile_data["student_id"].isdigit()):
             content += "Student ID must be a number.\n"
             trycheck = True
+
+        grad_year_lower_bound = 1899
+        grad_year_upper_bound = 2100
         if (profile_data["graduation_year"].isdigit()) and not (
-            int(profile_data["graduation_year"]) > 1899
-            and int(profile_data["graduation_year"]) < 2100
+            grad_year_lower_bound < int(profile_data["graduation_year"]) < grad_year_upper_bound
         ):
             content += "Graduation year outside of acceptable bounds.\n"
             trycheck = True
-        if trycheck == True:
+        if trycheck:
             view = TryAgainView(self, action)
             await message.edit(content=content, view=view)
             return
@@ -230,13 +232,13 @@ class ProfileCog(commands.Cog):
 
         if action == "create":
             new_user = User(_id=interaction.user.id, profile=UserProfile(**profile_data))
-            db.add_document(new_user)
+            Database.add_document(new_user)
             user = new_user
             self.logger.info(f"Created new profile for {interaction.user}")
         else:
             updates = {f"profile__{k}": v for k, v in profile_data.items()}
-            db.update_document(user, updates)
-            user = db.get_document(User, interaction.user.id)
+            Database.update_document(user, updates)
+            user = Database.get_document(User, interaction.user.id)
             self.logger.info(f"Updated profile for {interaction.user}")
 
         # Show the profile using the final message
@@ -298,7 +300,7 @@ class ProfileCog(commands.Cog):
         Args:
             interaction: The Discord interaction
         """
-        user = db.get_document(User, interaction.user.id)
+        user = Database.get_document(User, interaction.user.id)
         if not user:
             await interaction.edit_original_response(
                 content="You don't have a profile yet! Use /profile create first."
@@ -316,7 +318,7 @@ class ProfileCog(commands.Cog):
         #! Note: This action is irreversible
         #TODO: Add profile backup before deletion
         """
-        user = db.get_document(User, interaction.user.id)
+        user = Database.get_document(User, interaction.user.id)
         self.logger.info(f"Profile deletion requested by {interaction.user}")
 
         if not user:
@@ -332,7 +334,7 @@ class ProfileCog(commands.Cog):
 
         await view.wait()
         if view.value:
-            db.delete_document(user)
+            Database.delete_document(user)
             await interaction.edit_original_response(
                 content="Your profile has been deleted.", view=None
             )
