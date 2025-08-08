@@ -40,7 +40,7 @@ class Bot(commands.AutoShardedBot):
             guild_data = Database.Guild(_id=member.guild.id)
             guild_data.save()
             self.logger.info(
-                f"Created new guild entry for {member.guild.name}" f" (ID: {member.guild.id})"
+                f"Created new guild entry for {member.guild.name} (ID: {member.guild.id})"
             )
         else:
             Database.sync_document_with_template(guild_data, Database.Guild)
@@ -48,7 +48,7 @@ class Bot(commands.AutoShardedBot):
         guild_data.users.append(member.id)
         guild_data.save()
         self.logger.info(
-            f"User {member.id} joined guild {member.guild.name}" f" (ID: {member.guild.id})"
+            f"User {member.id} joined guild {member.guild.name} (ID: {member.guild.id})"
         )
 
     async def _load_cogs_recursive(self, path: pathlib.Path, base_package: str) -> None:
@@ -97,9 +97,7 @@ class Bot(commands.AutoShardedBot):
             self.logger.info(f"Synced {len(synced)} application commands")
 
         self.logger.info(f"Logged in as {self.user.name} - {self.user.id}")
-        self.logger.info(
-            f"Connected to {len(self.guilds)} guilds " f"across {self.shard_count} shards"
-        )
+        self.logger.info(f"Connected to {len(self.guilds)} guilds across {self.shard_count} shards")
 
     async def on_message(self, message: discord.Message) -> None:
         """Process incoming messages and commands.

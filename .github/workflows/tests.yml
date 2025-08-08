@@ -28,4 +28,5 @@ jobs:
           pre-commit run --all-files
       - name: Run tests with pytest
         run: |
+          pip install -e .
           pytest --cov=src --cov-report=xml --cov-report=term-missing

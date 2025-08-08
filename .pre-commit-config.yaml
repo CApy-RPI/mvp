@@ -11,11 +11,11 @@ repos:
         require_serial: true
         verbose: true
   - repo: https://github.com/psf/black
-    rev: 24.4.2
+    rev: 25.1.0
     hooks:
       - id: black
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.5.0
+    rev: v0.12.8
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]

@@ -86,7 +86,6 @@ def test_event_required_name(_db):
 
 
 def test_event_required_time(_db):
-
     details = EventDetails(
         name="Missing Time"
         # time missing

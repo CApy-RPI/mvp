@@ -48,7 +48,7 @@ class MajorHandler:
             end_idx = min((i + 1) * letters_per_group, len(first_letters))
             end = first_letters[end_idx] if end_idx < len(first_letters) else "["
 
-            group_id = f"major_{start}_{chr(ord(end)-1)}"
+            group_id = f"major_{start}_{chr(ord(end) - 1)}"
             ranges[group_id] = (start, end)
 
         return ranges
