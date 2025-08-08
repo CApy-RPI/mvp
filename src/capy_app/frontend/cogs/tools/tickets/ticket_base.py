@@ -90,14 +90,14 @@ class TicketBase(commands.Cog):
                     + values.get(f"{self.cmd_name}_title")
                 ),
                 description=values.get(f"{self.cmd_name}_description"),
-                color=STATUS_ERROR,
+                color=self.unmarked_color,
             )
             embed.add_field(name="Submitted by", value=interaction.user.mention)
 
             footer_text: str = "Status: Unmarked | "
             for key, value in self.status_emoji.items():
                 footer_text += f"{key} {value} • "
-            footer_text.removesuffix(" • ")
+            footer_text = footer_text.removesuffix(" • ")
 
             embed.set_footer(text=footer_text)
 
