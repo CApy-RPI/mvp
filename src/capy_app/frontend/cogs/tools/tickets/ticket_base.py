@@ -67,7 +67,10 @@ class TicketBase(commands.Cog):
                 self.logger.error(f"{self.cmd_name_verbose} channel not found")
                 error_embed = discord.Embed(
                     title="❌ Configuration Error",
-                    description=f"{self.cmd_name_verbose} channel not configured. Please contact an administrator.",
+                    description=(
+                        f"{self.cmd_name_verbose} channel not configured. "
+                        "Please contact an administrator."
+                    ),
                     color=STATUS_ERROR,
                 )
                 await interaction.followup.send(
@@ -82,7 +85,11 @@ class TicketBase(commands.Cog):
                 )
                 error_embed = discord.Embed(
                     title="❌ Channel Error",
-                    description="The channel for receiving this type of ticket is invalid due to not being a text channel, please contact the bot administrators.",
+                    description=(
+                        "The channel for receiving this type of ticket is invalid "
+                        "due to not being a text channel, please contact the bot "
+                        "administrators."
+                    ),
                     color=STATUS_ERROR,
                 )
                 await interaction.followup.send(
@@ -126,7 +133,9 @@ class TicketBase(commands.Cog):
             if not interaction.response.is_done():
                 error_embed = discord.Embed(
                     title="❌ Submission Failed",
-                    description=f"Failed to submit {self.cmd_name_verbose}. Please try again later.",
+                    description=(
+                        f"Failed to submit {self.cmd_name_verbose}. " "Please try again later."
+                    ),
                     color=STATUS_ERROR,
                 )
                 await interaction.response.send_message(
