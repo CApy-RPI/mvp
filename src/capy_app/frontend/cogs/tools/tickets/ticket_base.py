@@ -65,9 +65,13 @@ class TicketBase(commands.Cog):
 
             if not channel:
                 self.logger.error(f"{self.cmd_name_verbose} channel not found")
+                error_embed = discord.Embed(
+                    title="❌ Configuration Error",
+                    description=f"{self.cmd_name_verbose} channel not configured. Please contact an administrator.",
+                    color=STATUS_ERROR,
+                )
                 await interaction.followup.send(
-                    f"❌ {self.cmd_name_verbose} channel not configured. "
-                    "Please contact an administrator.",
+                    embed=error_embed,
                     ephemeral=True,
                 )
                 return
@@ -76,10 +80,13 @@ class TicketBase(commands.Cog):
                     f"{self.request_channel_id} for {self.cmd_name_verbose} "
                     "tickets is not a Text Channel"
                 )
+                error_embed = discord.Embed(
+                    title="❌ Channel Error",
+                    description="The channel for receiving this type of ticket is invalid due to not being a text channel, please contact the bot administrators.",
+                    color=STATUS_ERROR,
+                )
                 await interaction.followup.send(
-                    "The channel for receiving this type of ticket is invalid "
-                    "due to not being a text channel, please contact the bot "
-                    "administrators.",
+                    embed=error_embed,
                     ephemeral=True,
                 )
                 return
@@ -117,16 +124,26 @@ class TicketBase(commands.Cog):
         except discord.HTTPException as e:
             self.logger.error(f"HTTP error processing {self.cmd_name_verbose}: {e!s}")
             if not interaction.response.is_done():
+                error_embed = discord.Embed(
+                    title="❌ Submission Failed",
+                    description=f"Failed to submit {self.cmd_name_verbose}. Please try again later.",
+                    color=STATUS_ERROR,
+                )
                 await interaction.response.send_message(
-                    f"❌ Failed to submit {self.cmd_name_verbose}. " "Please try again later.",
+                    embed=error_embed,
                     ephemeral=True,
                 )
 
         except Exception as e:
             self.logger.error(f"Error processing {self.cmd_name_verbose}: {e!s}")
             if not interaction.response.is_done():
+                error_embed = discord.Embed(
+                    title="❌ Unexpected Error",
+                    description="An unexpected error occurred. Please try again later.",
+                    color=STATUS_ERROR,
+                )
                 await interaction.response.send_message(
-                    "❌ An unexpected error occurred. Please try again later.",
+                    embed=error_embed,
                     ephemeral=True,
                 )
 
