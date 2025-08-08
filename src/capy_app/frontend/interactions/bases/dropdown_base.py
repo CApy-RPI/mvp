@@ -108,6 +108,8 @@ class AcceptButton(Button["DynamicDropdownView"]):
         self.view.accepted = True
         self.view._set_data()
         self.view.stop()
+        # Only respond once: defer if no other response is sent
+      #  if not interaction.response.is_done():
         await interaction.response.defer()
 
 
@@ -127,7 +129,9 @@ class CancelButton(Button["DynamicDropdownView"]):
         assert self.view is not None
         logger.debug("Cancel button clicked")
         self.view.accepted = False
+        self.view._set_data()
         self.view.stop()
+        await self.view._message.edit(content="Selection cancelled", view=None)
         await interaction.response.defer()
 
 
@@ -224,7 +228,8 @@ class DynamicDropdownView(View):
         self.accepted: bool = False
         self.data_future = asyncio.get_event_loop().create_future()
         self.page_number = page_number
-        self._dropdowns_data = dropdowns or []
+
+        logger.debug(f"Dropdowns passed arg: {dropdowns}")
         self._dropdowns: list[DynamicDropdown] = []
         self._completed: bool = False
         self._timed_out: bool = False
@@ -234,16 +239,22 @@ class DynamicDropdownView(View):
         self._auto_buttons, self._add_buttons = buttons
         self._collection = collection if collection is not None else {}
         dropdowns = dropdowns or []
-        if (len(dropdowns) > self.MAX_DROPDOWNS) or (
-            (len(dropdowns) > (self.MAX_DROPDOWNS - 1))
-            and (self._auto_buttons or self._add_buttons)
-        ):
-            raise ValueError(f"Number of dropdowns exceeds Discord limit of {self.MAX_DROPDOWNS}.")
-
-        # for dropdown in dropdowns:
-        #   self._add_dropdown(**dropdown)
+        # Flatten all dropdown configs into chunks
+        all_chunks = []
+        for dropdown_config in dropdowns:
+            selections = dropdown_config.get("selections", [])
+            chunks = self.chunk_selections(selections)
+            for chunk in chunks:
+                config_copy = dropdown_config.copy()
+                config_copy["selections"] = chunk
+                all_chunks.append(config_copy)
+        self._dropdowns_data = all_chunks
         self._clear_dropdown()
-        self._add_dropdown(**dropdowns[self.page_number])
+
+        if self.page_number < len(self._dropdowns_data):
+            self._add_dropdown(**self._dropdowns_data[self.page_number])
+        else:
+            logger.warning(f"Page number {self.page_number} out of range for dropdowns_data")
         self._add_accept_cancel_buttons_if_needed()
 
     async def initiate_from_interaction(
@@ -285,12 +296,21 @@ class DynamicDropdownView(View):
         with suppress(NotFound):
             await self._message.edit(content="Selection timed out", view=None)
 
+    def chunk_selections(self,
+        selections: list[dict[str, Any]],
+        chunk_size: int = 25) -> list[list[dict[str, Any]]]:
+        """Split selections into chunks of up to chunk_size each."""
+        return [selections[i:i + chunk_size] for i in range(0, len(selections), chunk_size)]
+
     def _add_dropdown(
         self,
         selections: list[dict[str, Any]],
         **options,
     ) -> DynamicDropdown:
-        dropdown = DynamicDropdown(selections=selections, **options)
+
+
+        dropdown = DynamicDropdown(selections, **options)
+
         # Code to update the max value according to the running total: doesn't work because
         # dropdowns cannot have a max value of 0, which breaks the command.
         # runningtotal=0
@@ -365,7 +385,7 @@ class DynamicDropdownView(View):
                         # await self._message.edit(content="Selection timed out", view=None)
                     else:
                         logger.debug("Selection cancelled")
-                        # await self._message.edit(content="Selection cancelled", view=None)
+                        #await self._message.edit(content="Selection cancelled", view=None)
                 except NotFound:
                     logger.warning("Message not found when trying to update status")
             if self.accepted and not self.data_future.done():
