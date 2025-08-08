@@ -71,7 +71,7 @@ class TicketBase(commands.Cog):
                     ephemeral=True,
                 )
                 return
-            if channel is not TextChannel:
+            if not isinstance(channel, TextChannel):
                 self.logger.error(
                     f"{self.request_channel_id} for {self.cmd_name_verbose} "
                     "tickets is not a Text Channel"

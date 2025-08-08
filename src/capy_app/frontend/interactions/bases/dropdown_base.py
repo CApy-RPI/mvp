@@ -109,7 +109,7 @@ class AcceptButton(Button["DynamicDropdownView"]):
         self.view._set_data()
         self.view.stop()
         # Only respond once: defer if no other response is sent
-      #  if not interaction.response.is_done():
+        #  if not interaction.response.is_done():
         await interaction.response.defer()
 
 
@@ -296,19 +296,17 @@ class DynamicDropdownView(View):
         with suppress(NotFound):
             await self._message.edit(content="Selection timed out", view=None)
 
-    def chunk_selections(self,
-        selections: list[dict[str, Any]],
-        chunk_size: int = 25) -> list[list[dict[str, Any]]]:
+    def chunk_selections(
+        self, selections: list[dict[str, Any]], chunk_size: int = 25
+    ) -> list[list[dict[str, Any]]]:
         """Split selections into chunks of up to chunk_size each."""
-        return [selections[i:i + chunk_size] for i in range(0, len(selections), chunk_size)]
+        return [selections[i : i + chunk_size] for i in range(0, len(selections), chunk_size)]
 
     def _add_dropdown(
         self,
         selections: list[dict[str, Any]],
         **options,
     ) -> DynamicDropdown:
-
-
         dropdown = DynamicDropdown(selections, **options)
 
         # Code to update the max value according to the running total: doesn't work because
@@ -385,7 +383,7 @@ class DynamicDropdownView(View):
                         # await self._message.edit(content="Selection timed out", view=None)
                     else:
                         logger.debug("Selection cancelled")
-                        #await self._message.edit(content="Selection cancelled", view=None)
+                        # await self._message.edit(content="Selection cancelled", view=None)
                 except NotFound:
                     logger.warning("Message not found when trying to update status")
             if self.accepted and not self.data_future.done():
