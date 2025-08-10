@@ -278,8 +278,8 @@ class ProfileCog(commands.Cog):
             user = Database.get_document(User, interaction.user.id)
             self.logger.info(f"Updated profile for {interaction.user}")
 
-        # Show the profile using the final message
-        await self.show_profile_embed(message, user)
+        # Show the profile using the original interaction to get user's avatar
+        await self.show_profile_embed(interaction, user)
 
     async def show_profile_embed(
         self,
