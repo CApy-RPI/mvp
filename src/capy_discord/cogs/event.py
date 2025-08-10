@@ -389,10 +389,27 @@ class Events(commands.Cog):
             await ctx.send("ERROR: Event not found.")
             return
 
-        # Find the #announcements channel
-        announcement_channel = discord.utils.get(
-            ctx.guild.text_channels, name="announcements"
-        )
+        # Get guild settings to find the configured announcements channel
+        guild = self.bot.db.get_data("guild", ctx.guild.id)
+        announcements_channel_id = guild.get_value("announcements_channel")
+        
+        announcement_channel = None
+        
+        # Try to get the channel by ID from guild settings
+        if announcements_channel_id:
+            try:
+                announcement_channel = ctx.guild.get_channel(int(announcements_channel_id))
+            except (ValueError, TypeError):
+                # If the ID is invalid, fall back to looking by name
+                announcement_channel = discord.utils.get(
+                    ctx.guild.text_channels, name=str(announcements_channel_id)
+                )
+        
+        # If no channel found via settings, fall back to looking for "announcements" channel
+        if announcement_channel is None:
+            announcement_channel = discord.utils.get(
+                ctx.guild.text_channels, name="announcements"
+            )
 
         # Create it if it doesn't exist
         if announcement_channel is None:
@@ -407,6 +424,9 @@ class Events(commands.Cog):
                 await announcement_channel.set_permissions(
                     ctx.guild.me, send_messages=True
                 )
+                # Update guild settings with the new channel ID
+                guild.set_value("announcements_channel", announcement_channel.id)
+                self.bot.db.upsert_data(guild)
             except discord.Forbidden:
                 await ctx.send("ERROR: I do not have permission to create channels.")
                 return

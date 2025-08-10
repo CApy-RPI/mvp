@@ -17,7 +17,7 @@ class GuildRoles(RestrictedEmbeddedDocument):
 class Guild(RestrictedDocument):
     users = me.ListField(me.IntField())
     events = me.ListField(me.IntField())
-    channels = me.kEmbeddedDocumentField(GuildChannels, default=GuildChannels)
+    channels = me.EmbeddedDocumentField(GuildChannels, default=GuildChannels)
     roles = me.EmbeddedDocumentField(GuildRoles, default=GuildRoles)
 
     meta = {**RestrictedDocument.meta, "collection": "guilds"}
