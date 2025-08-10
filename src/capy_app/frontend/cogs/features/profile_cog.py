@@ -151,6 +151,37 @@ class ProfileCog(commands.Cog):
             return False
         return self.email_verifier.verify_code(message.author.id, values["verification_code"])
 
+    async def send_verification_code(
+        self, message: discord.Message, new_email: str, user: User | None
+    ) -> bool:
+        """Send verification code without prompting for input yet."""
+        if user and new_email == user.profile.school_email:
+            return True
+
+        if not new_email.endswith("edu"):
+            await message.edit(content="Invalid School email!")
+            return False
+
+        if not self.email_verifier.send_verification_email(message.author.id, new_email):
+            await message.edit(content="Failed to send verification email.")
+            return False
+
+        # Inform user and proceed to next step (majors) while email delivers
+        await message.edit(
+            content=(
+                "Verification code sent to your email. Please select your major(s) while you wait."
+            )
+        )
+        return True
+
+    async def prompt_and_verify_code(self, message: discord.Message) -> bool:
+        """Prompt user for verification code and validate it."""
+        verify_view = ButtonDynamicModalView(**self.config["verify_modal"])
+        values, _ = await verify_view.initiate_from_message(message)
+        if not values:
+            return False
+        return self.email_verifier.verify_code(message.author.id, values["verification_code"])
+
     async def handle_profile(self, interaction: discord.Interaction, action: str) -> None:
         """Handle profile creation and updates."""
         user = Database.get_document(User, interaction.user.id)
@@ -169,11 +200,20 @@ class ProfileCog(commands.Cog):
         if not await self._validate_profile_data(profile_data, message, action):
             return
 
+        # Send verification code now, but collect it after major selection
+        needs_verification = not (
+            user and profile_data["school_email"] == user.profile.school_email
+        )
+        if needs_verification and not await self.send_verification_code(
+            message, profile_data["school_email"], user
+        ):
+            return
+
         selected_majors = await self._get_valid_majors(message, user)
         if not selected_majors:
             return
 
-        if not await self.verify_email(message, profile_data["school_email"], user):
+        if needs_verification and not await self.prompt_and_verify_code(message):
             return
 
         await self._save_profile(
@@ -257,7 +297,6 @@ class ProfileCog(commands.Cog):
         """Save the user profile to the database."""
         selected_majors = context["selected_majors"]
         user = context["user"]
-        message = context["message"]
 
         profile_data = {
             "name": UserName(first=profile_data["first_name"], last=profile_data["last_name"]),
@@ -310,7 +349,11 @@ class ProfileCog(commands.Cog):
 
         if is_interaction:
             if message_or_interaction.response.is_done():
-                await message_or_interaction.edit_original_response(embed=embed)
+                try:
+                    await message_or_interaction.edit_original_response(embed=embed)
+                except Exception:
+                    # If there's no original message (e.g., modal used), send a followup instead
+                    await message_or_interaction.followup.send(embed=embed, ephemeral=True)
             else:
                 await message_or_interaction.response.send_message(embed=embed, ephemeral=True)
         else:
