@@ -125,9 +125,7 @@ class GuildCog(commands.Cog):
             if message:
                 await message.edit(content="No settings configured.", view=None)
             else:
-                await interaction.response.send_message(
-                    "No settings configured.", ephemeral=True
-                )
+                await interaction.response.send_message("No settings configured.", ephemeral=True)
             return
 
         embed = discord.Embed(title="Server Settings", color=colors.GUILD)
