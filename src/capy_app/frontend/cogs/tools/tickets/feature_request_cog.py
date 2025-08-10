@@ -52,9 +52,9 @@ class FeatureRequestCog(TicketBase):
                 "ephemeral": False,
                 "button_label": "Open Survey",
                 "button_style": ButtonStyle.success,
-                "message_prompt": "📝 Ready to submit a bug report? Click the button below!",
+                "message_prompt": "📝 Ready to submit a feature request? Click the button below!",
                 "modal": {
-                    "title": "Feedback Form",
+                    "title": "Feature Request Form",
                     "fields": [
                         {
                             "label": "Feature Title",
