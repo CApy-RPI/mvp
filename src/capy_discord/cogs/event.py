@@ -12,17 +12,73 @@ class Events(commands.Cog):
         self.bot.logger.info("Event cog initialized.")
         self.allowed_reactions = ["✅", "❌", "❔"]
 
+    def is_event_passed(self, event_datetime_str, event_timezone_str=None):
+        """
+        Check if an event has passed based on its datetime and timezone.
+        
+        Args:
+            event_datetime_str (str): The event datetime string
+            event_timezone_str (str, optional): The event timezone string
+            
+        Returns:
+            bool: True if the event has passed, False otherwise
+        """
+        try:
+            # Parse the event datetime - this might need adjustment based on actual format
+            if event_timezone_str:
+                # If timezone info is available, use it
+                event_dt = localize_datetime(event_datetime_str, event_timezone_str)
+            else:
+                # Default timezone handling
+                event_dt = datetime.fromisoformat(event_datetime_str.replace('Z', '+00:00'))
+            
+            # Compare with current time
+            current_time = datetime.now(timezone.utc)
+            return event_dt < current_time
+        except (ValueError, TypeError, AttributeError):
+            # If we can't parse the datetime, assume it's not passed
+            return False
+
     @commands.group(name="events", help="Access/Modify Event data.")
     async def events(self, ctx):
         """
-        Lists all guild events
+        Lists all guild events (including passed events)
         """
 
         if ctx.invoked_subcommand is None:
             self.bot.logger.info(f"User {ctx.author} requested the list of events.")
-            guild_events = self.bot.db.get_paginated_linked_data(
-                "event", self.bot.db.get_data("guild", ctx.guild.id), 1, 10
-            )
+            
+            # Get ALL events, including passed ones
+            # First try to get current/future events
+            guild_events = []
+            try:
+                guild_events = self.bot.db.get_paginated_linked_data(
+                    "event", self.bot.db.get_data("guild", ctx.guild.id), 1, 10
+                )
+            except AttributeError:
+                # If the method doesn't exist, try alternative approach
+                try:
+                    guild_data = self.bot.db.get_data("guild", ctx.guild.id)
+                    if guild_data and hasattr(guild_data, 'get_value'):
+                        event_ids = guild_data.get_value("event") or []
+                        guild_events = []
+                        for event_id in event_ids:
+                            event_data = self.bot.db.get_data("event", event_id)
+                            if event_data:
+                                guild_events.append(event_data)
+                except:
+                    pass
+            
+            # Also try to get deleted/old events if there's a method for it
+            try:
+                # Try to get deleted events (which might include old events)
+                old_events = self.bot.db.get_paginated_linked_data(
+                    "event", self.bot.db.get_data("guild", ctx.guild.id), 1, 10, deleted=True
+                )
+                if old_events:
+                    guild_events.extend(old_events)
+            except:
+                pass
 
             if not guild_events:
                 self.bot.logger.info(f"No events found for guild {ctx.guild.id}.")
@@ -40,9 +96,35 @@ class Events(commands.Cog):
         """Handles output for the command to get events the user is registered for."""
         self.bot.logger.info(f"User {ctx.author.id} requested their registered events.")
 
-        user_events = self.bot.db.get_paginated_linked_data(
-            "event", self.bot.db.get_data("user", ctx.author.id), 1, 10
-        )
+        # Get ALL user events, including passed ones
+        user_events = []
+        try:
+            user_events = self.bot.db.get_paginated_linked_data(
+                "event", self.bot.db.get_data("user", ctx.author.id), 1, 10
+            )
+        except AttributeError:
+            # If the method doesn't exist, try alternative approach
+            try:
+                user_data = self.bot.db.get_data("user", ctx.author.id)
+                if user_data and hasattr(user_data, 'get_value'):
+                    event_ids = user_data.get_value("event") or []
+                    user_events = []
+                    for event_id in event_ids:
+                        event_data = self.bot.db.get_data("event", event_id)
+                        if event_data:
+                            user_events.append(event_data)
+            except:
+                pass
+        
+        # Also try to get old/deleted events
+        try:
+            old_user_events = self.bot.db.get_paginated_linked_data(
+                "event", self.bot.db.get_data("user", ctx.author.id), 1, 10, deleted=True
+            )
+            if old_user_events:
+                user_events.extend(old_user_events)
+        except:
+            pass
 
         if not user_events:
             await self.send_no_events_embed(ctx)
@@ -57,16 +139,33 @@ class Events(commands.Cog):
         help="Show details of a specific event. Usage: !event show [event_id]",
     )
     async def show_event(self, ctx, event_id: int):
-        """Displays the details of a specific event by its ID."""
+        """Displays the details of a specific event by its ID (including passed events)."""
         self.bot.logger.info(
             f"User {ctx.author} requested details for event ID: {event_id}."
         )
 
         event_data = self.bot.db.get_data("event", event_id)
+        
+        # If not found in active events, try to find in deleted/old events
+        if not event_data:
+            try:
+                # Try to get deleted events that might include old events
+                deleted_events = self.bot.db.get_paginated_data("event", 1, 100, deleted=True)
+                for deleted_event in deleted_events:
+                    if deleted_event.get_value("id") == event_id:
+                        event_data = deleted_event
+                        break
+            except:
+                pass
 
         if not event_data:
             await ctx.send(f"No event found with ID: {event_id}.")
             return
+
+        # Check if event has passed
+        event_datetime = event_data.get_value("datetime")
+        event_timezone = event_data.get_value("timezone")
+        is_passed = self.is_event_passed(event_datetime, event_timezone)
 
         embed = self.create_event_embed(
             name=event_data.get_value("name"),
@@ -74,16 +173,127 @@ class Events(commands.Cog):
             time_str=event_data.get_value("datetime"),
             location=event_data.get_value("location"),
             event_id=event_data.get_value("id"),
+            is_passed=is_passed,
+            timezone=event_timezone
         )
         await ctx.send(embed=embed)
+
+    @events.command(
+        name="edit",
+        help="Edit an existing event. Usage: !event edit [event_id]",
+    )
+    async def edit_event(self, ctx, event_id: int):
+        """Edit an existing event by its ID (including passed events)."""
+        self.bot.logger.info(
+            f"User {ctx.author} is editing event ID: {event_id}."
+        )
+
+        event_data = self.bot.db.get_data("event", event_id)
+        
+        # If not found in active events, try to find in deleted/old events
+        if not event_data:
+            try:
+                # Try to get deleted events that might include old events
+                deleted_events = self.bot.db.get_paginated_data("event", 1, 100, deleted=True)
+                for deleted_event in deleted_events:
+                    if deleted_event.get_value("id") == event_id:
+                        event_data = deleted_event
+                        break
+            except:
+                pass
+
+        if not event_data:
+            await ctx.send(f"No event found with ID: {event_id}.")
+            return
+
+        # Check if event has passed
+        event_datetime = event_data.get_value("datetime")
+        event_timezone = event_data.get_value("timezone")
+        is_passed = self.is_event_passed(event_datetime, event_timezone)
+
+        # Show current event details
+        current_embed = self.create_event_embed(
+            name=event_data.get_value("name"),
+            event_description=event_data.get_value("description"),
+            time_str=event_data.get_value("datetime"),
+            location=event_data.get_value("location"),
+            event_id=event_data.get_value("id"),
+            is_passed=is_passed,
+            timezone=event_timezone
+        )
+        current_embed.title = "Current Event Details"
+        await ctx.send(embed=current_embed)
+
+        if is_passed:
+            await ctx.send("⚠️ **Warning**: This event has already passed. You can still edit it, but consider if changes are necessary.")
+
+        # Get new event details
+        await ctx.send("Let's edit this event. Press Enter to keep current values or type new ones:")
+
+        # Edit name
+        await ctx.send(f"Current name: **{event_data.get_value('name')}**\nEnter new name (or press Enter to keep current):")
+        name_response = await self.bot.wait_for("message", check=lambda m: m.author == ctx.author)
+        new_name = name_response.content.strip() if name_response.content.strip() else event_data.get_value('name')
+
+        # Edit description
+        await ctx.send(f"Current description: **{event_data.get_value('description')}**\nEnter new description (or press Enter to keep current):")
+        desc_response = await self.bot.wait_for("message", check=lambda m: m.author == ctx.author)
+        new_description = desc_response.content.strip() if desc_response.content.strip() else event_data.get_value('description')
+
+        # Edit location
+        await ctx.send(f"Current location: **{event_data.get_value('location')}**\nEnter new location (or press Enter to keep current):")
+        location_response = await self.bot.wait_for("message", check=lambda m: m.author == ctx.author)
+        new_location = location_response.content.strip() if location_response.content.strip() else event_data.get_value('location')
+
+        # For date/time, we'll ask if they want to change it
+        await ctx.send(f"Current date/time: **{event_data.get_value('datetime')}**\nDo you want to change the date/time? (yes/no):")
+        datetime_change_response = await self.bot.wait_for("message", check=lambda m: m.author == ctx.author)
+        
+        new_datetime = event_data.get_value('datetime')
+        new_timezone = event_data.get_value('timezone')
+        
+        if datetime_change_response.content.lower().startswith('y'):
+            date = await self.ask_for_event_date(ctx)
+            time = await self.ask_for_event_time(ctx)
+            new_timezone = get_timezone(time)
+            new_datetime = format_time(f"{date} {time}")
+
+        # Update the event data
+        event_data.set_value("name", new_name)
+        event_data.set_value("description", new_description)
+        event_data.set_value("location", new_location)
+        event_data.set_value("datetime", new_datetime)
+        event_data.set_value("timezone", new_timezone)
+
+        # Save the updated event
+        self.bot.db.upsert_data(event_data)
+
+        # Check if the updated event is now passed or not
+        updated_is_passed = self.is_event_passed(new_datetime, new_timezone)
+
+        # Show updated event details
+        updated_embed = self.create_event_embed(
+            name=new_name,
+            event_description=new_description,
+            time_str=new_datetime,
+            location=new_location,
+            event_id=event_id,
+            is_passed=updated_is_passed,
+            timezone=new_timezone
+        )
+        updated_embed.title = "Event Updated Successfully!"
+        updated_embed.description = f"The event '{new_name}' has been updated."
+        
+        await ctx.send(embed=updated_embed)
+        self.bot.logger.info(f"Event ID {event_id} updated successfully by {ctx.author}.")
 
     async def send_no_events_embed(self, ctx):
         """
         Sends an embed message when there are no upcoming events.
         """
-        self.bot.logger.info(f"No upcoming events for guild {ctx.guild.id}.")
+        self.bot.logger.info(f"No events for guild {ctx.guild.id}.")
         embed = discord.Embed(
-            title="No Upcoming Events",
+            title="No Events Found",
             description="There are no events scheduled at the moment.",
             color=discord.Color.red(),
         )
@@ -91,20 +301,56 @@ class Events(commands.Cog):
 
     def create_events_embed(self, guild_events):
         """
-        Creates an embed with the list of upcoming events.
+        Creates an embed with the list of events (including passed events with labels).
         """
         embed = discord.Embed(
-            title="Upcoming Events",
+            title="Events",
             color=discord.Color.green(),
         )
 
-        for event in guild_events:
-            event_details = f"{localize_datetime(event.get_value('datetime'), event.get_value('timezone'))} \nEvent ID: {event.get_value('id')}"
-            embed.add_field(
-                name=event.get_value("name"), value=event_details, inline=False
-            )
+        current_events = []
+        passed_events = []
 
-        self.bot.logger.info(f"Created events embed with {len(guild_events)} events.")
+        for event in guild_events:
+            event_datetime = event.get_value('datetime')
+            event_timezone = event.get_value('timezone')
+            
+            # Check if event has passed
+            is_passed = self.is_event_passed(event_datetime, event_timezone)
+            
+            if is_passed:
+                passed_events.append(event)
+            else:
+                current_events.append(event)
+
+        # Add current/upcoming events first
+        if current_events:
+            for event in current_events:
+                event_details = f"{localize_datetime(event.get_value('datetime'), event.get_value('timezone'))} \nEvent ID: {event.get_value('id')}"
+                embed.add_field(
+                    name=event.get_value("name"), value=event_details, inline=False
+                )
+
+        # Add passed events with PASSED label
+        if passed_events:
+            if current_events:
+                embed.add_field(name="\u200b", value="**— PASSED EVENTS —**", inline=False)
+            
+            for event in passed_events:
+                event_details = f"🚫 **PASSED** - {localize_datetime(event.get_value('datetime'), event.get_value('timezone'))} \nEvent ID: {event.get_value('id')}"
+                embed.add_field(
+                    name=f"🕒 {event.get_value('name')}", value=event_details, inline=False
+                )
+
+        total_events = len(current_events) + len(passed_events)
+        if current_events and passed_events:
+            embed.title = f"Events ({len(current_events)} upcoming, {len(passed_events)} passed)"
+        elif passed_events and not current_events:
+            embed.title = f"Events ({len(passed_events)} passed)"
+        elif current_events:
+            embed.title = f"Upcoming Events ({len(current_events)})"
+
+        self.bot.logger.info(f"Created events embed with {total_events} events.")
         return embed
 
     @events.command(name="add", help="Add a new event. Usage: !event add")
@@ -152,7 +398,9 @@ class Events(commands.Cog):
     ):
         """Creates a confirmation embed for the added event."""
         embed = self.create_event_embed(
-            name, event_description, datetime_str, location, event_id
+            name, event_description, datetime_str, location, event_id,
+            is_passed=False,  # New events are never passed
+            timezone=None
         )
         embed.title = "Event Added Successfully!"
         embed.description = f"The event '{name}' has been added to the calendar."
@@ -260,16 +508,33 @@ class Events(commands.Cog):
         time_str: str,
         location: str,
         event_id: int,
+        is_passed: bool = False,
+        timezone: str = None,
     ):
-        """Creates an embed to confirm the event was added."""
+        """Creates an embed to display event details with status indicators."""
+        # Add passed indicator to title if event has passed
+        title = f"🕒 {name}" if is_passed else name
+        
         embed = discord.Embed(
-            title=name,
+            title=title,
             description=event_description,
-            color=discord.Color.blue(),
+            color=discord.Color.red() if is_passed else discord.Color.blue(),
         )
-        embed.add_field(name="Date/Time", value=time_str, inline=True)
+        
+        # Format the time display
+        if is_passed:
+            time_display = f"🚫 **PASSED** - {time_str}"
+        else:
+            time_display = time_str
+            
+        embed.add_field(name="Date/Time", value=time_display, inline=True)
         embed.add_field(name="Location", value=location, inline=True)
         embed.add_field(name="Event ID", value=str(event_id), inline=False)
+        
+        if is_passed:
+            embed.add_field(name="Status", value="🚫 **PASSED**", inline=True)
+        elif timezone:
+            embed.add_field(name="Timezone", value=timezone, inline=True)
         return embed
 
     @events.command(
