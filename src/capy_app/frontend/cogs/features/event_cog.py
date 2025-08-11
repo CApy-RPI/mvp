@@ -1027,6 +1027,18 @@ class EventCog(commands.Cog):
         emoji = str(payload.emoji)
         user = self.bot.get_user(payload.user_id)
 
+        # Ignore and remove any non-RSVP reactions
+        if emoji not in self.allowed_reactions:
+            # Attempt to remove the unsupported reaction for this user (if permitted)
+            member = None
+            if isinstance(channel, discord.TextChannel) and channel.guild:
+                member = channel.guild.get_member(payload.user_id)
+            target_user = member or user
+            if target_user:
+                with suppress(discord.NotFound, discord.Forbidden, discord.HTTPException):
+                    await message.remove_reaction(payload.emoji, target_user)
+            return
+
         # Remove any other reactions from this user on this message
         await self.remove_other_reactions(message, emoji, user)
         # Update event attendance based on reaction
@@ -1036,6 +1048,9 @@ class EventCog(commands.Cog):
             await self.handle_attendance_remove(payload.user_id, event)
         elif emoji == "❔":
             await self.handle_attendance_maybe(payload.user_id, event)
+
+        # Update the announcement embed to reflect latest RSVP counts
+        await self.show_event_embed(message, event)
 
     async def fetch_message_if_possible(self, channel: discord.TextChannel, message_id):
         if isinstance(channel, (discord.TextChannel | discord.Thread)):
@@ -1049,6 +1064,7 @@ class EventCog(commands.Cog):
             event = Event.objects(message_id=message_id).first()
             if not event:
                 return
+            return event
         except Exception as e:
             self.logger.error(f"Error finding event by message_id {message_id}: {e}")
             return
@@ -1216,8 +1232,13 @@ class EventCog(commands.Cog):
         if not channel:
             return
 
+        # Fetch message to update the embed after processing
+        message = await self.fetch_message_if_possible(channel, payload.message_id)
+        if not message:
+            return
+
         try:
-            event = Database.get_document(Event, payload.message_id)
+            event = await self.get_event_by_message_id(payload.message_id)
             if not event:
                 return
         except Exception as e:
@@ -1235,16 +1256,22 @@ class EventCog(commands.Cog):
             await self.handle_no_reaction_remove(event, user_id)
         elif emoji == "❔":
             await self.handle_maybe_reaction_remove(event, user_id)
+        
+        # After updating RSVP state, refresh the embed with latest counts
+        await self.show_event_embed(message, event)
 
     async def remove_event_from_user(self, event, user_id):
-        # Remove event from user's list
+        # Remove event from user's list only if the user no longer has any positive RSVP
+        # i.e., they are not in yes_users or maybe_users
         user = Database.get_document(User, user_id)
-        if user and hasattr(user, "events") and event._id in user.events:
+        if not user:
+            return
+        still_positive = (user_id in event.yes_users) or (user_id in event.maybe_users)
+        if not still_positive and hasattr(user, "events") and event._id in user.events:
             user.events.remove(event._id)
             user.save()
             self.logger.info(
-                f"Removed event {event._id}"
-                f"from user {user_id}'s event list after maybe reaction removal."
+                f"Removed event {event._id} from user {user_id}'s event list after reaction removal."
             )
 
     async def handle_yes_reaction_remove(self, event, user_id):
