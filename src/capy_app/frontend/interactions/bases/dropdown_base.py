@@ -244,9 +244,17 @@ class DynamicDropdownView(View):
         for dropdown_config in dropdowns:
             selections = dropdown_config.get("selections", [])
             chunks = self.chunk_selections(selections)
-            for chunk in chunks:
+            total = len(chunks)
+            for idx, chunk in enumerate(chunks, start=1):
                 config_copy = dropdown_config.copy()
                 config_copy["selections"] = chunk
+                # If the dropdown exceeds 25 options, clarify pagination within the same category
+                if total > 1 and "placeholder" in config_copy and isinstance(
+                    config_copy["placeholder"], str
+                ):
+                    config_copy["placeholder"] = (
+                        f"{config_copy['placeholder']} (page {idx}/{total})"
+                    )
                 all_chunks.append(config_copy)
         self._dropdowns_data = all_chunks
         self._clear_dropdown()
