@@ -335,7 +335,7 @@ class EventCog(commands.Cog):
         return new_event, event_id
 
     async def list_events(self, interaction: discord.Interaction) -> None:
-        """List all upcoming events for the guild."""
+        """List all events for the guild, labeling past events as OLD."""
         self.logger.info(f"Listing events for guild {interaction.guild_id}")
 
         guild = Database.get_document(Guild, interaction.guild_id)
@@ -344,54 +344,61 @@ class EventCog(commands.Cog):
             await interaction.followup.send("No events found for this server.", ephemeral=True)
             return
 
-        # Get all upcoming events from guild's event list
         current_time = self.now()
-        guild_events = []
+        upcoming_events: list[Event] = []
+        past_events: list[Event] = []
 
         self.logger.info(f"Found {len(guild.events)} events for guild {interaction.guild_id}")
         for event_id in guild.events:
             event = Database.get_document(Event, event_id)
             if event and hasattr(event, "details"):
                 event_time = event.details.time
-                # If the event time is offset-naive,
-                # assume it's in UTC (or use another default timezone)
+                # If the event time is offset-naive, assume UTC
                 if event_time.tzinfo is None:
                     event_time = pytz.UTC.localize(event_time)
                 if event_time >= current_time:
-                    guild_events.append(event)
+                    upcoming_events.append(event)
+                else:
+                    past_events.append(event)
 
-        if not guild_events:
-            self.logger.info("No upcoming events found")
-            await interaction.followup.send("No upcoming events found.", ephemeral=True)
+        if not upcoming_events and not past_events:
+            self.logger.info("No events found")
+            await interaction.followup.send("No events found for this server.", ephemeral=True)
             return
 
-        # Sort events by datetime
-        guild_events.sort(key=lambda e: e.details.time)
+        # Sort by datetime (soonest first), then list upcoming first, then past
+        upcoming_events.sort(key=lambda e: e.details.time)
+        past_events.sort(key=lambda e: e.details.time, reverse=True)
 
-        # Create an embed to display the events
+        total_count = len(upcoming_events) + len(past_events)
         embed = discord.Embed(
-            title="Upcoming Events",
-            description=f"Found {len(guild_events)} upcoming events",
+            title="Events",
+            description=(
+                f"Found {total_count} events (Upcoming: {len(upcoming_events)}, Past: {len(past_events)})"
+            ),
             color=discord.Color.blue(),
         )
 
-        for event in guild_events:
-            # Format date for display
-            localized_time = self.format_datetime(event.details.time)
-
-            # Count total attendees from yes_users list
-            total_attendees = len(event.yes_users)
-
-            # Add field for each event
+        def add_event_field(ev: Event, is_old: bool) -> None:
+            localized_time = self.format_datetime(ev.details.time)
+            total_attendees = len(ev.yes_users)
+            status_text = "OLD" if is_old else "UPCOMING"
+            name_prefix = "[OLD] " if is_old else ""
             embed.add_field(
-                name=f"{event.details.name} (ID: {event._id})",
+                name=f"{name_prefix}{ev.details.name} (ID: {ev._id})",
                 value=(
                     f"**When:** {localized_time}\n"
-                    f"**Where:** {event.details.location}\n"
-                    f"**Attendees:** {total_attendees}"
+                    f"**Where:** {ev.details.location}\n"
+                    f"**Attendees:** {total_attendees}\n"
+                    f"**Status:** {status_text}"
                 ),
                 inline=False,
             )
+
+        for ev in upcoming_events:
+            add_event_field(ev, is_old=False)
+        for ev in past_events:
+            add_event_field(ev, is_old=True)
 
         await interaction.followup.send(embed=embed, ephemeral=True)
 
@@ -419,8 +426,17 @@ class EventCog(commands.Cog):
                     # If no selection made, set error message
                     error_msg = "No event selected."
                 else:
-                    # Get selected event ID from dropdown values
-                    selected_id_str = values.get("event_selection", [None])[0]
+                    # Get selected event ID from either Upcoming or Old dropdown
+                    selected_id_str = None
+                    for key in (
+                        "event_selection_upcoming",
+                        "event_selection_old",
+                        "event_selection",
+                    ):
+                        selected_list = values.get(key, [])
+                        if selected_list:
+                            selected_id_str = selected_list[0]
+                            break
                     if not selected_id_str:
                         error_msg = "No event selected."
                     else:
@@ -464,8 +480,8 @@ class EventCog(commands.Cog):
                 # If event time is naive, localize to UTC
                 if event_time.tzinfo is None:
                     event_time = pytz.UTC.localize(event_time)
-                # For delete, include all events; otherwise, only future events
-                if action == "delete" or event_time >= current_time:
+                # For delete, view, and edit include all events; otherwise, only future events
+                if action in ("delete", "view", "edit") or event_time >= current_time:
                     events.append(event)
         return events
 
@@ -477,23 +493,63 @@ class EventCog(commands.Cog):
         return "No matching events found."
 
     def _build_event_dropdown_options(self, events):
-        # Build dropdown options for each event
-        return [
-            {
-                "label": f"{event.details.name}",
+        # Build grouped dropdown options: one for upcoming, one for old events
+        current_time = self.now()
+        upcoming: list[dict[str, str]] = []
+        old: list[dict[str, str]] = []
+        # Sort by time first so options are ordered
+        def _event_time(ev: Event):
+            t = ev.details.time
+            return pytz.UTC.localize(t) if t.tzinfo is None else t
+        try:
+            sorted_events = sorted(events, key=lambda e: _event_time(e))
+        except Exception:
+            sorted_events = events
+        for event in sorted_events:
+            event_time = event.details.time
+            if event_time.tzinfo is None:
+                event_time = pytz.UTC.localize(event_time)
+            is_old = event_time < current_time
+            option = {
+                "label": f"{'[OLD] ' if is_old else ''}{event.details.name}",
                 "description": self.format_datetime(event.details.time)[:99],
                 "value": str(event._id),
             }
-            for event in events
-        ]
+            if is_old:
+                old.append(option)
+            else:
+                upcoming.append(option)
+        return {"upcoming": upcoming, "old": old}
 
     def _build_event_dropdown_config(self, options, action):
         # Build dropdown configuration for event selection view
-        return {
-            "ephemeral": True,
-            "buttons": (True, True),
-            "timeout": 180,
-            "dropdowns": [
+        # If grouped options dict provided, render two dropdowns; else fallback to single
+        dropdowns = []
+        if isinstance(options, dict):
+            upcoming = options.get("upcoming", [])
+            old = options.get("old", [])
+            if upcoming:
+                dropdowns.append(
+                    {
+                        "custom_id": "event_selection_upcoming",
+                        "placeholder": f"Select an Upcoming event to {action}",
+                        "min_values": 1,
+                        "max_values": 1,
+                        "selections": upcoming,
+                    }
+                )
+            if old:
+                dropdowns.append(
+                    {
+                        "custom_id": "event_selection_old",
+                        "placeholder": f"Select an Old event to {action}",
+                        "min_values": 1,
+                        "max_values": 1,
+                        "selections": old,
+                    }
+                )
+        else:
+            dropdowns.append(
                 {
                     "custom_id": "event_selection",
                     "placeholder": f"Select an event to {action}",
@@ -501,7 +557,12 @@ class EventCog(commands.Cog):
                     "max_values": 1,
                     "selections": options,
                 }
-            ],
+            )
+        return {
+            "ephemeral": True,
+            "buttons": (True, True),
+            "timeout": 180,
+            "dropdowns": dropdowns,
         }
 
     async def _get_dropdown_selection(self, interaction, view, action):
@@ -969,17 +1030,26 @@ class EventCog(commands.Cog):
     ) -> None:
         """Display event details in an embed."""
 
-        # Create the embed
+        # Determine if the event is old (in the past)
+        current_time = self.now()
+        event_time = event.details.time
+        if event_time.tzinfo is None:
+            event_time = pytz.UTC.localize(event_time)
+        is_old = event_time < current_time
+
+        # Create the embed, tinting red for old events
+        title_prefix = "[OLD] " if is_old else ""
         embed = discord.Embed(
-            title=event.details.name,
+            title=f"{title_prefix}{event.details.name}",
             description=event.details.description,
-            color=discord.Color.purple(),
+            color=discord.Color.red() if is_old else discord.Color.purple(),
         )
 
         # Add event details
         localized_time = self.format_datetime(event.details.time)
         embed.add_field(name="Date/Time", value=localized_time, inline=True)
         embed.add_field(name="Location", value=event.details.location, inline=True)
+        embed.add_field(name="Status", value=("OLD" if is_old else "UPCOMING"), inline=True)
 
         # Add attendance count
         total_attendees = len(event.yes_users)
