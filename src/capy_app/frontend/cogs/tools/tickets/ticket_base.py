@@ -6,6 +6,9 @@ from typing import Any
 import discord
 from discord import TextChannel, app_commands
 from discord.ext import commands
+from frontend.config_colors import (
+    STATUS_ERROR,
+)
 from frontend.interactions.bases.modal_base import (
     ButtonDynamicModalView,
 )
