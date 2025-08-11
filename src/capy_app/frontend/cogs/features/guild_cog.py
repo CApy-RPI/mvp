@@ -4,6 +4,7 @@ import logging
 
 import discord
 from backend.db.database import Database
+from backend.db.documents.guild import GuildChannels, GuildRoles
 from discord import app_commands
 from discord.ext import commands
 from frontend import config_colors as colors
@@ -203,12 +204,16 @@ class GuildCog(commands.Cog):
         )
 
         if value:
-            # Clear all settings
+            # Clear all settings by resetting embedded documents to defaults
             updates = {
-                "channels": {},
-                "roles": {},
+                "channels": GuildChannels(),
+                "roles": GuildRoles(),
             }
             Database.update_document(guild_data, updates)
+            if message:
+                await message.edit(content="Server settings cleared.", view=None)
+            else:
+                await interaction.followup.send("Server settings cleared.", ephemeral=True)
 
 
 async def setup(bot: commands.Bot) -> None:
