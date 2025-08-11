@@ -49,7 +49,7 @@ class FeedbackCog(TicketBase):
                 "ephemeral": False,
                 "button_label": "Open Survey",
                 "button_style": ButtonStyle.success,
-                "message_prompt": "📝 Ready to submit a bug report? Click the button below!",
+                "message_prompt": "📝 Ready to submit feedback? Click the button below!",
                 "modal": {
                     "title": "Feedback Form",
                     "fields": [

@@ -52,7 +52,7 @@ class TicketBase(commands.Cog):
         try:
             modal = ButtonDynamicModalView(**self.MODAL_CONFIGS["button_modal"])
             values, message = await modal.initiate_from_interaction(
-                interaction, prompt="Click below to start the survey!"
+                interaction, prompt=self.MODAL_CONFIGS["button_modal"]["message_prompt"]
             )
 
             if not values or not message or len(values.items()) != REQUIRED_FIELD_COUNT:
