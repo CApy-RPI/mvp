@@ -94,9 +94,9 @@ class GuildCog(commands.Cog):
         access_ok, error_msg = await self._verify_guild_access(
             interaction, require_manage=(action in ["edit", "clear"])
         )
-        if not access_ok:
-            await interaction.edit_original_response(content=error_msg)
-            return
+        # if not access_ok:
+        #     await interaction.edit_original_response(content=error_msg)
+        #     return
 
         try:
             guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
@@ -113,16 +113,19 @@ class GuildCog(commands.Cog):
                 content=f"An error occurred while performing {action}."
             )
 
-    async def show_settings(self, interaction: discord.Interaction) -> None:
+    async def show_settings(
+        self, interaction: discord.Interaction, message: discord.Message = None
+    ) -> None:
         """Display current server settings."""
         if not isinstance(interaction.guild, discord.Guild):
             raise TypeError("Interaction must be in a guild.")
 
-        await interaction.response.defer(ephemeral=True)
-
         guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
         if not guild_data:
-            await interaction.edit_original_response(content="No settings configured.")
+            if message:
+                await message.edit(content="No settings configured.", view=None)
+            else:
+                await interaction.response.send_message("No settings configured.", ephemeral=True)
             return
 
         embed = discord.Embed(title="Server Settings", color=colors.GUILD)
@@ -130,10 +133,11 @@ class GuildCog(commands.Cog):
         # Show channels
         channel_text = "\n".join(
             f"{prompt['label']}: "
-            f"{'<#'
-               + str(getattr(guild_data.channels, name))
-               + '>' if getattr(guild_data.channels, name) else 'Not Set'
-               }"
+            f"{
+                '<#' + str(getattr(guild_data.channels, name)) + '>'
+                if getattr(guild_data.channels, name)
+                else 'Not Set'
+            }"
             for name, prompt in self.config.get_channel_prompts().items()
         )
         embed.add_field(
@@ -145,21 +149,26 @@ class GuildCog(commands.Cog):
         # Show roles
         role_text = "\n".join(
             f"{prompt['label']}: "
-            f"{'<@&'
-               + str(getattr(guild_data.roles, name))
-               + '>' if getattr(guild_data.roles, name) else 'Not Set'
-               }"
+            f"{
+                '<@&' + str(getattr(guild_data.roles, name)) + '>'
+                if getattr(guild_data.roles, name)
+                else 'Not Set'
+            }"
             for name, prompt in self.config.get_role_prompts().items()
         )
         embed.add_field(name="Roles", value=role_text or "No roles configured", inline=False)
 
-        await interaction.edit_original_response(embed=embed)
+        if message:
+            await message.edit(embed=embed, view=None)
+        else:
+            await interaction.response.send_message(embed=embed, ephemeral=True)
 
     async def edit_settings(self, interaction: discord.Interaction) -> None:
         """Edit server settings using the new dropdown framework."""
         if not isinstance(interaction.guild, discord.Guild):
             raise TypeError("Interaction must be in a guild.")
 
+        message = None
         try:
             setting_type, message = await self._process_settings_selection(interaction)
             if not setting_type or not message:
@@ -175,7 +184,7 @@ class GuildCog(commands.Cog):
                 return
 
             Database.update_document(guild_data, updates)
-            await self.show_settings(interaction)
+            await self.show_settings(interaction, message)
 
         except Exception as e:
             self.logger.error(f"Error during settings edit: {e}")

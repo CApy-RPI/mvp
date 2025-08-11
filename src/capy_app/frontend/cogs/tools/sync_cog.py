@@ -60,7 +60,7 @@ class SyncCog(commands.Cog):
 
             description = (
                 f"✅ Successfully synced {len(synced)} application commands!\n"
-                f"Commands:\n{"\n".join([cmd.name for cmd in synced])}"
+                f"Commands:\n{'\n'.join([cmd.name for cmd in synced])}"
             )
             await ctx.send(embed=success_embed("Sync Commands", description))
 
@@ -78,7 +78,7 @@ class SyncCog(commands.Cog):
 
             description = (
                 f"✅ Successfully synced {len(synced)} application commands!\n"
-                f"Commands:\n{"\n".join([cmd.name for cmd in synced])}"
+                f"Commands:\n{'\n'.join([cmd.name for cmd in synced])}"
             )
             await interaction.response.send_message(
                 embed=success_embed("Sync Commands", description)

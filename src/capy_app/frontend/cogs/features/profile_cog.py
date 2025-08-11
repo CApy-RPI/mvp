@@ -350,8 +350,7 @@ class ProfileCog(commands.Cog):
 
         view = ConfirmDeleteView()
         await interaction.edit_original_response(
-            content="⚠️ Are you sure you want to delete your profile? "
-            "This action cannot be undone.",
+            content="⚠️ Are you sure you want to delete your profile? This action cannot be undone.",
             view=view,
         )
 

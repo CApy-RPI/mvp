@@ -6,9 +6,6 @@ from typing import Any
 import discord
 from discord import TextChannel, app_commands
 from discord.ext import commands
-from frontend.config_colors import (
-    STATUS_ERROR,
-)
 from frontend.interactions.bases.modal_base import (
     ButtonDynamicModalView,
 )
@@ -134,7 +131,7 @@ class TicketBase(commands.Cog):
                 error_embed = discord.Embed(
                     title="❌ Submission Failed",
                     description=(
-                        f"Failed to submit {self.cmd_name_verbose}. " "Please try again later."
+                        f"Failed to submit {self.cmd_name_verbose}. Please try again later."
                     ),
                     color=STATUS_ERROR,
                 )
