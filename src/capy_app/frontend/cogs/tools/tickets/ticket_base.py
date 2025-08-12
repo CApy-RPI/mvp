@@ -8,6 +8,7 @@ from discord import TextChannel, app_commands
 from discord.ext import commands
 from frontend.interactions.bases.modal_base import ButtonDynamicModalView
 
+
 from config import settings
 
 from ...config_colors import STATUS_ERROR
@@ -49,7 +50,7 @@ class TicketBase(commands.Cog):
         try:
             modal = ButtonDynamicModalView(**self.MODAL_CONFIGS["button_modal"])
             values, message = await modal.initiate_from_interaction(
-                interaction, prompt="Click below to start the survey!"
+                interaction, prompt=self.MODAL_CONFIGS["button_modal"]["message_prompt"]
             )
 
             if not values or not message or len(values.items()) != REQUIRED_FIELD_COUNT:
