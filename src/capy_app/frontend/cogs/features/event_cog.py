@@ -829,15 +829,31 @@ class EventCog(commands.Cog):
             )
             return
 
-        # Find or create announcements channel
-        announcement_channel = discord.utils.get(
-            interaction.guild.text_channels, name="announcements"
-        )  # Use your actual channel name
+        # Resolve announcements channel from server settings (fallback to name if not configured)
+        guild_data = Database.get_document(Guild, interaction.guild.id)
+        announcement_channel: discord.TextChannel | None = None
+        channel_id = (
+            getattr(getattr(guild_data, "channels", None), "announcements", None)
+            if guild_data
+            else None
+        )
+        if channel_id:
+            chan = interaction.guild.get_channel(channel_id)
+            if isinstance(chan, discord.TextChannel):
+                announcement_channel = chan
+        if announcement_channel is None:
+            # Fallback by name for legacy behavior
+            announcement_channel = discord.utils.get(
+                interaction.guild.text_channels, name="announcements"
+            )
 
         if not announcement_channel:
             with suppress(discord.Forbidden, discord.HTTPException):
                 await message.edit(
-                    content="Error: Could not find or create the announcements channel.",
+                    content=(
+                        "Error: Announcements channel is not configured or found. "
+                        "Use /server edit to set the 'Announcements Channel'."
+                    ),
                     view=None,
                     embed=None,
                 )
