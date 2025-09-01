@@ -81,16 +81,26 @@ class GuildCog(commands.Cog):
         self, interaction: discord.Interaction, require_manage: bool = False
     ) -> tuple[bool, str]:
         """Verify guild access and permissions."""
+        self.logger.debug(
+            "verify_access: user=%s guild=%s require_manage=%s",
+            getattr(interaction.user, "id", None),
+            getattr(interaction.guild, "id", None),
+            require_manage,
+        )
         if not isinstance(interaction.guild, discord.Guild):
+            self.logger.info("verify_access: failed (not in guild)")
             return False, "This command can only be used in a server."
 
         if require_manage and not interaction.user.guild_permissions.manage_guild:
+            self.logger.info("verify_access: failed (missing Manage Server)")
             return False, "You need 'Manage Server' permission to modify settings."
 
         guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
         if not guild_data:
+            self.logger.warning("verify_access: failed (no guild_data)")
             return False, "Failed to access guild settings."
 
+        self.logger.debug("verify_access: ok")
         return True, ""
 
     async def _process_settings_selection(
@@ -103,14 +113,30 @@ class GuildCog(commands.Cog):
         )
 
         if not selections or "settings_type" not in selections:
+            self.logger.info(
+                "settings_selection: no selection (user=%s guild=%s)",
+                getattr(interaction.user, "id", None),
+                getattr(interaction.guild, "id", None),
+            )
             return None, None
 
-        return selections["settings_type"][0], message
+        chosen = selections["settings_type"][0]
+        self.logger.info(
+            "settings_selection: chosen=%s (user=%s guild=%s)",
+            chosen,
+            getattr(interaction.user, "id", None),
+            getattr(interaction.guild, "id", None),
+        )
+        self.logger.debug("settings_selection_end")
+        return chosen, message
 
     async def _process_configuration(
         self, setting_type: str, message: discord.Message, guild: discord.Guild
     ) -> dict[str, int | None] | None:
         """Process configuration selection."""
+        self.logger.debug(
+            "config_start: type=%s guild=%s", setting_type, getattr(guild, "id", None)
+        )
         dropdowns = await self._create_dropdowns(setting_type, guild)
 
         config_view = DynamicDropdownView(
@@ -123,13 +149,27 @@ class GuildCog(commands.Cog):
 
         if not selections:
             await message.edit(content="Configuration cancelled.", view=None)
+            self.logger.info(
+                "config_cancelled: type=%s guild=%s",
+                setting_type,
+                getattr(guild, "id", None),
+            )
+            self.logger.debug("config_end")
             return None
 
-        return {
+        updates = {
             f"{category}s__{name}": int(values[0]) if values else None
             for key, values in selections.items()
             for category, name in [key.split("_")]
         }
+        self.logger.info(
+            "config_selected: type=%s items=%d guild=%s",
+            setting_type,
+            len(updates),
+            getattr(guild, "id", None),
+        )
+        self.logger.debug("config_end")
+        return updates
 
     @app_commands.command(name="server", description="Manage server settings")
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
@@ -139,6 +179,12 @@ class GuildCog(commands.Cog):
     )
     async def server(self, interaction: discord.Interaction, action: str) -> None:
         """Handle server setting actions."""
+        self.logger.info(
+            "/server invoked: action=%s user=%s guild=%s",
+            action,
+            getattr(interaction.user, "id", None),
+            getattr(interaction.guild, "id", None),
+        )
         access_ok, error_msg = await self._verify_guild_access(
             interaction, require_manage=(action in ["edit", "clear"])
         )
@@ -156,6 +202,20 @@ class GuildCog(commands.Cog):
                 await self.clear_settings(interaction, guild_data)
             else:
                 await interaction.edit_original_response(content=f"Unknown action: {action}")
+                self.logger.warning(
+                    "/server unknown action: action=%s user=%s guild=%s",
+                    action,
+                    getattr(interaction.user, "id", None),
+                    getattr(interaction.guild, "id", None),
+                )
+                return
+
+            self.logger.info(
+                "/server completed: action=%s user=%s guild=%s",
+                action,
+                getattr(interaction.user, "id", None),
+                getattr(interaction.guild, "id", None),
+            )
 
         except Exception as e:
             self.logger.error(f"Failed to handle server action {action}: {e}")
@@ -167,19 +227,31 @@ class GuildCog(commands.Cog):
         self, interaction: discord.Interaction, message: discord.Message = None
     ) -> None:
         """Display current server settings."""
+        self.logger.debug(
+            "show_settings: user=%s guild=%s",
+            getattr(interaction.user, "id", None),
+            getattr(interaction.guild, "id", None),
+        )
         if not isinstance(interaction.guild, discord.Guild):
             raise TypeError("Interaction must be in a guild.")
 
         guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
         if not guild_data:
             await self._respond(interaction, message, content="No settings configured.")
+            self.logger.info("show_settings: no guild_data")
             return
 
         embed = self._build_settings_embed(guild_data)
         await self._respond(interaction, message, embed=embed)
+        self.logger.debug("show_settings: sent embed")
 
     async def edit_settings(self, interaction: discord.Interaction) -> None:
         """Edit server settings using the new dropdown framework."""
+        self.logger.info(
+            "edit_settings: start user=%s guild=%s",
+            getattr(interaction.user, "id", None),
+            getattr(interaction.guild, "id", None),
+        )
         if not isinstance(interaction.guild, discord.Guild):
             raise TypeError("Interaction must be in a guild.")
 
@@ -187,8 +259,10 @@ class GuildCog(commands.Cog):
         try:
             message = await self._edit_settings_flow(interaction)
             if message is None:
+                self.logger.info("edit_settings: cancelled or no changes")
                 return
             await self.show_settings(interaction, message)
+            self.logger.info("edit_settings: completed")
 
         except Exception as e:
             self.logger.error(f"Error during settings edit: {e}")
@@ -200,24 +274,38 @@ class GuildCog(commands.Cog):
 
     async def _edit_settings_flow(self, interaction: discord.Interaction) -> discord.Message | None:
         """Inner flow for editing settings, returns the working message or None."""
+        self.logger.debug("_edit_settings_flow: start")
         setting_type, message = await self._process_settings_selection(interaction)
         if not setting_type or not message:
+            self.logger.info("_edit_settings_flow: no setting_type/message")
             return None
 
         updates = await self._process_configuration(setting_type, message, interaction.guild)
         if not updates:
+            self.logger.info("_edit_settings_flow: no updates")
             return None
 
         guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
         if not guild_data:
             await message.edit(content="Failed to access guild data.", view=None)
+            self.logger.warning("_edit_settings_flow: ensure_guild_exists failed")
             return None
 
         Database.update_document(guild_data, updates)
+        self.logger.info(
+            "_edit_settings_flow: updated %d fields for guild=%s",
+            len(updates),
+            getattr(interaction.guild, "id", None),
+        )
         return message
 
     async def clear_settings(self, interaction: discord.Interaction, guild_data) -> None:
         """Clear all server settings."""
+        self.logger.info(
+            "clear_settings: confirm prompt user=%s guild=%s",
+            getattr(interaction.user, "id", None),
+            getattr(interaction.guild, "id", None),
+        )
         view = ConfirmDeleteView()
         value, message = await view.initiate_from_interaction(
             interaction,
@@ -235,6 +323,9 @@ class GuildCog(commands.Cog):
                 await message.edit(content="Server settings cleared.", view=None)
             else:
                 await interaction.followup.send("Server settings cleared.", ephemeral=True)
+            self.logger.info("clear_settings: cleared")
+        else:
+            self.logger.info("clear_settings: cancelled")
 
 
 async def setup(bot: commands.Bot) -> None:
