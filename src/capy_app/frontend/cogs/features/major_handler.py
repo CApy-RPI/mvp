@@ -2,6 +2,7 @@
 
 import logging
 from math import ceil
+from typing import Any
 
 from config import settings
 
@@ -55,7 +56,7 @@ class MajorHandler:
 
     def _group_majors(self) -> dict[str, list[str]]:
         """Group majors according to calculated ranges."""
-        groups = {group_id: [] for group_id in self._ranges}
+        groups: dict[str, list[str]] = {group_id: [] for group_id in self._ranges}
 
         for major in self.major_list:
             first_letter = major[0].upper()
@@ -66,7 +67,7 @@ class MajorHandler:
 
         return groups
 
-    def get_dropdown_config(self, base_config: dict) -> dict:
+    def get_dropdown_config(self, base_config: dict[str, Any]) -> dict[str, Any]:
         """Generate dropdown configuration with current groups.
 
         Args:
