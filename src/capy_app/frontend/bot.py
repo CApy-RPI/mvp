@@ -39,17 +39,13 @@ class Bot(commands.AutoShardedBot):
         if not guild_data:
             guild_data = Database.Guild(_id=member.guild.id)
             guild_data.save()
-            self.logger.info(
-                f"Created new guild entry for {member.guild.name} (ID: {member.guild.id})"
-            )
+            self.logger.info(f"Created new guild entry for {member.guild.name} (ID: {member.guild.id})")
         else:
             Database.sync_document_with_template(guild_data, Database.Guild)
 
         guild_data.users.append(member.id)
         guild_data.save()
-        self.logger.info(
-            f"User {member.id} joined guild {member.guild.name} (ID: {member.guild.id})"
-        )
+        self.logger.info(f"User {member.id} joined guild {member.guild.name} (ID: {member.guild.id})")
 
     async def _load_cogs_recursive(self, path: pathlib.Path, base_package: str) -> None:
         """Recursively load cogs from a directory and its subdirectories.
@@ -65,9 +61,7 @@ class Bot(commands.AutoShardedBot):
             if item.is_file() and item.name.endswith("cog.py") and not item.name.startswith("_"):
                 # Convert path to module path and load extension
                 module_path = (
-                    str(item.relative_to(pathlib.Path(settings.COG_PATH)))
-                    .replace("\\", ".")
-                    .replace("/", ".")[:-3]
+                    str(item.relative_to(pathlib.Path(settings.COG_PATH))).replace("\\", ".").replace("/", ".")[:-3]
                 )
                 full_module_path = f"{base_package}.{module_path}"
                 try:
@@ -117,9 +111,7 @@ class Bot(commands.AutoShardedBot):
             ctx: Command context object
         """
         if settings.WHO_DUNNIT:
-            await ctx.send(
-                f"This bot hosted by {settings.WHO_DUNNIT} is currently in development mode."
-            )
+            await ctx.send(f"This bot hosted by {settings.WHO_DUNNIT} is currently in development mode.")
 
         if not settings.DEV_LOCKED_CHANNEL_ID:
             self.logger.info(f"Command executed: {ctx.command} by {ctx.author}")
@@ -130,7 +122,7 @@ class Bot(commands.AutoShardedBot):
             return
 
         dev_channel = self.get_channel(settings.DEV_LOCKED_CHANNEL_ID)
-        if not isinstance(dev_channel, discord.TextChannel, discord.Thread):
+        if not isinstance(dev_channel, discord.TextChannel | discord.Thread):
             await ctx.send("Developer channel not found. Ensure it is set correctly.")
             self.logger.error(f"Developer channel {settings.DEV_LOCKED_CHANNEL_ID} not found")
             return
