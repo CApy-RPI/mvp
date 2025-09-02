@@ -26,11 +26,11 @@ repos:
         args:
           [
             "--max-absolute",
-            "A",
+            "B or C",
             "--max-modules",
-            "A",
+            "B",
             "--max-average",
-            "A",
+            "B",
             "src",
           ]
         files: \.py$

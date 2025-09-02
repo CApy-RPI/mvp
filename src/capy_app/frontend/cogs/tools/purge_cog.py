@@ -9,7 +9,9 @@ This module provides commands for bulk message deletion with various modes.
 
 import logging
 import re
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
+from typing import Any
 
 import discord
 from discord import app_commands
@@ -19,12 +21,12 @@ from frontend.utils.embed_statuses import error_embed, success_embed
 from config import settings
 
 
-class DateTimeModal(discord.ui.Modal, title="Enter Date and Time"):
+class DateTimeModal(discord.ui.Modal):
     """Modal for date and time input."""
 
     def __init__(self) -> None:
         """Initialize the date time modal."""
-        super().__init__()
+        super().__init__(title="Enter Date and Time")
         self.add_item(
             discord.ui.TextInput(
                 label="Date (YYYY-MM-DD)",
@@ -46,7 +48,7 @@ class PurgeModeView(discord.ui.View):
         super().__init__()
         self.mode: str | None = None
         self.value: int | str | datetime | None = None
-        self.mode_select: discord.ui.Select = discord.ui.Select(
+        self.mode_select: discord.ui.Select[discord.ui.View] = discord.ui.Select(
             placeholder="Choose purge mode",
             options=[
                 discord.SelectOption(
@@ -67,63 +69,76 @@ class PurgeModeView(discord.ui.View):
             ],
         )
 
-        async def mode_callback(interaction: discord.Interaction) -> None:
-            self.mode = self.mode_select.values[0]
-            if self.mode == "count":
-                modal = discord.ui.Modal(title="Enter Count")
-                text_input = discord.ui.TextInput(label="Number of messages", placeholder="10")
-                modal.add_item(text_input)
-
-                async def count_callback(interaction: discord.Interaction) -> None:
-                    self.value = int(text_input.value)
-                    await interaction.response.defer()
-                    self.stop()
-
-                modal.on_submit = count_callback
-                await interaction.response.send_modal(modal)
-
-            elif self.mode == "duration":
-                modal = discord.ui.Modal(title="Enter Duration")
-                text_input = discord.ui.TextInput(
-                    label="Duration (1d2h3m)",
-                    placeholder="1d = 1 day, 2h = 2 hours, 3m = 3 minutes",
-                )
-                modal.add_item(text_input)
-
-                async def duration_callback(interaction: discord.Interaction) -> None:
-                    self.value = text_input.value
-                    await interaction.response.defer()
-                    self.stop()
-
-                modal.on_submit = duration_callback
-                await interaction.response.send_modal(modal)
-
-            elif self.mode == "date":
-                modal = DateTimeModal()
-
-                async def date_callback(interaction: discord.Interaction) -> None:
-                    try:
-                        date_input = modal.children[0]
-                        time_input = modal.children[1]
-                        if isinstance(date_input, discord.ui.TextInput) and isinstance(
-                            time_input, discord.ui.TextInput
-                        ):
-                            self.value = datetime.strptime(
-                                f"{date_input.value} {time_input.value}",
-                                "%Y-%m-%d %H:%M",
-                            )
-                        await interaction.response.defer()
-                        self.stop()
-                    except ValueError:
-                        await interaction.response.send_message(
-                            "Invalid date/time format", ephemeral=True
-                        )
-
-                modal.on_submit = date_callback
-                await interaction.response.send_modal(modal)
-
-        self.mode_select.callback = mode_callback
+        self.mode_select.callback = self.on_mode_selected  # type: ignore[method-assign]
         self.add_item(self.mode_select)
+
+    async def _prompt_count(self, interaction: discord.Interaction) -> None:
+        modal = discord.ui.Modal(title="Enter Count")
+        text_input: Any = discord.ui.TextInput(label="Number of messages", placeholder="10")
+        modal.add_item(text_input)
+
+        async def on_submit(_: discord.Interaction) -> None:
+            try:
+                self.value = int(text_input.value)
+                await _.response.defer()
+                self.stop()
+            except ValueError:
+                await _.response.send_message("Please enter a valid integer.", ephemeral=True)
+
+        modal.on_submit = on_submit  # type: ignore[method-assign]
+        await interaction.response.send_modal(modal)
+
+    async def _prompt_duration(self, interaction: discord.Interaction) -> None:
+        modal = discord.ui.Modal(title="Enter Duration")
+        text_input: Any = discord.ui.TextInput(
+            label="Duration (1d2h3m)",
+            placeholder="1d = 1 day, 2h = 2 hours, 3m = 3 minutes",
+        )
+        modal.add_item(text_input)
+
+        async def on_submit(_: discord.Interaction) -> None:
+            self.value = text_input.value
+            await _.response.defer()
+            self.stop()
+
+        modal.on_submit = on_submit  # type: ignore[method-assign]
+        await interaction.response.send_modal(modal)
+
+    async def _prompt_date(self, interaction: discord.Interaction) -> None:
+        modal = DateTimeModal()
+
+        async def on_submit(_: discord.Interaction) -> None:
+            try:
+                date_input = modal.children[0]
+                time_input = modal.children[1]
+                if isinstance(date_input, discord.ui.TextInput) and isinstance(
+                    time_input, discord.ui.TextInput
+                ):
+                    self.value = datetime.strptime(
+                        f"{date_input.value} {time_input.value}", "%Y-%m-%d %H:%M"
+                    )
+                await _.response.defer()
+                self.stop()
+            except ValueError:
+                await _.response.send_message("Invalid date/time format", ephemeral=True)
+
+        modal.on_submit = on_submit  # type: ignore[method-assign]
+        await interaction.response.send_modal(modal)
+
+    async def on_mode_selected(self, interaction: discord.Interaction) -> None:
+        mode: str = self.mode_select.values[0]  # keep, but add a runtime guard
+        assert mode is not None
+        self.mode = mode
+        handlers: dict[str, Callable[[discord.Interaction], Awaitable[None]]] = {
+            "count": self._prompt_count,
+            "duration": self._prompt_duration,
+            "date": self._prompt_date,
+        }
+        handler = handlers.get(mode)
+        if handler:
+            await handler(interaction)
+        else:
+            await interaction.response.send_message("Invalid mode selected.", ephemeral=True)
 
 
 class PurgeCog(commands.Cog):
@@ -147,13 +162,17 @@ class PurgeCog(commands.Cog):
 
         return timedelta(days=days, hours=hours, minutes=minutes)
 
-    async def _handle_purge_count(self, amount: int, channel: discord.TextChannel):
+    async def _handle_purge_count(
+        self, amount: int, channel: discord.TextChannel
+    ) -> tuple[bool, str]:
         if amount <= 0:
             return False, "Please specify a number greater than 0"
         deleted = await channel.purge(limit=amount)
         return True, f"✨ Successfully deleted {len(deleted)} messages!"
 
-    async def _handle_purge_duration(self, duration: str, channel: discord.TextChannel):
+    async def _handle_purge_duration(
+        self, duration: str, channel: discord.TextChannel
+    ) -> tuple[bool, str]:
         time_delta = self.parse_duration(duration)
         if not time_delta:
             return (
@@ -169,14 +188,16 @@ class PurgeCog(commands.Cog):
             f"✨ Successfully deleted {len(deleted)} messages from the last {duration}!",
         )
 
-    async def _handle_purge_date(self, date: datetime, channel: discord.TextChannel):
+    async def _handle_purge_date(
+        self, date: datetime, channel: discord.TextChannel
+    ) -> tuple[bool, str]:
         if date > datetime.utcnow():
             return False, "Cannot purge future messages"
         deleted = await channel.purge(after=date)
+        date_str = date.strftime("%Y-%m-%d %H:%M")
         return (
             True,
-            f"✨ Successfully deleted {len(deleted)} messages"
-            "since {date.strftime('%Y-%m-%d %H:%M')}!",
+            f"✨ Successfully deleted {len(deleted)} messages since {date_str}!",
         )
 
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
@@ -192,29 +213,14 @@ class PurgeCog(commands.Cog):
             return
 
         try:
-            if isinstance(interaction.channel, discord.TextChannel):
-                if view.mode == "count" and isinstance(view.value, int):
-                    success, message = await self._handle_purge_count(
-                        view.value, interaction.channel
-                    )
-                elif view.mode == "duration" and isinstance(view.value, str):
-                    success, message = await self._handle_purge_duration(
-                        view.value, interaction.channel
-                    )
-                elif view.mode == "date" and isinstance(view.value, datetime):
-                    success, message = await self._handle_purge_date(
-                        view.value, interaction.channel
-                    )
-
+            success, message = await self._execute_purge(view, interaction.channel)
             embed = success_embed("Purge", message) if success else error_embed("Error", message)
             await interaction.followup.send(embed=embed, ephemeral=True)
-
             if success:
                 self.logger.info(
-                    f"{interaction.user} purged messages in {interaction.channel}"
-                    f" using {view.mode} mode"
+                    f"{interaction.user} purged messages in {interaction.channel} "
+                    f"using {view.mode} mode"
                 )
-
         except discord.Forbidden:
             await interaction.followup.send(
                 embed=error_embed("Error", "I don't have permission to delete messages"),
@@ -225,6 +231,19 @@ class PurgeCog(commands.Cog):
                 embed=error_embed("Error", f"An error occurred: {e!s}"),
                 ephemeral=True,
             )
+
+    async def _execute_purge(self, view: PurgeModeView, channel: Any) -> tuple[bool, str]:
+        if not isinstance(channel, discord.TextChannel):
+            return False, "This command can only be used in text channels."
+
+        if view.mode == "count" and isinstance(view.value, int):
+            return await self._handle_purge_count(view.value, channel)
+        if view.mode == "duration" and isinstance(view.value, str):
+            return await self._handle_purge_duration(view.value, channel)
+        if view.mode == "date" and isinstance(view.value, datetime):
+            return await self._handle_purge_date(view.value, channel)
+
+        return False, "Invalid mode/value combination. Please try again."
 
 
 async def setup(bot: commands.Bot):
