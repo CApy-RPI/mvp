@@ -1,12 +1,13 @@
 import sys
 import types
+from typing import Any
 
 from capy_app.frontend.cogs.features.profile_handlers import EmailVerifier
 
 # Provide dummy backend email module to avoid external dependency
-backend = types.ModuleType("backend")
-modules = types.ModuleType("modules")
-email_module = types.ModuleType("email")
+backend: Any = types.ModuleType("backend")
+modules: Any = types.ModuleType("modules")
+email_module: Any = types.ModuleType("email")
 
 CODE_LENGTH = 6
 
