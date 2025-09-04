@@ -39,7 +39,7 @@ class RightButton(Button["DynamicDropdownView"]):
         """Handle accept button click."""
         assert self.view is not None
         logger.debug("Right button clicked")
-        old_view: DynamicDropdownView = cast(DynamicDropdownView, self.view)
+        old_view: DynamicDropdownView = self.view
         next_page = old_view.page_number + 1
 
         if next_page >= len(old_view._dropdowns_data):
@@ -70,8 +70,7 @@ class LeftButton(Button["DynamicDropdownView"]):
     async def callback(self, interaction: Interaction) -> None:
         assert self.view is not None
         logger.debug("Left button clicked")
-
-        old_view: DynamicDropdownView = cast(DynamicDropdownView, self.view)
+        old_view: DynamicDropdownView = self.view
         prev_page = old_view.page_number - 1
 
         if prev_page < 0:
@@ -131,7 +130,8 @@ class CancelButton(Button["DynamicDropdownView"]):
         self.view.accepted = False
         self.view._set_data()
         self.view.stop()
-        await self.view._message.edit(content="Selection cancelled", view=None)
+        if self.view._message is not None:
+            await self.view._message.edit(content="Selection cancelled", view=None)
         await interaction.response.defer()
 
 
@@ -177,25 +177,27 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
 
     async def callback(self, interaction: Interaction) -> None:
         """Handle dropdown selection."""
+        assert self.view is not None
+        view: DynamicDropdownView = self.view
+
         self.selected_values = self.values
         runningtotal = 0
-        for dropdown in self.view._collection:
-            for _major in self.view._collection[dropdown]:
+        for dropdown in view._collection:
+            for _major in view._collection[dropdown]:
                 runningtotal += 1
         if runningtotal + len(self.selected_values) <= self.max_values:
-            self.view._collection[self.custom_id] = self.selected_values
+            view._collection[self.custom_id] = self.selected_values
         else:
             logger.debug(f"Current collection: {runningtotal}")
         logger.debug(
             f"Dropdown {self.custom_id} selected values: {self.selected_values}"
-            f"Current collection: {self.view._collection}"
+            f"Current collection: {view._collection}"
         )
 
         if self._disable_on_select:
             self.disabled = True
             logger.debug(f"Dropdown {self.custom_id} disabled after selection")
 
-        view = cast(DynamicDropdownView, self.view)
         if not view._has_buttons:
             view.accepted = True
             view.stop()
@@ -226,7 +228,9 @@ class DynamicDropdownView(View):
         """
         super().__init__(**options)
         self.accepted: bool = False
-        self.data_future = asyncio.get_event_loop().create_future()
+        self.data_future: asyncio.Future[
+            tuple[dict[str, list[str]] | None, Message | None]
+        ] = asyncio.get_event_loop().create_future()
         self.page_number = page_number
 
         logger.debug(f"Dropdowns passed arg: {dropdowns}")
@@ -249,12 +253,8 @@ class DynamicDropdownView(View):
                 config_copy = dropdown_config.copy()
                 config_copy["selections"] = chunk
                 # If the dropdown exceeds 25 options, clarify pagination within the same category
-                if total > 1 and "placeholder" in config_copy and isinstance(
-                    config_copy["placeholder"], str
-                ):
-                    config_copy["placeholder"] = (
-                        f"{config_copy['placeholder']} (page {idx}/{total})"
-                    )
+                if total > 1 and "placeholder" in config_copy and isinstance(config_copy["placeholder"], str):
+                    config_copy["placeholder"] = f"{config_copy['placeholder']} (page {idx}/{total})"
                 all_chunks.append(config_copy)
         self._dropdowns_data = all_chunks
         self._clear_dropdown()
@@ -304,9 +304,7 @@ class DynamicDropdownView(View):
         with suppress(NotFound):
             await self._message.edit(content="Selection timed out", view=None)
 
-    def chunk_selections(
-        self, selections: list[dict[str, Any]], chunk_size: int = 25
-    ) -> list[list[dict[str, Any]]]:
+    def chunk_selections(self, selections: list[dict[str, Any]], chunk_size: int = 25) -> list[list[dict[str, Any]]]:
         """Split selections into chunks of up to chunk_size each."""
         return [selections[i : i + chunk_size] for i in range(0, len(selections), chunk_size)]
 
@@ -330,7 +328,7 @@ class DynamicDropdownView(View):
 
     def _clear_dropdown(
         self,
-    ) -> DynamicDropdown:
+    ) -> None:
         for dropdown in self._dropdowns:
             self.remove_item(dropdown)
         self._dropdowns.clear()
@@ -354,50 +352,47 @@ class DynamicDropdownView(View):
         self._has_buttons = True
 
     def _set_data(self) -> tuple[dict[str, list[str]] | None, Message | None]:
-        """Wait for user input and return selected values.
+        """Finalize and set the selection data into the future.
 
-        Returns:
-            Tuple containing:
-            - Dictionary of selections if accepted, None if cancelled
-            - Reference to the message object
+        Returns a tuple of (selections or None, message).
         """
+        if self.data_future.done():
+            # Future already resolved; try to return its result
+            try:
+                return self.data_future.result()
+            except Exception:
+                return (None, self._message)
+
+        if not self._completed:
+            logger.debug("Finalizing user selections")
+            self._completed = True
+
+        selections: dict[str, list[str]] = self._collection
+
+        logger.debug(
+            f"Collection complete. Accepted: {self.accepted}, Timed out: {self._timed_out}, Selections: {selections}"
+        )
+
+        # Optionally log message state; avoid editing here to keep method side-effect light
+        if self._message:
+            try:
+                if self.accepted:
+                    logger.debug("Selections accepted")
+                elif self._timed_out:
+                    logger.debug("Selection timed out")
+                else:
+                    logger.debug("Selection cancelled")
+            except NotFound:
+                logger.warning("Message not found when trying to update status")
+
+        result: tuple[dict[str, list[str]] | None, Message | None]
+        result = ((selections if self.accepted else None), self._message)
+
         if not self.data_future.done():
-            if not self._completed:
-                logger.debug("Waiting for user selections")
-                # await self.wait()
-                self._completed = True
+            self.data_future.set_result(result)
+        self.stop()
+        return result
 
-            selections = {
-                dropdown.custom_id: dropdown.selected_values
-                for dropdown in self._dropdowns
-                if dropdown.selected_values
-            }
-            selections = self._collection
-            # Dict[str, List[str]]=dropdown id : dropdown selections,
-            # for each dropdown in the list of dropdown, if the dropdown has any selected values.
-
-            logger.debug(
-                f"Collection complete. Accepted: {self.accepted}, Selections: {selections}"
-            )
-
-            # Update message based on result
-            if self._message:
-                try:
-                    if self.accepted:
-                        logger.debug("Selections accepted")
-                        # await self._message.edit(content="Selections accepted", view=None)
-                    elif self._timed_out:
-                        logger.debug("Selection timed out")
-                        # await self._message.edit(content="Selection timed out", view=None)
-                    else:
-                        logger.debug("Selection cancelled")
-                        # await self._message.edit(content="Selection cancelled", view=None)
-                except NotFound:
-                    logger.warning("Message not found when trying to update status")
-            if self.accepted and not self.data_future.done():
-                self.data_future.set_result((selections, self._message))
-            self.stop()
-
-    async def get_data(self):
+    async def get_data(self) -> tuple[dict[str, list[str]] | None, Message | None]:
         # Wait for data to be set (e.g. via button interaction)
         return await self.data_future
