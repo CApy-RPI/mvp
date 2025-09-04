@@ -269,12 +269,19 @@ class ErrorHandlerCog(commands.Cog):
         """Detect whether the context indicates a DM."""
         return "DM: True" in context_value
 
-    async def _update_message_with_status(self, message: discord.Message, embed: discord.Embed, msg: str, *, success: bool = False) -> None:
+    async def _update_message_with_status(
+        self,
+        message: discord.Message,
+        embed: discord.Embed,
+        msg: str,
+        *,
+        success: bool = False,
+    ) -> None:
         """Helper to add a status field and edit the message."""
         self._add_status_field(embed, msg, success=success)
         await message.edit(embed=embed)
 
-    async def _create_invite_and_update(self, channel: discord.TextChannel, embed: discord.Embed) -> tuple[bool, str]:
+    async def _create_invite_and_update(self, channel: discord.TextChannel) -> tuple[bool, str]:
         """Try to create a Discord invite and return (success, message)."""
         try:
             invite = await channel.create_invite(
@@ -320,7 +327,7 @@ class ErrorHandlerCog(commands.Cog):
             await self._update_message_with_status(message, embed, "Could not find the channel.")
             return
 
-        success, msg = await self._create_invite_and_update(channel, embed)
+        success, msg = await self._create_invite_and_update(channel)
         await self._update_message_with_status(message, embed, msg, success=success)
 
     async def _log_error(self, ctx: commands.Context[typing.Any], error: Exception) -> None:
@@ -525,21 +532,17 @@ class ErrorHandlerCog(commands.Cog):
             embed = discord.Embed(
                 title="Error Message Summary",
                 description=(
-                    f"Found {count} messages matching criteria:\n"
-                    f"Status: {status_str}\n"
-                    f"Time range: {time_range_str}"
+                    f"Found {count} messages matching criteria:\nStatus: {status_str}\nTime range: {time_range_str}"
                 ),
                 color=discord.Color.blue(),
             )
             await ctx.send(embed=embed)
-            return
-
-        # Handle clear operation
-        if not await self._confirm_deletion(ctx, count, status_str):
-            await ctx.send("Deletion cancelled.")
-            return
-
-        await self._delete_messages(ctx, matching_messages, status_str)
+        else:
+            # Handle clear operation
+            if not await self._confirm_deletion(ctx, count, status_str):
+                await ctx.send("Deletion cancelled.")
+                return
+            await self._delete_messages(ctx, matching_messages, status_str)
 
     @commands.Cog.listener()
     async def on_reaction_add(
