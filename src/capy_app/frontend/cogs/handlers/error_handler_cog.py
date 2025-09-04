@@ -82,9 +82,7 @@ class ErrorHandlerCog(commands.Cog):
 
         channel = guild.get_channel(settings.FAILED_COMMANDS_CHANNEL_ID)
         if not isinstance(channel, discord.TextChannel):
-            self.logger.error(
-                f"Channel {settings.FAILED_COMMANDS_CHANNEL_ID} is not a text channel"
-            )
+            self.logger.error(f"Channel {settings.FAILED_COMMANDS_CHANNEL_ID} is not a text channel")
             return None
 
         return channel
@@ -104,8 +102,7 @@ class ErrorHandlerCog(commands.Cog):
             "server": f"https://discord.com/guilds/{ctx.guild.id}",
             "channel": f"https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}",
             "user": f"https://discord.com/users/{ctx.author.id}",
-            "message": f"https://discord.com/channels/"
-            f"{ctx.guild.id}/{ctx.channel.id}/{ctx.message.id}",
+            "message": f"https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}/{ctx.message.id}",
         }
 
     def _get_guild_info(self, guild: discord.Guild | None, url: str | None = None) -> str:
@@ -192,9 +189,7 @@ class ErrorHandlerCog(commands.Cog):
         embed.set_footer(text="Status: Unresolved | React: ✅ Resolve, ❌ Ignore, ❓ Create Invite")
         return embed
 
-    async def _send_error_message(
-        self, error_channel: discord.TextChannel, embed: discord.Embed
-    ) -> None:
+    async def _send_error_message(self, error_channel: discord.TextChannel, embed: discord.Embed) -> None:
         """Send error message with reactions."""
         try:
             role_mention = f"<@&{settings.FAILED_COMMANDS_ROLE_ID}>"
@@ -206,9 +201,7 @@ class ErrorHandlerCog(commands.Cog):
         except Exception as e:
             self.logger.error(f"Failed to send error message: {e}")
 
-    def _extract_ids_from_context(
-        self, context_value: str | None = None
-    ) -> tuple[int | None, int | None]:
+    def _extract_ids_from_context(self, context_value: str | None = None) -> tuple[int | None, int | None]:
         """Extract guild and channel IDs from context field value.
 
         Args:
@@ -268,45 +261,21 @@ class ErrorHandlerCog(commands.Cog):
             # Add new field if none exists
             embed.add_field(name="Invite Status", value=status_value, inline=False)
 
-    async def _handle_invite_reaction(self, message: discord.Message, embed: discord.Embed) -> None:
-        """Handle invite reaction on error message."""
-        context_field = next((f for f in embed.fields if f.name == "Context"), None)
-        if not context_field:
-            self.logger.error("Context field not found")
-            return
+    def _get_context_field(self, embed: discord.Embed) -> discord.EmbedField | None:
+        """Return the Context field from an embed, if present."""
+        return next((f for f in embed.fields if f.name == "Context"), None)
 
-        if not context_field.value:
-            self.logger.error("Context field value is None")
-            return
+    def _is_dm_from_context(self, context_value: str) -> bool:
+        """Detect whether the context indicates a DM."""
+        return "DM: True" in context_value
 
-        # Check if this is a DM
-        if "DM: True" in context_field.value:
-            self._add_status_field(embed, "Cannot create invite to DM channel.")
-            await message.edit(embed=embed)
-            return
+    async def _update_message_with_status(self, message: discord.Message, embed: discord.Embed, msg: str, *, success: bool = False) -> None:
+        """Helper to add a status field and edit the message."""
+        self._add_status_field(embed, msg, success=success)
+        await message.edit(embed=embed)
 
-        guild_id, channel_id = self._extract_ids_from_context(context_field.value)
-        if not guild_id or not channel_id:
-            err_msg = "Could not extract server or channel information."
-            self._add_status_field(embed, err_msg)
-            self.logger.error(err_msg)
-            await message.edit(embed=embed)
-            return
-
-        guild = self.bot.get_guild(guild_id)
-        if not guild:
-            self._add_status_field(embed, "Could not find the server.")
-            self.logger.error(f"Could not find guild with ID {guild_id}")
-            await message.edit(embed=embed)
-            return
-
-        channel = guild.get_channel(channel_id)
-        if not isinstance(channel, discord.TextChannel):
-            self._add_status_field(embed, "Could not find the channel.")
-            self.logger.error(f"Could not find channel with ID {channel_id}")
-            await message.edit(embed=embed)
-            return
-
+    async def _create_invite_and_update(self, channel: discord.TextChannel, embed: discord.Embed) -> tuple[bool, str]:
+        """Try to create a Discord invite and return (success, message)."""
         try:
             invite = await channel.create_invite(
                 reason="Error Handler",
@@ -314,19 +283,45 @@ class ErrorHandlerCog(commands.Cog):
                 max_uses=settings.FAILED_COMMANDS_INVITE_USES,
             )
             expiry_time = int(time.time() + settings.FAILED_COMMANDS_INVITE_EXPIRY)
-            self._add_status_field(
-                embed,
-                f"[Click to join]({invite.url})\nExpires <t:{expiry_time}:R>",
-                success=True,
-            )
+            return True, f"[Click to join]({invite.url})\nExpires <t:{expiry_time}:R>"
         except discord.Forbidden:
-            self._add_status_field(embed, "Missing permissions to create invite.")
-            self.logger.error(f"Missing permissions to create invite in channel {channel_id}")
+            self.logger.error(f"Missing permissions to create invite in channel {channel.id}")
+            return False, "Missing permissions to create invite."
         except Exception as e:
-            self._add_status_field(embed, f"Failed to create invite: {e!s}")
             self.logger.error(f"Failed to create invite: {e}")
+            return False, f"Failed to create invite: {e!s}"
 
-        await message.edit(embed=embed)
+    async def _handle_invite_reaction(self, message: discord.Message, embed: discord.Embed) -> None:
+        """Handle invite reaction on error message."""
+        context_field = self._get_context_field(embed)
+        if not context_field or not context_field.value:
+            self.logger.error("Context field not found or empty")
+            return
+
+        if self._is_dm_from_context(context_field.value):
+            await self._update_message_with_status(message, embed, "Cannot create invite to DM channel.")
+            return
+
+        guild_id, channel_id = self._extract_ids_from_context(context_field.value)
+        if not guild_id or not channel_id:
+            self.logger.error("Could not extract server or channel information.")
+            await self._update_message_with_status(message, embed, "Could not extract server or channel information.")
+            return
+
+        guild = self.bot.get_guild(guild_id)
+        if not guild:
+            self.logger.error(f"Could not find guild with ID {guild_id}")
+            await self._update_message_with_status(message, embed, "Could not find the server.")
+            return
+
+        channel = guild.get_channel(channel_id)
+        if not isinstance(channel, discord.TextChannel):
+            self.logger.error(f"Could not find channel with ID {channel_id}")
+            await self._update_message_with_status(message, embed, "Could not find the channel.")
+            return
+
+        success, msg = await self._create_invite_and_update(channel, embed)
+        await self._update_message_with_status(message, embed, msg, success=success)
 
     async def _log_error(self, ctx: commands.Context[typing.Any], error: Exception) -> None:
         """Log error to designated channel with reaction controls."""
@@ -350,9 +345,7 @@ class ErrorHandlerCog(commands.Cog):
             return self.STATUS_IGNORED
         return self.STATUS_UNMARKED
 
-    async def _confirm_deletion(
-        self, ctx: commands.Context[typing.Any], count: int, status: str
-    ) -> bool:
+    async def _confirm_deletion(self, ctx: commands.Context[typing.Any], count: int, status: str) -> bool:
         """Ask for confirmation before deleting messages."""
         confirm_message = await ctx.send(
             f"Are you sure you want to delete {count} error messages with status '{status}'?\n"
@@ -363,9 +356,7 @@ class ErrorHandlerCog(commands.Cog):
 
         def check(reaction: discord.Reaction, user: discord.User) -> bool:
             return (
-                user == ctx.author
-                and str(reaction.emoji) in ["✅", "❌"]
-                and reaction.message.id == confirm_message.id
+                user == ctx.author and str(reaction.emoji) in ["✅", "❌"] and reaction.message.id == confirm_message.id
             )
 
         try:
@@ -377,9 +368,7 @@ class ErrorHandlerCog(commands.Cog):
             await ctx.send("Deletion cancelled - timeout reached.")
             return False
 
-    async def _create_interactive_menu(
-        self, ctx: commands.Context[typing.Any]
-    ) -> tuple[str, str, str]:
+    async def _create_interactive_menu(self, ctx: commands.Context[typing.Any]) -> tuple[str, str, str]:
         """Create an interactive menu for selecting ehc options."""
         operations: dict[str, str] = {"📋": "list", "🗑️": "clear"}
         statuses: dict[str, str] = {
@@ -396,9 +385,7 @@ class ErrorHandlerCog(commands.Cog):
             "5️⃣": "all",
         }
 
-        async def get_selection(
-            message: discord.Message, options: dict[str, str], prompt: str
-        ) -> str:
+        async def get_selection(message: discord.Message, options: dict[str, str], prompt: str) -> str:
             self.logger.info(f"Prompting user with: {prompt}")
             for emoji in options:
                 await message.add_reaction(emoji)
@@ -423,9 +410,7 @@ class ErrorHandlerCog(commands.Cog):
         await status_msg.delete()
 
         # Time range selection
-        time_msg = await ctx.send(
-            "Select time range:\n1️⃣ 1 hour\n2️⃣ 1 day\n3️⃣ 7 days\n4️⃣ 30 days\n5️⃣ All time"
-        )
+        time_msg = await ctx.send("Select time range:\n1️⃣ 1 hour\n2️⃣ 1 day\n3️⃣ 7 days\n4️⃣ 30 days\n5️⃣ All time")
         time_range = await get_selection(time_msg, time_ranges, "time range")
         await time_msg.delete()
 
@@ -440,9 +425,7 @@ class ErrorHandlerCog(commands.Cog):
             return True
 
         if ctx.channel.id != settings.FAILED_COMMANDS_CHANNEL_ID:
-            await ctx.send(
-                "This command can only be used in the designated error handling channel."
-            )
+            await ctx.send("This command can only be used in the designated error handling channel.")
             return True
 
         return False
@@ -488,25 +471,23 @@ class ErrorHandlerCog(commands.Cog):
             time_range: Time range to look back (1h/1d/7d/30d/all)
         """
         # Check if command is used in the correct guild and channel
-        returncheck = False
         if self._error_handler_helper(ctx):
             return
+
+        # Collect parameters, falling back to interactive menu
         try:
             if any(param is None for param in [operation, status, time_range]):
                 operation, status, time_range = await self._create_interactive_menu(ctx)
         except commands.CommandError as e:
             await ctx.send(f"Error: {e!s}")
             return
-        # These are now guaranteed to be strings after _create_interactive_menu
-        operation_str = str(operation)
-        status_str = str(status)
-        time_range_str = str(time_range)
 
-        # Continue with existing operation handling
-        operation_str = operation_str.lower()
-        status_str = status_str.lower()
-        time_range_str = time_range_str.lower()
+        # Normalize
+        operation_str = str(operation).lower()
+        status_str = str(status).lower()
+        time_range_str = str(time_range).lower()
 
+        # Validate
         time_ranges: dict[str, int | None] = {
             "1h": 3600,
             "1d": 86400,
@@ -515,13 +496,12 @@ class ErrorHandlerCog(commands.Cog):
             "all": None,
         }
         if await self._stringcheck(ctx, operation_str, status_str, time_range_str, time_ranges):
-            returncheck = True
+            return
 
+        # Resolve channel
         error_channel = await self._get_error_channel()
         if not error_channel:
             await ctx.send("Error channel not found")
-            returncheck = True
-        if returncheck:
             return
         status_map: dict[str, str] = {
             "resolved": self.STATUS_RESOLVED,
@@ -541,12 +521,14 @@ class ErrorHandlerCog(commands.Cog):
             await ctx.send(f"No messages found with status: {status_str}")
             return
 
-        if operation == "list":
+        if operation_str == "list":
             embed = discord.Embed(
                 title="Error Message Summary",
-                description=f"Found {count} messages matching criteria:\n"
-                f"Status: {status_str}\n"
-                f"Time range: {time_range}",
+                description=(
+                    f"Found {count} messages matching criteria:\n"
+                    f"Status: {status_str}\n"
+                    f"Time range: {time_range_str}"
+                ),
                 color=discord.Color.blue(),
             )
             await ctx.send(embed=embed)
