@@ -11,7 +11,7 @@ dropdown menus with optional accept/cancel buttons. It supports:
 import asyncio
 import logging
 from contextlib import suppress
-from typing import Any, cast
+from typing import Any
 
 from discord import ButtonStyle, Interaction, Message, SelectOption
 from discord.errors import NotFound
@@ -44,7 +44,8 @@ class RightButton(Button["DynamicDropdownView"]):
 
         if next_page >= len(old_view._dropdowns_data):
             logger.debug("Already on last page")
-            return await interaction.response.defer()
+            await interaction.response.defer()
+            return
 
         new_view = DynamicDropdownView(
             dropdowns=old_view._dropdowns_data,
@@ -75,7 +76,8 @@ class LeftButton(Button["DynamicDropdownView"]):
 
         if prev_page < 0:
             logger.debug("Already on first page")
-            return await interaction.response.defer()
+            await interaction.response.defer()
+            return
 
         new_view = DynamicDropdownView(
             dropdowns=old_view._dropdowns_data,
@@ -190,8 +192,7 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
         else:
             logger.debug(f"Current collection: {runningtotal}")
         logger.debug(
-            f"Dropdown {self.custom_id} selected values: {self.selected_values}"
-            f"Current collection: {view._collection}"
+            f"Dropdown {self.custom_id} selected values: {self.selected_values}Current collection: {view._collection}"
         )
 
         if self._disable_on_select:
@@ -228,9 +229,9 @@ class DynamicDropdownView(View):
         """
         super().__init__(**options)
         self.accepted: bool = False
-        self.data_future: asyncio.Future[
-            tuple[dict[str, list[str]] | None, Message | None]
-        ] = asyncio.get_event_loop().create_future()
+        self.data_future: asyncio.Future[tuple[dict[str, list[str]] | None, Message | None]] = (
+            asyncio.get_event_loop().create_future()
+        )
         self.page_number = page_number
 
         logger.debug(f"Dropdowns passed arg: {dropdowns}")
