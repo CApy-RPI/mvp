@@ -1,7 +1,7 @@
 #! turn into ABC
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 import discord
 from discord import TextChannel, app_commands
@@ -60,9 +60,7 @@ class TicketBase(commands.Cog):
             )
             return None
         if not isinstance(channel, TextChannel):
-            self.logger.error(
-                f"{self.request_channel_id} for {self.cmd_name_verbose} tickets is not a Text Channel"
-            )
+            self.logger.error(f"{self.request_channel_id} for {self.cmd_name_verbose} tickets is not a Text Channel")
             await self._send_followup_error(
                 interaction,
                 "❌ Channel Error",
@@ -82,8 +80,9 @@ class TicketBase(commands.Cog):
         return footer_text.removesuffix(" • ")
 
     def _build_ticket_embed(self, values: dict[str, Any], interaction: discord.Interaction) -> discord.Embed:
+        title_value = cast(str, values.get(f"{self.cmd_name}_title", ""))
         embed = discord.Embed(
-            title=(f"{self.cmd_emoji} {self.cmd_name_verbose}: " + values.get(f"{self.cmd_name}_title")),
+            title=f"{self.cmd_emoji} {self.cmd_name_verbose}: {title_value}",
             description=values.get(f"{self.cmd_name}_description"),
             color=self.unmarked_color,
         )
@@ -140,9 +139,7 @@ class TicketBase(commands.Cog):
 
         await interaction.followup.send(f"{self.cmd_name_verbose} submitted successfully!", ephemeral=True)
         self.logger.info(
-            f"{self.cmd_name_verbose} "
-            f"'{values.get(f'{self.cmd_name}_title')}' submitted by user "
-            f"{interaction.user.id}"
+            f"{self.cmd_name_verbose} '{values.get(f'{self.cmd_name}_title')}' submitted by user {interaction.user.id}"
         )
 
     @commands.Cog.listener()
