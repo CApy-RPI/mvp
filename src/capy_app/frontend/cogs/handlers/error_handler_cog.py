@@ -261,7 +261,7 @@ class ErrorHandlerCog(commands.Cog):
             # Add new field if none exists
             embed.add_field(name="Invite Status", value=status_value, inline=False)
 
-    def _get_context_field(self, embed: discord.Embed) -> discord.EmbedField | None:
+    def _get_context_field(self, embed: discord.Embed) -> typing.Any | None:
         """Return the Context field from an embed, if present."""
         return next((f for f in embed.fields if f.name == "Context"), None)
 
