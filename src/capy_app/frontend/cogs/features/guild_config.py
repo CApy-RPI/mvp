@@ -74,7 +74,7 @@ class ConfigConstructor:
         }
 
     @staticmethod
-    def get_settings_type_dropdown() -> dict:
+    def get_settings_type_dropdown() -> dict[str, object]:
         """Get settings type selection dropdown configuration."""
         return {
             "dropdowns": [
@@ -101,7 +101,7 @@ class ConfigConstructor:
         }
 
     @staticmethod
-    def get_config_view_settings() -> dict:
+    def get_config_view_settings() -> dict[str, object]:
         """Get configuration view settings."""
         return {
             "ephemeral": False,
@@ -114,7 +114,7 @@ class ConfigConstructor:
         return "⚠️ Are you sure you want to clear all server settings? This cannot be undone."
 
     @staticmethod
-    def format_dropdown_option(name: str, id_value: str, description: str) -> dict:
+    def format_dropdown_option(name: str, id_value: int | str, description: str) -> dict[str, str]:
         """Format a dropdown option."""
         return {
             "label": name,
@@ -124,8 +124,11 @@ class ConfigConstructor:
 
     @staticmethod
     def format_dropdown(
-        custom_id: str, placeholder: str, options: list[dict], required: bool = False
-    ) -> dict:
+        custom_id: str,
+        placeholder: str,
+        options: list[dict[str, str]],
+        required: bool = False,
+    ) -> dict[str, object]:
         """Format a dropdown menu configuration."""
         return {
             "custom_id": custom_id,
@@ -136,18 +139,14 @@ class ConfigConstructor:
         }
 
     @classmethod
-    async def create_channel_dropdown(cls, guild: discord.Guild) -> list[dict]:
+    async def create_channel_dropdown(cls, guild: discord.Guild) -> list[dict[str, object]]:
         """Create channel selection options."""
-        text_channels = [
-            channel for channel in guild.channels if isinstance(channel, discord.TextChannel)
-        ]
+        text_channels = [channel for channel in guild.channels if isinstance(channel, discord.TextChannel)]
 
         selections = []
         for name, prompt in cls.get_channel_prompts().items():
             options = [
-                cls.format_dropdown_option(
-                    channel.name, channel.id, f"Select as {prompt['label'].lower()}"
-                )
+                cls.format_dropdown_option(channel.name, channel.id, f"Select as {prompt['label'].lower()}")
                 for channel in text_channels
             ]
 
@@ -163,14 +162,12 @@ class ConfigConstructor:
         return selections
 
     @classmethod
-    async def create_role_dropdown(cls, guild: discord.Guild) -> list[dict]:
+    async def create_role_dropdown(cls, guild: discord.Guild) -> list[dict[str, object]]:
         """Create role selection options."""
         selections = []
         for name, prompt in cls.get_role_prompts().items():
             options = [
-                cls.format_dropdown_option(
-                    role.name, role.id, f"Select as {prompt['label'].lower()}"
-                )
+                cls.format_dropdown_option(role.name, role.id, f"Select as {prompt['label'].lower()}")
                 for role in guild.roles
                 if not role.is_default()
             ]
