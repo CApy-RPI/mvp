@@ -134,14 +134,10 @@ class GuildCog(commands.Cog):
         self, setting_type: str, message: discord.Message, guild: discord.Guild
     ) -> dict[str, int | None] | None:
         """Process configuration selection."""
-        self.logger.debug(
-            "config_start: type=%s guild=%s", setting_type, getattr(guild, "id", None)
-        )
+        self.logger.debug("config_start: type=%s guild=%s", setting_type, getattr(guild, "id", None))
         dropdowns = await self._create_dropdowns(setting_type, guild)
 
-        config_view = DynamicDropdownView(
-            dropdowns=dropdowns, **self.config.get_config_view_settings()
-        )
+        config_view = DynamicDropdownView(dropdowns=dropdowns, **self.config.get_config_view_settings())
 
         selections, message = await config_view.initiate_from_message(
             message, f"Select {setting_type} for each category:"
@@ -174,9 +170,7 @@ class GuildCog(commands.Cog):
     @app_commands.command(name="server", description="Manage server settings")
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.describe(action="The action to perform with server settings")
-    @app_commands.choices(
-        action=[app_commands.Choice(name=n, value=n) for n in ["show", "edit", "clear"]]
-    )
+    @app_commands.choices(action=[app_commands.Choice(name=n, value=n) for n in ["show", "edit", "clear"]])
     async def server(self, interaction: discord.Interaction, action: str) -> None:
         """Handle server setting actions."""
         self.logger.info(
@@ -219,13 +213,9 @@ class GuildCog(commands.Cog):
 
         except Exception as e:
             self.logger.error(f"Failed to handle server action {action}: {e}")
-            await interaction.edit_original_response(
-                content=f"An error occurred while performing {action}."
-            )
+            await interaction.edit_original_response(content=f"An error occurred while performing {action}.")
 
-    async def show_settings(
-        self, interaction: discord.Interaction, message: discord.Message = None
-    ) -> None:
+    async def show_settings(self, interaction: discord.Interaction, message: discord.Message = None) -> None:
         """Display current server settings."""
         self.logger.debug(
             "show_settings: user=%s guild=%s",

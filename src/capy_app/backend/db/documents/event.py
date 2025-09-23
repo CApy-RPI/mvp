@@ -35,9 +35,7 @@ class EventDetails(RestrictedEmbeddedDocument):
     time: datetime.datetime = mongoengine.DateTimeField(required=True)
     location: str | None = mongoengine.StringField()
     description: str | None = mongoengine.StringField()
-    reactions: EventReactions = mongoengine.EmbeddedDocumentField(
-        EventReactions, default=EventReactions
-    )
+    reactions: EventReactions = mongoengine.EmbeddedDocumentField(EventReactions, default=EventReactions)
 
 
 class Event(RestrictedDocument):

@@ -237,9 +237,7 @@ class DropdownTestCog(commands.Cog):
         """Test the dropdown base with accept/cancel buttons"""
         view = DynamicDropdownView(**DROPDOWN_CONFIGS["multi_selection"])
 
-        selections, message = await view.initiate_from_interaction(
-            interaction, "Select from each category:"
-        )
+        selections, message = await view.initiate_from_interaction(interaction, "Select from each category:")
 
         if message:
             content = f"Selected values: {selections}" if selections else "Selection cancelled."
@@ -270,9 +268,7 @@ class DropdownTestCog(commands.Cog):
         view3 = DynamicDropdownView(**DROPDOWN_CONFIGS["paint_step3"])
         application_selections, message = await view3.initiate_from_message(
             message,
-            "Step 3: Choose your application preferences:\n"
-            "• Select 1-2 finish types\n"
-            "• Choose an application method",
+            "Step 3: Choose your application preferences:\n• Select 1-2 finish types\n• Choose an application method",
         )
         if not application_selections or not message:
             return

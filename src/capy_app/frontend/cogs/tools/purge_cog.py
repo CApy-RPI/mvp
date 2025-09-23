@@ -111,12 +111,8 @@ class PurgeModeView(discord.ui.View):
             try:
                 date_input = modal.children[0]
                 time_input = modal.children[1]
-                if isinstance(date_input, discord.ui.TextInput) and isinstance(
-                    time_input, discord.ui.TextInput
-                ):
-                    self.value = datetime.strptime(
-                        f"{date_input.value} {time_input.value}", "%Y-%m-%d %H:%M"
-                    )
+                if isinstance(date_input, discord.ui.TextInput) and isinstance(time_input, discord.ui.TextInput):
+                    self.value = datetime.strptime(f"{date_input.value} {time_input.value}", "%Y-%m-%d %H:%M")
                 await _.response.defer()
                 self.stop()
             except ValueError:
@@ -162,23 +158,18 @@ class PurgeCog(commands.Cog):
 
         return timedelta(days=days, hours=hours, minutes=minutes)
 
-    async def _handle_purge_count(
-        self, amount: int, channel: discord.TextChannel
-    ) -> tuple[bool, str]:
+    async def _handle_purge_count(self, amount: int, channel: discord.TextChannel) -> tuple[bool, str]:
         if amount <= 0:
             return False, "Please specify a number greater than 0"
         deleted = await channel.purge(limit=amount)
         return True, f"✨ Successfully deleted {len(deleted)} messages!"
 
-    async def _handle_purge_duration(
-        self, duration: str, channel: discord.TextChannel
-    ) -> tuple[bool, str]:
+    async def _handle_purge_duration(self, duration: str, channel: discord.TextChannel) -> tuple[bool, str]:
         time_delta = self.parse_duration(duration)
         if not time_delta:
             return (
                 False,
-                "Invalid duration format. Use format: 1d2h3m (e.g., 1d = 1 day,"
-                "2h = 2 hours, 3m = 3 minutes)",
+                "Invalid duration format. Use format: 1d2h3m (e.g., 1d = 1 day,2h = 2 hours, 3m = 3 minutes)",
             )
 
         after_time = datetime.utcnow() - time_delta
@@ -188,9 +179,7 @@ class PurgeCog(commands.Cog):
             f"✨ Successfully deleted {len(deleted)} messages from the last {duration}!",
         )
 
-    async def _handle_purge_date(
-        self, date: datetime, channel: discord.TextChannel
-    ) -> tuple[bool, str]:
+    async def _handle_purge_date(self, date: datetime, channel: discord.TextChannel) -> tuple[bool, str]:
         if date > datetime.utcnow():
             return False, "Cannot purge future messages"
         deleted = await channel.purge(after=date)
@@ -217,10 +206,7 @@ class PurgeCog(commands.Cog):
             embed = success_embed("Purge", message) if success else error_embed("Error", message)
             await interaction.followup.send(embed=embed, ephemeral=True)
             if success:
-                self.logger.info(
-                    f"{interaction.user} purged messages in {interaction.channel} "
-                    f"using {view.mode} mode"
-                )
+                self.logger.info(f"{interaction.user} purged messages in {interaction.channel} using {view.mode} mode")
         except discord.Forbidden:
             await interaction.followup.send(
                 embed=error_embed("Error", "I don't have permission to delete messages"),

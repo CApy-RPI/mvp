@@ -28,9 +28,7 @@ class HelpCog(commands.HelpCommand):
             return None
 
         if isinstance(command, commands.Group):
-            sub_list = [
-                f"**{sub.name}** - {sub.help or 'No description'}" for sub in command.commands
-            ]
+            sub_list = [f"**{sub.name}** - {sub.help or 'No description'}" for sub in command.commands]
             sub_text = "\n".join(sub_list) if sub_list else ""
             base = command.help or "No description"
             description = f"{base}\n{sub_text}" if sub_text else base
@@ -46,9 +44,7 @@ class HelpCog(commands.HelpCommand):
             color=colors.HELP,
         )
 
-        descriptions = [
-            d for d in (self._format_command(cmd) for cmd in cog.get_commands()) if d
-        ]
+        descriptions = [d for d in (self._format_command(cmd) for cmd in cog.get_commands()) if d]
         embed.description = "\n\n".join(descriptions)
         return embed
 

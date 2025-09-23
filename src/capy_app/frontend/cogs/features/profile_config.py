@@ -50,8 +50,7 @@ PROFILE_CONFIG = {
         "ephemeral": True,
         "button_label": "Enter Verification Code",
         "button_style": ButtonStyle.primary,
-        "message_prompt": "📧 A verification code has been sent to your email."
-        "\nClick below when ready to verify:",
+        "message_prompt": "📧 A verification code has been sent to your email.\nClick below when ready to verify:",
         "modal": {
             "title": "Email Verification",
             "fields": [

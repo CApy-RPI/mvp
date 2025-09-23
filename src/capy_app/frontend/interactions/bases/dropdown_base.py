@@ -182,29 +182,56 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
         assert self.view is not None
         view: DynamicDropdownView = self.view
 
-        self.selected_values = self.values
+        # Calculate current total selections across all dropdowns
         runningtotal = 0
         for dropdown in view._collection:
             for _major in view._collection[dropdown]:
                 runningtotal += 1
-        if runningtotal + len(self.selected_values) <= self.max_values:
+
+        # Get previous selections for this dropdown to calculate the net change
+        previous_selections = len(view._collection.get(self.custom_id, []))
+        net_change = len(self.values) - previous_selections
+
+        # Global limit of 2 majors total across all dropdowns
+        global_limit = 2
+
+        if runningtotal + net_change <= global_limit:
+            # Accept the selection
+            self.selected_values = self.values
             view._collection[self.custom_id] = self.selected_values
+
+            logger.debug(
+                f"Dropdown {self.custom_id} selected values: {self.selected_values}. Current collection: {view._collection}"
+            )
+
+            if self._disable_on_select:
+                self.disabled = True
+                logger.debug(f"Dropdown {self.custom_id} disabled after selection")
+
+            if not view._has_buttons:
+                view.accepted = True
+                view.stop()
+                view._set_data()
+
+            await interaction.response.defer()
         else:
-            logger.debug(f"Current collection: {runningtotal}")
-        logger.debug(
-            f"Dropdown {self.custom_id} selected values: {self.selected_values}Current collection: {view._collection}"
-        )
+            # Reject the selection and restore previous state
+            total_after_change = runningtotal + net_change
+            await interaction.response.send_message(
+                f"You can only select up to {global_limit} majors total. "
+                f"This selection would result in {total_after_change} majors.",
+                ephemeral=True,
+            )
 
-        if self._disable_on_select:
-            self.disabled = True
-            logger.debug(f"Dropdown {self.custom_id} disabled after selection")
+            # Reset the dropdown to its previous state
+            previous_values = view._collection.get(self.custom_id, [])
+            self.selected_values = previous_values.copy()
 
-        if not view._has_buttons:
-            view.accepted = True
-            view.stop()
-            view._set_data()
+            # Update the dropdown options to reflect the previous selection
+            for option in self.options:
+                option.default = option.value in previous_values
 
-        await interaction.response.defer()
+            return
 
 
 class DynamicDropdownView(View):
@@ -314,7 +341,40 @@ class DynamicDropdownView(View):
         selections: list[dict[str, Any]],
         **options,
     ) -> DynamicDropdown:
-        dropdown = DynamicDropdown(selections, **options)
+        # Get the custom_id from options to check for existing selections
+        custom_id = options.get("custom_id", "")
+        existing_selections = self._collection.get(custom_id, [])
+
+        # Calculate current global selections to determine max_values for this dropdown
+        runningtotal = sum(len(majors) for majors in self._collection.values())
+        global_limit = 2
+
+        # Calculate how many more majors can be selected globally
+        remaining_global_slots = global_limit - runningtotal
+
+        # Get the original max_values from options, defaulting to 2
+        original_max_values = options.get("max_values", 2)
+
+        if remaining_global_slots <= 0 and not existing_selections:
+            # If no slots remaining and this dropdown has no existing selections, disable it
+            options["disabled"] = True
+            options["placeholder"] = options.get("placeholder", "Select majors") + " (2 majors already selected)"
+            # Keep max_values at 1 when disabled (Discord requirement)
+            options["max_values"] = 1
+        else:
+            # Adjust max_values to respect global limit
+            # Allow existing selections plus any remaining global slots
+            available_slots = len(existing_selections) + remaining_global_slots
+            options["max_values"] = min(original_max_values, max(1, available_slots))
+
+            if remaining_global_slots < original_max_values and remaining_global_slots > 0:
+                # Update placeholder to show limited selection availability
+                options["placeholder"] = (
+                    options.get("placeholder", "Select majors") + f" (max {remaining_global_slots} more)"
+                )
+
+        # Pass existing selections as default values
+        dropdown = DynamicDropdown(selections, default_values=existing_selections, **options)
 
         # Code to update the max value according to the running total: doesn't work because
         # dropdowns cannot have a max value of 0, which breaks the command.

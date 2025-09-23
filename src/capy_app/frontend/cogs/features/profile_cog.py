@@ -12,7 +12,10 @@ from discord import app_commands
 from discord.ext import commands
 from frontend.interactions.bases.button_base import ConfirmDeleteView
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
-from frontend.interactions.bases.modal_base import ButtonDynamicModalView, DynamicModalView
+from frontend.interactions.bases.modal_base import (
+    ButtonDynamicModalView,
+    DynamicModalView,
+)
 
 from config import settings
 
@@ -120,12 +123,8 @@ class ProfileCog(commands.Cog):
         for dropdown_id in values:
             selected.extend(values[dropdown_id])
 
-        max_majors = 2
-        if len(selected) > max_majors:
-            await message.edit(content=f"You can only select up to {max_majors} majors.", view=None)
-            return ["Not Set"], message  # Limit to max 2 majors total
-
-        return selected, message  # Limit to max 2 majors total
+        # The global limit is now enforced at the dropdown level
+        return selected, message
 
     async def verify_email(self, message: discord.Message, new_email: str, user: User | None) -> bool:
         """Verify user's email using button modal base"""

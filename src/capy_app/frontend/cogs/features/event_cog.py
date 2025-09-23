@@ -37,9 +37,7 @@ class EventCog(commands.Cog):
         """Returns current time in UTC."""
         return datetime.now(UTC)
 
-    def parse_datetime(
-        self, date_str: str, time_str: str, timezone_str: str | None = None
-    ) -> datetime:
+    def parse_datetime(self, date_str: str, time_str: str, timezone_str: str | None = None) -> datetime:
         """Parse date and time strings into a datetime object."""
         try:
             # Extract timezone from time string if not provided separately
@@ -130,9 +128,7 @@ class EventCog(commands.Cog):
         )
 
     # Register the /event command for the debug guild only
-    @app_commands.guilds(
-        discord.Object(id=settings.DEBUG_GUILD_ID if settings.DEBUG_GUILD_ID is not None else 0)
-    )
+    @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID if settings.DEBUG_GUILD_ID is not None else 0))
     @app_commands.command(name="event", description="Manage events")
     @app_commands.describe(action="The action to perform with events")
     @app_commands.choices(
@@ -176,22 +172,17 @@ class EventCog(commands.Cog):
         guild = Database.get_document(Guild, interaction.guild_id)
         # Check if the guild has any events
         if not guild or not hasattr(guild, "events") or not guild.events:
-            await interaction.response.send_message(
-                "No events found for this server.", ephemeral=True
-            )
+            await interaction.response.send_message("No events found for this server.", ephemeral=True)
             return
 
         # Check if any events exist with details
         has_events = any(
-            Database.get_document(Event, event_id)
-            and hasattr(Database.get_document(Event, event_id), "details")
+            Database.get_document(Event, event_id) and hasattr(Database.get_document(Event, event_id), "details")
             for event_id in guild.events
         )
 
         if not has_events:
-            await interaction.response.send_message(
-                "No events found for this server.", ephemeral=True
-            )
+            await interaction.response.send_message("No events found for this server.", ephemeral=True)
             return
 
         # Proceed to event deletion selection
@@ -208,10 +199,7 @@ class EventCog(commands.Cog):
             self.logger.info("Initiating modal interaction")
             event_data, modal_message = await modal_view.initiate_from_interaction(interaction)
 
-            self.logger.info(
-                f"Modal result: data={event_data is not None},"
-                f"message exists={modal_message is not None}"
-            )
+            self.logger.info(f"Modal result: data={event_data is not None},message exists={modal_message is not None}")
 
             # Check if event data was submitted
             if not event_data:
@@ -240,9 +228,7 @@ class EventCog(commands.Cog):
             timezone, dropdown_message = await self._get_timezone_selection(modal_message)
 
             # Parse the date and time into a datetime object
-            event_time = self.parse_datetime(
-                event_data["event_date"], event_data["event_time"], timezone
-            )
+            event_time = self.parse_datetime(event_data["event_date"], event_data["event_time"], timezone)
 
             # Create and save the event
             new_event, event_id = await self._save_new_event(interaction, event_data, event_time)
@@ -256,9 +242,7 @@ class EventCog(commands.Cog):
             if interaction.response.is_done():
                 await interaction.followup.send(f"Error creating event: {e!s}", ephemeral=True)
             else:
-                await interaction.response.send_message(
-                    f"Error creating event: {e!s}", ephemeral=True
-                )
+                await interaction.response.send_message(f"Error creating event: {e!s}", ephemeral=True)
 
     async def _get_timezone_selection(self, modal_message) -> tuple[str, Any]:
         """Helper to handle timezone selection dropdown."""
@@ -373,9 +357,7 @@ class EventCog(commands.Cog):
         total_count = len(upcoming_events) + len(past_events)
         embed = discord.Embed(
             title="Events",
-            description=(
-                f"Found {total_count} events (Upcoming: {len(upcoming_events)}, Past: {len(past_events)})"
-            ),
+            description=(f"Found {total_count} events (Upcoming: {len(upcoming_events)}, Past: {len(past_events)})"),
             color=discord.Color.blue(),
         )
 
@@ -497,10 +479,12 @@ class EventCog(commands.Cog):
         current_time = self.now()
         upcoming: list[dict[str, str]] = []
         old: list[dict[str, str]] = []
+
         # Sort by time first so options are ordered
         def _event_time(ev: Event):
             t = ev.details.time
             return pytz.UTC.localize(t) if t.tzinfo is None else t
+
         try:
             sorted_events = sorted(events, key=lambda e: _event_time(e))
         except Exception:
@@ -583,9 +567,7 @@ class EventCog(commands.Cog):
                 # Collect selected values from dropdowns
                 for dropdown in getattr(view, "_dropdowns", []):
                     if hasattr(dropdown, "selected_values") and dropdown.selected_values:
-                        selections[getattr(dropdown, "custom_id", "event_selection")] = (
-                            dropdown.selected_values
-                        )
+                        selections[getattr(dropdown, "custom_id", "event_selection")] = dropdown.selected_values
                 values = selections if getattr(view, "accepted", False) else None
                 # If user cancelled selection, update message and return None
                 if hasattr(view, "cancelled") and getattr(view, "cancelled", False):
@@ -663,9 +645,7 @@ class EventCog(commands.Cog):
             return
 
         view = EditView(
-            lambda button_interaction: self._handle_edit_event_button(
-                button_interaction, event, message
-            ),
+            lambda button_interaction: self._handle_edit_event_button(button_interaction, event, message),
             ephemeral=True,
         )
         await message.edit(
@@ -711,8 +691,7 @@ class EventCog(commands.Cog):
             for dropdown in timezone_config.get("dropdowns", []):
                 if "options" in dropdown:
                     dropdown["selections"] = [
-                        {**opt, "default": opt.get("value") == current_tz}
-                        for opt in dropdown.pop("options", [])
+                        {**opt, "default": opt.get("value") == current_tz} for opt in dropdown.pop("options", [])
                     ]
 
             # Show timezone selection dropdown to user
@@ -729,9 +708,7 @@ class EventCog(commands.Cog):
             )
 
             # Parse and update event details
-            event_time = self.parse_datetime(
-                form_data["event_date"], form_data["event_time"], timezone
-            )
+            event_time = self.parse_datetime(form_data["event_date"], form_data["event_time"], timezone)
             event.details.name = form_data["event_name"]
             event.details.description = form_data["event_description"]
             event.details.time = event_time
@@ -775,14 +752,10 @@ class EventCog(commands.Cog):
             delete_error = await self._delete_event_and_cleanup(event, interaction.guild_id)
             if delete_error:
                 # If error occurs during deletion, notify user
-                await self._edit_message_safe(
-                    message, f"Error deleting event '{event.details.name}': {delete_error}"
-                )
+                await self._edit_message_safe(message, f"Error deleting event '{event.details.name}': {delete_error}")
             else:
                 # Notify user of successful deletion
-                await self._edit_message_safe(
-                    message, f"Event '{event.details.name}' has been deleted."
-                )
+                await self._edit_message_safe(message, f"Event '{event.details.name}' has been deleted.")
         else:
             # If user cancels deletion, notify user
             await self._edit_message_safe(message, "Event deletion cancelled.")
@@ -859,8 +832,7 @@ class EventCog(commands.Cog):
         try:
             await message.edit(  # Edit the message from the dropdown
                 content=(
-                    f"Are you sure you want to announce the event '{event.details.name}' "
-                    "in the announcements channel?"
+                    f"Are you sure you want to announce the event '{event.details.name}' in the announcements channel?"
                 ),
                 view=view,
                 embed=None,
@@ -893,20 +865,14 @@ class EventCog(commands.Cog):
         # Resolve announcements channel from server settings (fallback to name if not configured)
         guild_data = Database.get_document(Guild, interaction.guild.id)
         announcement_channel: discord.TextChannel | None = None
-        channel_id = (
-            getattr(getattr(guild_data, "channels", None), "announcements", None)
-            if guild_data
-            else None
-        )
+        channel_id = getattr(getattr(guild_data, "channels", None), "announcements", None) if guild_data else None
         if channel_id:
             chan = interaction.guild.get_channel(channel_id)
             if isinstance(chan, discord.TextChannel):
                 announcement_channel = chan
         if announcement_channel is None:
             # Fallback by name for legacy behavior
-            announcement_channel = discord.utils.get(
-                interaction.guild.text_channels, name="announcements"
-            )
+            announcement_channel = discord.utils.get(interaction.guild.text_channels, name="announcements")
 
         if not announcement_channel:
             with suppress(discord.Forbidden, discord.HTTPException):
@@ -933,9 +899,7 @@ class EventCog(commands.Cog):
         embed.add_field(name="Location", value=event.details.location, inline=True)
 
         # Add footer with instructions
-        embed.set_footer(
-            text="React with ✅ to attend, ❌ if you can't make it, or ❔ if you're unsure."
-        )
+        embed.set_footer(text="React with ✅ to attend, ❌ if you can't make it, or ❔ if you're unsure.")
 
         try:
             # Send the announcement
@@ -956,15 +920,11 @@ class EventCog(commands.Cog):
                 embed=None,  # Clear embed
             )
         except discord.Forbidden:
-            self.logger.error(
-                f"Permission error announcing event {event._id} "
-                f"in channel {announcement_channel.id}"
-            )
+            self.logger.error(f"Permission error announcing event {event._id} in channel {announcement_channel.id}")
             with suppress(discord.NotFound, discord.HTTPException):
                 await message.edit(
                     content=(
-                        "Error: I don't have permission to send messages or add reactions "
-                        "in the announcements channel."
+                        "Error: I don't have permission to send messages or add reactions in the announcements channel."
                     ),
                     view=None,
                     embed=None,  # Clear embed
@@ -1000,9 +960,7 @@ class EventCog(commands.Cog):
                     user_events.append(event)
 
         if not user_events:
-            await interaction.followup.send(
-                "You're not registered for any upcoming events.", ephemeral=True
-            )
+            await interaction.followup.send("You're not registered for any upcoming events.", ephemeral=True)
             return
 
         # Sort events by datetime
@@ -1029,11 +987,7 @@ class EventCog(commands.Cog):
             # Add field for each event
             embed.add_field(
                 name=event.details.name,
-                value=(
-                    f"**When:** {localized_time}\n"
-                    f"**Where:** {event.details.location}\n"
-                    f"**Your Status:** {status}"
-                ),
+                value=(f"**When:** {localized_time}\n**Where:** {event.details.location}\n**Your Status:** {status}"),
                 inline=False,
             )
 
@@ -1342,7 +1296,7 @@ class EventCog(commands.Cog):
             await self.handle_no_reaction_remove(event, user_id)
         elif emoji == "❔":
             await self.handle_maybe_reaction_remove(event, user_id)
-        
+
         # After updating RSVP state, refresh the embed with latest counts
         await self.show_event_embed(message, event)
 
@@ -1356,9 +1310,7 @@ class EventCog(commands.Cog):
         if not still_positive and hasattr(user, "events") and event._id in user.events:
             user.events.remove(event._id)
             user.save()
-            self.logger.info(
-                f"Removed event {event._id} from user {user_id}'s event list after reaction removal."
-            )
+            self.logger.info(f"Removed event {event._id} from user {user_id}'s event list after reaction removal.")
 
     async def handle_yes_reaction_remove(self, event, user_id):
         # Process the removal of reaction For "yes" response
@@ -1372,9 +1324,7 @@ class EventCog(commands.Cog):
             await self.remove_event_from_user(event, user_id)
         if modified:
             event.save()
-            self.logger.info(
-                f"Updated event {event._id} for user {user_id} after reaction removal."
-            )
+            self.logger.info(f"Updated event {event._id} for user {user_id} after reaction removal.")
 
     async def handle_no_reaction_remove(self, event, user_id):
         # Process the removal of reaction For "no" response
@@ -1387,9 +1337,7 @@ class EventCog(commands.Cog):
             modified = True
         if modified:
             event.save()
-            self.logger.info(
-                f"Updated event {event._id} for user {user_id} after reaction removal."
-            )
+            self.logger.info(f"Updated event {event._id} for user {user_id} after reaction removal.")
 
     async def handle_maybe_reaction_remove(self, event, user_id):
         # Process the removal of reaction For "maybe" response
@@ -1403,9 +1351,7 @@ class EventCog(commands.Cog):
             await self.remove_event_from_user(event, user_id)
         if modified:
             event.save()
-            self.logger.info(
-                f"Updated event {event._id} for user {user_id} after maybe reaction removal."
-            )
+            self.logger.info(f"Updated event {event._id} for user {user_id} after maybe reaction removal.")
 
     async def get_prefilled__modal_config(self, event: Event) -> dict:
         """Return modal config with fields pre-filled from event details."""

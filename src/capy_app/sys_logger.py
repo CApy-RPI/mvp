@@ -21,9 +21,7 @@ def init_logger():
     except_logger = logging.getLogger("sys")
 
     def handler(exc_type, exc_value, _exc_tb):
-        sys.stderr.write(
-            f"{FAIL}ENCOUNTERED {exc_type.__name__}: CHECK {logfile} FOR MORE DETAILS\n"
-        )
+        sys.stderr.write(f"{FAIL}ENCOUNTERED {exc_type.__name__}: CHECK {logfile} FOR MORE DETAILS\n")
         except_logger.exception(f"Uncaught exception: {exc_value!s}", stack_info=True)
 
     sys.excepthook = handler

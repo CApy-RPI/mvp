@@ -45,9 +45,7 @@ class BaseButtonView(discord.ui.View):
         self._message = await interaction.original_response()
         return await self._get_data()
 
-    async def initiate_from_message(
-        self, message: Message, content: str
-    ) -> tuple[bool | None, Message | None]:
+    async def initiate_from_message(self, message: Message, content: str) -> tuple[bool | None, Message | None]:
         """Show buttons on an existing message."""
         self._message = await message.edit(content=content, view=self)
         return await self._get_data()
@@ -141,9 +139,7 @@ class EditView(BaseButtonView):
         await self._callback(interaction)
 
     @discord.ui.button(label="Cancel", style=ButtonStyle.secondary)
-    async def cancel_button(
-        self, interaction: Interaction, _button: discord.ui.Button[Any]
-    ) -> None:
+    async def cancel_button(self, interaction: Interaction, _button: discord.ui.Button[Any]) -> None:
         """Handle cancel button press."""
         await interaction.response.defer()
         self.value = False
