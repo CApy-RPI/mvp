@@ -107,7 +107,9 @@ class ProfileCog(commands.Cog):
         result = await modal_view.initiate_from_interaction(interaction)
         return cast(tuple[dict[str, str] | None, discord.Message | None], result)
 
-    async def get_majors(self, message: discord.Message, _user: User | None) -> tuple[list[str], discord.Message]:
+    async def get_majors(
+        self, message: discord.Message, _user: User | None
+    ) -> tuple[list[str] | None, discord.Message]:
         """Get selected majors using dropdown base"""
         config = self.major_handler.get_dropdown_config(self.config["major_dropdown"])
         view = DynamicDropdownView(**config)
@@ -116,7 +118,7 @@ class ProfileCog(commands.Cog):
         self.logger.debug(f"Dropdown values: {values}")
 
         if not values:
-            return ["Not Set"], message
+            return None, message
 
         # Combine selections from all dropdowns
         selected = []
@@ -130,10 +132,6 @@ class ProfileCog(commands.Cog):
         """Verify user's email using button modal base"""
         if user and new_email == user.profile.school_email:
             return True
-
-        if not new_email.endswith("edu"):
-            await message.edit(content="Invalid School email!")
-            return False
 
         if not self.email_verifier.send_verification_email(message.author.id, new_email):
             await message.edit(content="Failed to send verification email.")
@@ -150,10 +148,6 @@ class ProfileCog(commands.Cog):
         """Send verification code without prompting for input yet."""
         if user and new_email == user.profile.school_email:
             return True
-
-        if not new_email.endswith("edu"):
-            await message.edit(content="Invalid School email!")
-            return False
 
         if not self.email_verifier.send_verification_email(message.author.id, new_email):
             await message.edit(content="Failed to send verification email.")
@@ -255,6 +249,9 @@ class ProfileCog(commands.Cog):
         if not (profile_data["student_id"].isdigit()):
             content += "Student ID must be a number.\n"
             trycheck = True
+        if not profile_data["school_email"].endswith("edu"):
+            content += "School email must end with 'edu'.\n"
+            trycheck = True
 
         grad_year_lower_bound = 1899
         grad_year_upper_bound = 2100
@@ -275,7 +272,13 @@ class ProfileCog(commands.Cog):
         while True:
             try:
                 selected_majors, message = await self.get_majors(message, user)
-                if selected_majors != ["Not Set"]:
+
+                # If user canceled, return None to abort the entire process
+                if selected_majors is None:
+                    return None
+
+                # If majors were selected, return them
+                if selected_majors and selected_majors != ["Not Set"]:
                     return selected_majors
 
                 await message.edit(content="⚠️ Please select 1 or 2 majors.")
