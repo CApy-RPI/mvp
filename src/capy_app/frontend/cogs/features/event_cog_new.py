@@ -61,6 +61,10 @@ def now() -> datetime:
     """Return the current time in UTC"""
     return datetime.now(UTC)
 
+def _event_time(ev: Event): # This is marked private so not to conflict with any variables event_time
+    t = ev.details.time
+    return t.replace(tzinfo=UTC) if t.tzinfo is None else t
+
 
 def get_guild_events_for_action(guild_id: int, action: Action) -> list[Event | None]:
     """Gets the events for a guild that match a given action"""
@@ -100,7 +104,7 @@ class EventCogNew(commands.Cog):
 
         def _get_default_timezone() -> str:
             """Helper to get default timezone from config dropdowns."""
-            fallback_dropdowns: list[dict[str, Any]] = self.config["timezone_dropdown"].get("dropdowns", [])
+            fallback_dropdowns = self.config["timezone_dropdown"].get("dropdowns", [])
             for dropdown in fallback_dropdowns:
                 options = dropdown.get("options", [])
                 for option in options:
@@ -463,8 +467,35 @@ class EventCogNew(commands.Cog):
         # Return the selected event and message object
         return selected_event, message
 
-    def _build_event_dropdown_options(self, guild_events: list[Event]) -> list[Option]:
-        return
+    def _build_event_dropdown_options(self, events):
+        """Build dropdown groups for upcoming and past events"""
+        current_time = now()
+        upcoming = []
+        old = []
+
+        # Sort by time
+        try:
+            sorted_events = sorted(events, key=lambda e: _event_time(e))
+        except (ValueError, TypeError) as e:
+            # If sorting failed, keep the unsorted version
+            self.logger.error(f"Error sorting events: {e!s}")
+            sorted_events = events
+
+        for event in sorted_events:
+            event_time = event.details.time
+            if event_time.tzinfo is None:
+                event_time.replace(tzinfo=UTC)
+            is_old = event_time < current_time
+            option = {
+                "label": f"{'[OLD] ' if is_old else ''}{event.details.name}",
+                "description": self._format_datetime(event.details.time)[:99],
+                "value": str(event._id),
+            }
+            if is_old:
+                old.append(option)
+            else:
+                upcoming.append(option)
+        return {"upcoming": upcoming, "old": old}
 
     def _build_event_dropdown_config(self, options: list[Option], action: Action) -> dict:
         return
