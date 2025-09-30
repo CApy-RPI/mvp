@@ -1,6 +1,6 @@
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -43,11 +43,18 @@ DATETIME_PATTERN = "%m/%d/%Y %I:%M %p"
 ###
 
 
-def _parse_datetime(date: str, time: str, timezone: str) -> datetime:
+def parse_datetime(date: str, time: str, timezone: str) -> datetime:
     """Parse time, date, and timezone into a datetime object"""
     dt = datetime.strptime(f"{date} {time}", DATETIME_PATTERN)
     dt.replace(tzinfo=ZoneInfo(timezone))
     return dt
+
+def now() -> datetime:
+    """Return the current time in UTC"""
+    return datetime.now(UTC)
+
+
+
 
 
 class EventCogNew(commands.Cog):
@@ -147,13 +154,13 @@ class EventCogNew(commands.Cog):
         timezone, dropdown_message = await self._get_timezone_selection(modal_message)
 
         # Parse the date and time into a datetime object
-        event_time = _parse_datetime(event_data["event_date"], event_data["event_time"], timezone)
+        event_time = parse_datetime(event_data["event_date"], event_data["event_time"], timezone)
 
         # Create and save the event
         new_event, event_id = await self._save_new_event(interaction, event_data, event_time)
 
         # Show event details to user
-        await self._show_event_embed(dropdown_message, new_event)
+        await self._show_event_embed(message=dropdown_message, event=new_event)
         self.logger.info(f"Event '{event_data['event_name']}' created with ID {event_id}")
 
     def _validate_event_form(self, form_data: dict[str, str]) -> bool:
@@ -242,8 +249,66 @@ class EventCogNew(commands.Cog):
         self.logger.info(f"Guild document updated with event ID {event_id}")
         return new_event, event_id
 
-    async def _show_event_embed(self, dropdown_message: discord.Message, event: Event) -> None:
-        return
+    async def _show_event_embed(self, event: Event, message: discord.Message | None = None, interaction: discord.Interaction | None = None) -> None:
+        """Display event details in an embed"""
+        # Determine if the event is old (in the past)
+        current_time = now()
+        event_time = event.details.time
+        if event_time.tzinfo is None:
+            event_time = event_time.replace(tzinfo=UTC)
+        is_old = event_time < current_time
+
+        # Create the embed, tinting red for old events
+        title_prefix = "[OLD] " if is_old else ""
+        embed = discord.Embed(
+            title=f"{title_prefix}{event.details.name}",
+            description=event.details.description,
+            color=discord.Color.red() if is_old else discord.Color.purple(),
+        )
+
+        # Add event details
+        localized_time = self._format_datetime(event.details.time)
+        embed.add_field(name="Date/Time", value=localized_time, inline=True)
+        embed.add_field(name="Location", value=event.details.location, inline=True)
+        embed.add_field(name="Status", value=("OLD" if is_old else "UPCOMING"), inline=True)
+
+        # Add attendance count
+        total_attendees = len(event.yes_users)
+        embed.add_field(name="Attendees", value=str(total_attendees), inline=True)
+
+        # Add RSVP breakdown if present
+        if hasattr(event.details, "reactions"):
+            reactions_text = (
+                f"✅ Yes: {event.details.reactions.yes} | "
+                f"❌ No: {event.details.reactions.no} | "
+                f"❔ Maybe: {event.details.reactions.maybe}"
+            )
+            embed.add_field(name="RSVPs", value=reactions_text, inline=False)
+
+        # Footer with event ID
+        embed.set_footer(text=f"Event ID: {event._id}")
+
+        if message:
+            await message.edit(content=None, embed=embed, view=None)
+        elif interaction:
+            await interaction.followup.send(embed=embed, ephemeral=True)
+
+    def _format_datetime(self, dt: datetime, timezone_str: str = "US/Eastern") -> str:
+        """Format a datetime object for display with timezone."""
+        try:
+            # Ensure datetime has timezone
+            if dt.tzinfo is None:
+                dt.replace(tzinfo=UTC)
+
+            # Convert to desired timezone
+            target_tz = ZoneInfo(timezone_str)
+            localized_dt = dt.astimezone(target_tz)
+
+            # Format for display
+            return localized_dt.strftime("%Y-%m-%d %I:%M %p %Z")
+        except Exception as e:
+            self.logger.error(f"Error formatting datetime: {e}")
+            return str(dt)
 
     async def _delete_event(self, interaction: discord.Interaction) -> None:
         """Handle event deletion"""
