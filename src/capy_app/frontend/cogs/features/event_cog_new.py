@@ -96,6 +96,50 @@ def get_event_error_msg(guild_id: int) -> str:
     return "No matching events found."
 
 
+def build_event_dropdown_config(options, action: Action):
+    """Build dropdown configuration for event selection view"""
+    dropdowns = []
+    if isinstance(options, dict):
+        upcoming = options.get("upcoming", [])
+        old = options.get("old", [])
+        if upcoming:
+            dropdowns.append(
+                {
+                    "custom_id": "event_selection_upcoming",
+                    "placeholder": f"Select an Upcoming event to {action}",
+                    "min_values": 1,
+                    "max_values": 1,
+                    "selections": upcoming,
+                }
+            )
+        if old:
+            dropdowns.append(
+                {
+                    "custom_id": "event_selection_old",
+                    "placeholder": f"Select an Old event to {action}",
+                    "min_values": 1,
+                    "max_values": 1,
+                    "selections": old,
+                }
+            )
+    else:
+        dropdowns.append(
+            {
+                "custom_id": "event_selection",
+                "placeholder": f"Select an event to {action}",
+                "min_values": 1,
+                "max_values": 1,
+                "selections": options,
+            }
+        )
+    return {
+        "ephemeral": True,
+        "buttons": (True, True),
+        "timeout": 180,
+        "dropdowns": dropdowns,
+    }
+
+
 class EventCogNew(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
@@ -424,7 +468,7 @@ class EventCogNew(commands.Cog):
             else:
                 # Build dropdown options & config
                 options = self._build_event_dropdown_options(guild_events)
-                dropdown_config = self._build_event_dropdown_config(options, action)
+                dropdown_config = _build_event_dropdown_config(options, action)
                 view = DynamicDropdownView(**dropdown_config)
 
                 # Show dropdown
@@ -496,9 +540,6 @@ class EventCogNew(commands.Cog):
             else:
                 upcoming.append(option)
         return {"upcoming": upcoming, "old": old}
-
-    def _build_event_dropdown_config(self, options: list[Option], action: Action) -> dict:
-        return
 
     async def _get_dropdown_selection(self, interaction, view: DynamicDropdownView, action: Action) -> tuple:
         return
