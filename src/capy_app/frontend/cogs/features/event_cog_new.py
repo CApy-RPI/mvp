@@ -1,6 +1,7 @@
 import logging
 import re
 from datetime import datetime, UTC
+from enum import Enum
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -42,6 +43,9 @@ DATETIME_PATTERN = "%m/%d/%Y %I:%M %p"
 
 ###
 
+class Action(Enum):
+    DELETE = "delete"
+
 
 def parse_datetime(date: str, time: str, timezone: str) -> datetime:
     """Parse time, date, and timezone into a datetime object"""
@@ -52,10 +56,6 @@ def parse_datetime(date: str, time: str, timezone: str) -> datetime:
 def now() -> datetime:
     """Return the current time in UTC"""
     return datetime.now(UTC)
-
-
-
-
 
 class EventCogNew(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
@@ -189,7 +189,7 @@ class EventCogNew(commands.Cog):
     async def _get_timezone_selection(self, modal_message) -> tuple[str, Any]:
         """ "Creates timezone selection dropdown menu"""
         self.logger.info("Creating timezone dropdown")
-        timezone_config = self.config["timezone_dropdown"].copy()
+        timezone_config:dict[str, Any] = self.config["timezone_dropdown"].copy()
         timezone_config.pop("placeholder", None)
 
         # Format dropdown selections
@@ -312,6 +312,73 @@ class EventCogNew(commands.Cog):
 
     async def _delete_event(self, interaction: discord.Interaction) -> None:
         """Handle event deletion"""
+        # Retrieve guild from DB
+        guild = Database.get_document(Guild, interaction.guild_id)
+
+        # Check if guild has events to delete
+        if not guild or not hasattr(guild, "events") or not guild.events:
+            await interaction.response.send_message(
+                "No events found for this server.", ephemeral=True
+            )
+            return
+
+        # Check any events have matching details
+        has_events = any(
+            Database.get_document(Event, event_id)
+            and hasattr(Database.get_document(Event, event_id), "details")
+            for event_id in guild.events
+        )
+
+        if not has_events:
+            await interaction.response.send_message(
+                "No events found for this server.", ephemeral=True
+            )
+            return
+
+        # DELETE EVENT
+
+        event, message = await self._get_event_selection(interaction, Action.DELETE)
+        if not event or not message:
+            # If no event or message is returned, exit early
+            return
+
+        # Get confirmation from user
+        confirmed = await self._show_delete_confirmation(message, event)
+
+        if confirmed is None:
+            # If confirmation times out, notify user
+            await self._edit_message_safe(message, "Event deletion timed out.")
+            return
+
+        if confirmed:
+            # If user confirms deletion, attempt to delete event
+            delete_error = await self._delete_event_and_cleanup(event, interaction.guild_id)
+            if delete_error:
+                # If error occurs during deletion, notify user
+                await self._edit_message_safe(
+                    message, f"Error deleting event '{event.details.name}': {delete_error}"
+                )
+            else:
+                # Notify user of successful deletion
+                await self._edit_message_safe(
+                    message, f"Event '{event.details.name}' has been deleted."
+                )
+        else:
+            # If user cancels deletion, notify user
+            await self._edit_message_safe(message, "Event deletion cancelled.")
+
+
+    async def _get_event_selection(self, interaction: discord.Interaction, event_type: Action) -> tuple[Event | None, discord.Message | None]:
+        return None, None
+
+    async def _show_delete_confirmation(self, message: discord.Message, event: Event):
+        return
+
+    async def _edit_message_safe(self, message, content):
+        return
+
+    async def _delete_event_and_cleanup(self, event, guild_id):
+        return
 
     async def _edit_event(self, interaction: discord.Interaction) -> None:
         """Handle event editing"""
