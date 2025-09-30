@@ -63,6 +63,7 @@ def now() -> datetime:
 
 
 def get_guild_events_for_action(guild_id: int, action: Action) -> list[Event | None]:
+    """Gets the events for a guild that match a given action"""
     # Fetch guild from DB
     guild = Database.get_document(Guild, guild_id)
     if not guild or not hasattr(guild, "events") or not guild.events:
@@ -81,6 +82,14 @@ def get_guild_events_for_action(guild_id: int, action: Action) -> list[Event | N
             if action in (Action.DELETE, Action.EDIT, Action.VIEW) or event_time >= current_time:
                 events.append(event)
     return events
+
+
+def get_event_error_msg(guild_id: int) -> str:
+    """Returns appropriate error message for event selection"""
+    guild = Database.get_document(Guild, guild_id)
+    if not guild or not hasattr(guild, "events") or not guild.events:
+        return "No events found for this server."
+    return "No matching events found."
 
 
 class EventCogNew(commands.Cog):
@@ -407,7 +416,7 @@ class EventCogNew(commands.Cog):
             guild_events = get_guild_events_for_action(interaction.guild_id, action)
             if not guild_events:
                 # If no events found, set error message
-                error_msg = self._get_event_error_msg(interaction.guild_id)
+                error_msg = get_event_error_msg(interaction.guild_id)
             else:
                 # Build dropdown options & config
                 options = self._build_event_dropdown_options(guild_events)
@@ -453,9 +462,6 @@ class EventCogNew(commands.Cog):
             return None, message
         # Return the selected event and message object
         return selected_event, message
-
-    def _get_event_error_msg(self, guild_id: int) -> str | None:
-        return
 
     def _build_event_dropdown_options(self, guild_events: list[Event]) -> list[Option]:
         return
