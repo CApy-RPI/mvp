@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Any
 
 import discord
@@ -11,8 +12,26 @@ from config import settings
 
 from .event_config import EVENT_CONFIG
 
+### CONSTANTS
+
 DEFER_LIST = ["list", "show", "announce", "myevents"]
 EPHEMERAL_LIST = ["list", "show", "delete", "announce", "myevents"]
+
+REQUIRED_FIELDS = [
+    "event_name",
+    "event_date",
+    "event_time",
+    "event_location",
+    "event_description",
+]
+
+# TODO: Expand pattern such that it validates date >= 01/01/2024 & day exists (month variation and leap year)
+DATE_PATTERN = re.compile(r"^((0[1-9]|1[0-2])/(0[1-9]|[1-2][0-9]|3[0-1])/(\d{2}))$")
+TIME_PATTERN = re.compile(
+    r"^((0[1-9]|1[0-2]):([0-5][0-9])\s+(AM|PM))$"
+)  # Note: the original had /s+[A-Z]{2,4} tacked onto the end, and I don't know why.
+
+###
 
 
 class EventCogNew(commands.Cog):
@@ -104,8 +123,28 @@ class EventCogNew(commands.Cog):
         await self._show_event_embed(dropdown_message, new_event)
         self.logger.info(f"Event '{event_data['event_name']}' created with ID {event_id}")
 
-    def _validate_event_form(self, event_data: dict[str, str]) -> bool:
-        return False
+    def _validate_event_form(self, form_data: dict[str, str]) -> bool:
+        """Validates that the data contained in an event form contains required fields and matches conventions"""
+
+        # Ensure form_data contains all required fields
+        for field in REQUIRED_FIELDS:
+            if field not in form_data:
+                self.logger.info(f"Field '{field}' not found in form data")
+                return False
+
+        # Ensure date format matches US standard (MM/DD/YY)
+        date_str = form_data["event_date"]
+        if not re.match(DATE_PATTERN, date_str):
+            self.logger.info(f"Date '{date_str}' does not match MM/DD/YY format")
+            return False
+
+        # Ensure time format matches standard (HH:MM AM|PM)
+        time_str = form_data["event_time"]
+        if not re.match(TIME_PATTERN, time_str, re.IGNORECASE):
+            self.logger.info(f"Time '{time_str}' does not match HH:MM AM|PM format")
+            return False
+
+        return True
 
     async def _get_timezone_selection(self, modal_message) -> tuple[str, Any]:
         return "", ""
