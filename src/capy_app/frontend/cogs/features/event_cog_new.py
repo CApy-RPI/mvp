@@ -1,7 +1,8 @@
 import logging
 import re
 from datetime import datetime, UTC
-from enum import Enum
+from enum import Enum, StrEnum, auto
+from optparse import Option
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -41,11 +42,14 @@ TIME_PATTERN = re.compile(
 
 DATETIME_PATTERN = "%m/%d/%Y %I:%M %p"
 
+EVENT_SELECTIONS = ("event_selection_upcoming","event_selection_old","event_selection")
+
 ###
 
-class Action(Enum):
-    DELETE = "delete"
-
+class Action(StrEnum):
+    DELETE = auto()
+    VIEW = auto()
+    EDIT = auto()
 
 def parse_datetime(date: str, time: str, timezone: str) -> datetime:
     """Parse time, date, and timezone into a datetime object"""
@@ -56,6 +60,28 @@ def parse_datetime(date: str, time: str, timezone: str) -> datetime:
 def now() -> datetime:
     """Return the current time in UTC"""
     return datetime.now(UTC)
+
+
+def get_guild_events_for_action(guild_id: int, action: Action) -> list[Event | None]:
+    # Fetch guild from DB
+    guild = Database.get_document(Guild, guild_id)
+    if not guild or not hasattr(guild, "events") or not guild.events:
+        # If no events found, return empty list
+        return []
+    current_time = now()
+    events: list[Event] = []
+    for event_id in getattr(guild, "events", []):
+        event = Database.get_document(Event, event_id)
+        if event and hasattr(event, "details"):
+            event_time = event.details.time
+            # If event time is naive, localize to UTC
+            if event_time.tzinfo is None:
+                event_time = event_time.replace(tzinfo=UTC)
+            # For delete, view, and edit include all events; otherwise, only future events
+            if action in (Action.DELETE, Action.EDIT, Action.VIEW) or event_time >= current_time:
+                events.append(event)
+    return events
+
 
 class EventCogNew(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
@@ -335,8 +361,7 @@ class EventCogNew(commands.Cog):
             )
             return
 
-        # DELETE EVENT
-
+        # Deletion process
         event, message = await self._get_event_selection(interaction, Action.DELETE)
         if not event or not message:
             # If no event or message is returned, exit early
@@ -368,8 +393,81 @@ class EventCogNew(commands.Cog):
             await self._edit_message_safe(message, "Event deletion cancelled.")
 
 
-    async def _get_event_selection(self, interaction: discord.Interaction, event_type: Action) -> tuple[Event | None, discord.Message | None]:
-        return None, None
+    async def _get_event_selection(self, interaction: discord.Interaction, action: Action) -> tuple[Event | None, discord.Message | None]:
+        """Gets event selection from dropdown"""
+        selected_event = None
+        message = None
+        error_msg = None
+
+        # Get all applicable events for the given action
+        try:
+            if not interaction.guild_id:
+                raise ValueError("Guild ID not provided")
+
+            guild_events = get_guild_events_for_action(interaction.guild_id, action)
+            if not guild_events:
+                # If no events found, set error message
+                error_msg = self._get_event_error_msg(interaction.guild_id)
+            else:
+                # Build dropdown options & config
+                options = self._build_event_dropdown_options(guild_events)
+                dropdown_config = self._build_event_dropdown_config(options, action)
+                view = DynamicDropdownView(**dropdown_config)
+
+                # Show dropdown
+                values, message = await self._get_dropdown_selection(interaction, view, action)
+                if not values or not message:
+                    # If no selection made, set error message
+                    error_msg = "No event selected."
+                else:
+                    # Get selected event ID
+                    selected_id_str = None
+                    for key in EVENT_SELECTIONS:
+                        selected_list = values.get(key, [])
+                        if selected_list:
+                            selected_id_str = selected_list[0]
+                            break
+                    if not selected_id_str:
+                        error_msg = "No event selected."
+                    else:
+                        try:
+                            # Try to convert selected ID to int and fetch event from database
+                            selected_id = int(selected_id_str)
+                            selected_event = Database.get_document(Event, selected_id)
+                            if not selected_event:
+                                error_msg = f"Error: Event with ID {selected_id} not found."
+                        except ValueError:
+                            # If conversion fails, set error message
+                            error_msg = f"Error: Invalid event ID selected ({selected_id_str})."
+        except Exception as e:
+            # Log unexpected errors and set generic error message
+            self.logger.error(f"Error in get_event_selection: {e!s}", exc_info=True)
+            error_msg = "An unexpected error occurred while selecting the event."
+        if error_msg:
+            # If any error occurred, send error message and return None
+            await self._send_event_selection_error(
+                interaction,
+                error_msg,
+                message,
+            )
+            return None, message
+        # Return the selected event and message object
+        return selected_event, message
+
+    def _get_event_error_msg(self, guild_id: int) -> str | None:
+        return
+
+    def _build_event_dropdown_options(self, guild_events: list[Event]) -> list[Option]:
+        return
+
+    def _build_event_dropdown_config(self, options: list[Option], action: Action) -> dict:
+        return
+
+    async def _get_dropdown_selection(self, interaction, view: DynamicDropdownView, action: Action) -> tuple:
+        return
+
+    async def _send_event_selection_error(self, interaction: discord.Interaction, error_msg: str, message: Any = None) -> None:
+        return
 
     async def _show_delete_confirmation(self, message: discord.Message, event: Event):
         return
