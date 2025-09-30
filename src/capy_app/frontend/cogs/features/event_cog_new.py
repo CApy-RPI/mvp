@@ -5,9 +5,13 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import discord
-from backend.db.documents.event import Event
+
+from backend.db.database import Database
+from backend.db.documents.event import Event, EventDetails, EventReactions
 from discord import app_commands
 from discord.ext import commands
+
+from backend.db.documents.guild import Guild
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 from frontend.interactions.bases.modal_base import DynamicModalView
 
@@ -206,10 +210,37 @@ class EventCogNew(commands.Cog):
         timezone = timezone_data["timezone_selection"][0]
         return timezone, dropdown_message
 
-    async def _save_new_event(self, interaction, event_data, event_time) -> tuple[Event, int]:
+    async def _save_new_event(self, interaction, event_data, event_time: datetime) -> tuple[Event, int]:
         """Creates and saves a new event to the database & guild(s)"""
+        event_id = int(datetime.now(event_time.tzinfo).timestamp() * 1000)
+        new_event = Event(
+            _id=event_id,
+            guild_id=interaction.guild_id,
+            yes_users=[],
+            maybe_users=[],
+            no_users=[],
+            message_id=0, # TODO is this right? Should we get from the interaction?
+            details=EventDetails(
+                name=event_data["event_name"],
+                description=event_data["event_description"],
+                time=event_time,
+                location=event_data["event_location"],
+                reactions=EventReactions(yes=0, no=0, maybe=0),
+            ),
+        )
+        Database.add_document(new_event)
+        self.logger.info(f"Event saved to database with ID {event_id}")
 
-        return None, -1
+        guild = Database.get_document(Guild, interaction.guild_id)
+        if not guild:
+            guild = Guild(_id=interaction.guild_id, events=[])
+            Database.add_document(guild)
+        elif not hasattr(guild, "events"):
+            guild.events = []
+        guild.events.append(event_id)
+        Database.update_document(guild, {"events": guild.events})
+        self.logger.info(f"Guild document updated with event ID {event_id}")
+        return new_event, event_id
 
     async def _show_event_embed(self, dropdown_message: discord.Message, event: Event) -> None:
         return
