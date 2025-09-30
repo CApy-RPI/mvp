@@ -89,10 +89,7 @@ class ModalTestCog(commands.Cog):
         values, message = await view.initiate_from_interaction(interaction)
         if values and message:
             with suppress(NotFound):
-                await message.edit(
-                    content="Submitted values:\n"
-                    + "\n".join(f"{k}: {v}" for k, v in values.items())
-                )
+                await message.edit(content="Submitted values:\n" + "\n".join(f"{k}: {v}" for k, v in values.items()))
 
     @app_commands.guilds(Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="test_modal_button")
@@ -100,14 +97,10 @@ class ModalTestCog(commands.Cog):
         """Test modal with custom button"""
         view = ButtonDynamicModalView(**MODAL_CONFIGS["button_modal"])
 
-        values, message = await view.initiate_from_interaction(
-            interaction, prompt="Click below to start the survey!"
-        )
+        values, message = await view.initiate_from_interaction(interaction, prompt="Click below to start the survey!")
         if values and message:
             with suppress(NotFound):
-                await message.edit(
-                    content="Survey results:\n" + "\n".join(f"{k}: {v}" for k, v in values.items())
-                )
+                await message.edit(content="Survey results:\n" + "\n".join(f"{k}: {v}" for k, v in values.items()))
 
     @app_commands.guilds(Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.command(name="test_modal_sequential")
@@ -133,8 +126,7 @@ class ModalTestCog(commands.Cog):
             "Contact": contact_info,
         }
         formatted = "\n".join(
-            f"{section}:\n" + "\n".join(f"  {k}: {v}" for k, v in info.items())
-            for section, info in combined.items()
+            f"{section}:\n" + "\n".join(f"  {k}: {v}" for k, v in info.items()) for section, info in combined.items()
         )
         with suppress(NotFound):
             await message.edit(content=f"Profile completed:\n{formatted}")

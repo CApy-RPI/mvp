@@ -121,9 +121,7 @@ def test_add_users_after_creation(_db):
 
 def test_set_reactions_explicitly(_db):
     reactions = EventReactions(yes=5, maybe=3, no=2)
-    details = EventDetails(
-        name="Custom Reactions", time=datetime(2031, 6, 6, 15, 0), reactions=reactions
-    )
+    details = EventDetails(name="Custom Reactions", time=datetime(2031, 6, 6, 15, 0), reactions=reactions)
 
     Event(_id=204, details=details).save()
 

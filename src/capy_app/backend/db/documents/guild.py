@@ -68,13 +68,9 @@ class Guild(RestrictedDocument):
     _id: int = mongoengine.IntField(primary_key=True)
     users: list[int] = mongoengine.ListField(mongoengine.IntField())
     events: list[int] = mongoengine.ListField(mongoengine.IntField())
-    channels: GuildChannels = mongoengine.EmbeddedDocumentField(
-        GuildChannels, default=GuildChannels
-    )
+    channels: GuildChannels = mongoengine.EmbeddedDocumentField(GuildChannels, default=GuildChannels)
     roles: GuildRoles = mongoengine.EmbeddedDocumentField(GuildRoles, default=GuildRoles)
-    office_hours: list[OfficeHours] = mongoengine.EmbeddedDocumentListField(
-        OfficeHours, default=list
-    )
+    office_hours: list[OfficeHours] = mongoengine.EmbeddedDocumentListField(OfficeHours, default=list)
     created_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
     updated_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
 

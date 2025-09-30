@@ -30,9 +30,7 @@ class SyncCog(commands.Cog):
         self.bot = bot
         self.logger = logging.getLogger(f"discord.cog.{self.__class__.__name__.lower()}")
 
-    async def _sync_commands(
-        self, debug_guild: discord.Guild | None
-    ) -> list[discord.app_commands.AppCommand]:
+    async def _sync_commands(self, debug_guild: discord.Guild | None) -> list[discord.app_commands.AppCommand]:
         """Synchronize commands with Discord.
 
         Args:
@@ -46,9 +44,7 @@ class SyncCog(commands.Cog):
         self.logger.info("Syncing application commands...")
         if debug_guild:
             self.logger.info(f"Connected to debug guild: {debug_guild.name}")
-        synced_commands: list[discord.app_commands.AppCommand] = await self.bot.tree.sync(
-            guild=debug_guild
-        )
+        synced_commands: list[discord.app_commands.AppCommand] = await self.bot.tree.sync(guild=debug_guild)
         return synced_commands
 
     @commands.command(name="sync", hidden=True)
@@ -80,9 +76,7 @@ class SyncCog(commands.Cog):
                 f"✅ Successfully synced {len(synced)} application commands!\n"
                 f"Commands:\n{'\n'.join([cmd.name for cmd in synced])}"
             )
-            await interaction.response.send_message(
-                embed=success_embed("Sync Commands", description)
-            )
+            await interaction.response.send_message(embed=success_embed("Sync Commands", description))
 
         except Exception as e:
             self.logger.error(f"Failed to sync commands: {e}")
