@@ -1,17 +1,19 @@
 import logging
 import re
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import discord
 from backend.db.documents.event import Event
 from discord import app_commands
 from discord.ext import commands
+from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 from frontend.interactions.bases.modal_base import DynamicModalView
 
 from config import settings
 
 from .event_config import EVENT_CONFIG
-from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 
 ### CONSTANTS
 
@@ -32,7 +34,16 @@ TIME_PATTERN = re.compile(
     r"^((0[1-9]|1[0-2]):([0-5][0-9])\s+(AM|PM))$"
 )  # Note: the original had /s+[A-Z]{2,4} tacked onto the end, and I don't know why.
 
+DATETIME_PATTERN = "%m/%d/%Y %I:%M %p"
+
 ###
+
+
+def _parse_datetime(date: str, time: str, timezone: str) -> datetime:
+    """Parse time, date, and timezone into a datetime object"""
+    dt = datetime.strptime(f"{date} {time}", DATETIME_PATTERN)
+    dt.replace(tzinfo=ZoneInfo(timezone))
+    return dt
 
 
 class EventCogNew(commands.Cog):
@@ -131,8 +142,11 @@ class EventCogNew(commands.Cog):
         # Get selected timezone
         timezone, dropdown_message = await self._get_timezone_selection(modal_message)
 
+        # Parse the date and time into a datetime object
+        event_time = _parse_datetime(event_data["event_date"], event_data["event_time"], timezone)
+
         # Create and save the event
-        new_event, event_id = await self._save_new_event(interaction, event_data, timezone)
+        new_event, event_id = await self._save_new_event(interaction, event_data, event_time)
 
         # Show event details to user
         await self._show_event_embed(dropdown_message, new_event)
@@ -162,7 +176,7 @@ class EventCogNew(commands.Cog):
         return True
 
     async def _get_timezone_selection(self, modal_message) -> tuple[str, Any]:
-        """"Creates timezone selection dropdown menu"""
+        """ "Creates timezone selection dropdown menu"""
         self.logger.info("Creating timezone dropdown")
         timezone_config = self.config["timezone_dropdown"].copy()
         timezone_config.pop("placeholder", None)
@@ -192,7 +206,9 @@ class EventCogNew(commands.Cog):
         timezone = timezone_data["timezone_selection"][0]
         return timezone, dropdown_message
 
-    async def _save_new_event(self, interaction, event_data, timezone) -> tuple[Event, int]:
+    async def _save_new_event(self, interaction, event_data, event_time) -> tuple[Event, int]:
+        """Creates and saves a new event to the database & guild(s)"""
+
         return None, -1
 
     async def _show_event_embed(self, dropdown_message: discord.Message, event: Event) -> None:
