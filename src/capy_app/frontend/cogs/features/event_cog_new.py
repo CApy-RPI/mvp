@@ -11,6 +11,7 @@ from frontend.interactions.bases.modal_base import DynamicModalView
 from config import settings
 
 from .event_config import EVENT_CONFIG
+from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 
 ### CONSTANTS
 
@@ -39,6 +40,20 @@ class EventCogNew(commands.Cog):
         self.bot = bot
         self.config = EVENT_CONFIG
         self.logger = logging.getLogger(f"discord.cog.{self.__class__.__name__.lower()}")
+
+        def _get_default_timezone() -> str:
+            """Helper to get default timezone from config dropdowns."""
+            fallback_dropdowns: list[dict[str, Any]] = self.config["timezone_dropdown"].get("dropdowns", [])
+            for dropdown in fallback_dropdowns:
+                options = dropdown.get("options", [])
+                for option in options:
+                    if "default" in option:
+                        value = option.get("value")
+                        if isinstance(value, str) and value:
+                            return value
+            return "US/Eastern"
+
+        self.default_timezone = _get_default_timezone()
 
     # Register the /event command for the debug guild only
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID if settings.DEBUG_GUILD_ID is not None else 0))
@@ -147,7 +162,35 @@ class EventCogNew(commands.Cog):
         return True
 
     async def _get_timezone_selection(self, modal_message) -> tuple[str, Any]:
-        return "", ""
+        """"Creates timezone selection dropdown menu"""
+        self.logger.info("Creating timezone dropdown")
+        timezone_config = self.config["timezone_dropdown"].copy()
+        timezone_config.pop("placeholder", None)
+
+        # Format dropdown selections
+        dropdowns: list[dict[str, Any]] = timezone_config.get("dropdowns", [])
+        for dropdown in dropdowns:
+            if "options" in dropdown:
+                dropdown["selections"] = dropdown.pop("options")
+        timezone_config["dropdowns"] = dropdowns
+
+        # Create view
+        timezone_view = DynamicDropdownView(**timezone_config)
+        timezone_data, dropdown_message = await timezone_view.initiate_from_message(
+            modal_message, "Please select a timezone for the event:"
+        )
+
+        # If no timezone selection is returned, use helper to get default
+        if not timezone_data:
+            self.logger.info("Timezone data not received, falling back to default")
+            timezone_data = {"timezone_selection": [self.default_timezone]}
+
+        if not timezone_data["timezone_selection"]:
+            self.logger.info("No timezone selection present, falling back to default")
+            timezone_data["timezone_selection"] = self.default_timezone
+
+        timezone = timezone_data["timezone_selection"][0]
+        return timezone, dropdown_message
 
     async def _save_new_event(self, interaction, event_data, timezone) -> tuple[Event, int]:
         return None, -1
