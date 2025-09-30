@@ -160,12 +160,27 @@ class ProfileCog(commands.Cog):
         return True
 
     async def prompt_and_verify_code(self, message: discord.Message) -> bool:
-        """Prompt user for verification code and validate it."""
-        verify_view = ButtonDynamicModalView(**self.config["verify_modal"])
-        values, _ = await verify_view.initiate_from_message(message)
-        if not values:
-            return False
-        return self.email_verifier.verify_code(message.author.id, values["verification_code"])
+        """Prompt user for verification code and validate it with retries."""
+        max_attempts = 5
+        attempt = 0
+        while attempt < max_attempts:
+            verify_view = ButtonDynamicModalView(**self.config["verify_modal"])
+            values, _ = await verify_view.initiate_from_message(message)
+
+            # If user closes/cancels the modal, abort verification entirely
+            if not values:
+                return False
+
+            if self.email_verifier.verify_code(message.author.id, values["verification_code"]):
+                return True
+
+            attempt += 1
+            attempts_left = max_attempts - attempt
+            if attempts_left > 0:
+                await message.edit(content=f"Incorrect code. Try again. Attempts left: {attempts_left}")
+            else:
+                await message.edit(content="Verification failed after 5 attempts. Please start over.")
+        return False
 
     async def handle_profile(self, interaction: discord.Interaction, action: str) -> None:
         """Handle profile creation and updates."""
