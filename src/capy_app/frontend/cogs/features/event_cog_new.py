@@ -22,7 +22,7 @@ from frontend.interactions.bases.modal_base import DynamicModalView
 from config import settings
 
 from event_config import EVENT_CONFIG
-from frontend.interactions.bases.button_base import ConfirmDeleteView
+from frontend.interactions.bases.button_base import ConfirmDeleteView, EditView
 
 ### CONSTANTS
 
@@ -681,6 +681,37 @@ class EventCogNew(commands.Cog):
 
     async def _edit_event(self, interaction: discord.Interaction) -> None:
         """Handle event editing"""
+
+        event, message = await self._get_event_selection(interaction, Action.EDIT)
+        if not event or not message:
+            # If no event or message is returned, exit early
+            return
+
+        view = EditView(
+            lambda button_interaction: self._handle_edit_event_button(
+                button_interaction, event, message
+            ),
+            ephemeral=True,
+        )
+
+        await message.edit(
+            content='Press "Edit" below to edit this event or press "Cancel" to cancel editing:',
+            view=view,
+        )
+        await view.wait()
+
+        if view.value is False:
+            # If the user cancels editing, update the message accordingly
+            with suppress(discord.NotFound, discord.HTTPException):
+                await message.edit(
+                    content="Event editing cancelled.",
+                    view=None,
+                    embed=None,
+                )
+
+    async def _handle_edit_event_button(self, button_interaction, event, message):
+        """Handles logic for creation of the edit event button"""
+
 
     async def _list_guild_events(self, interaction: discord.Interaction) -> None:
         """List events attributed to a guild"""
