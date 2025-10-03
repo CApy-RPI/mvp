@@ -802,6 +802,72 @@ class EventCogNew(commands.Cog):
 
     async def _list_guild_events(self, interaction: discord.Interaction) -> None:
         """List events attributed to a guild"""
+        self.logger.info(f"Listing events for guild {interaction.guild_id}")
+
+        # Retrieve guild from database
+        guild = Database.get_document(Guild, interaction.guild_id)
+        if not guild or not hasattr(guild, "events") or not guild.events:
+            self.logger.info(f"No events found for guild {interaction.guild_id}")
+            await interaction.followup.send("No events found for this server.", ephemeral=True)
+            return
+
+        current_time = now()
+        upcoming_events: list[Event] = []
+        past_events: list[Event] = []
+
+        self.logger.info(f"Found {len(guild.events)} events for guild {interaction.guild_id}")
+        for event_id in guild.events:
+            event = Database.get_document(Event, event_id)
+            if event and hasattr(event, "details"):
+                event_time = event.details.time
+                # If the event time is offset-naive, assume UTC
+                if event_time.tzinfo is None:
+                    event_time.replace(tzinfo=UTC)
+                if event_time >= current_time:
+                    upcoming_events.append(event)
+                else:
+                    past_events.append(event)
+
+        if not upcoming_events and not past_events:
+            self.logger.info("No events found")
+            await interaction.followup.send("No events found for this server.", ephemeral=True)
+            return
+
+        # Sort by datetime (soonest first), then list upcoming first, then past
+        upcoming_events.sort(key=lambda e: e.details.time)
+        past_events.sort(key=lambda e: e.details.time, reverse=True)
+
+        total_count = len(upcoming_events) + len(past_events)
+        embed = discord.Embed(
+            title="Events",
+            description=(
+                f"Found {total_count} events (Upcoming: {len(upcoming_events)}, Past: {len(past_events)})"
+            ),
+            color=discord.Color.blue(),
+        )
+
+        def add_event_field(ev: Event, is_old: bool) -> None:
+            localized_time = self._format_datetime(ev.details.time)
+            total_attendees = len(ev.yes_users)
+            status_text = "OLD" if is_old else "UPCOMING"
+            name_prefix = "[OLD] " if is_old else ""
+            embed.add_field(
+                name=f"{name_prefix}{ev.details.name} (ID: {ev._id})",
+                value=(
+                    f"**When:** {localized_time}\n"
+                    f"**Where:** {ev.details.location}\n"
+                    f"**Attendees:** {total_attendees}\n"
+                    f"**Status:** {status_text}"
+                ),
+                inline=False,
+            )
+
+        for ev in upcoming_events:
+            add_event_field(ev, is_old=False)
+        for ev in past_events:
+            add_event_field(ev, is_old=True)
+
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     async def _show_event(self, interaction: discord.Interaction) -> None:
         """Show details of an event"""
