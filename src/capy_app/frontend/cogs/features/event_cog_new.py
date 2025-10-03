@@ -711,7 +711,94 @@ class EventCogNew(commands.Cog):
 
     async def _handle_edit_event_button(self, button_interaction, event, message):
         """Handles logic for creation of the edit event button"""
+        modal_config = await self._get_prefilled__modal_config(event)
+        modal_view = DynamicModalView(**modal_config)
+        form_data, modal_response = await modal_view.initiate_from_interaction(button_interaction)
+        if not form_data:
+            # If no form data is submitted, exit early
+            return
 
+        # Validate form data
+        if not self._validate_event_form(form_data):
+            msg = "Invalid event data. Please check the format of date and time fields."
+            if modal_response:
+                await modal_response.edit(content=msg, view=None)
+            else:
+                await button_interaction.followup.send(msg, ephemeral=True)
+            return
+
+        try:
+            # Prepare timezone dropdown config for selection
+            timezone_config = self.config["timezone_dropdown"].copy()
+            timezone_config.pop("placeholder", None)
+            # Get current timezone from event details
+            current_tz = getattr(getattr(event.details.time, "tzinfo", None), "zone", "US/Eastern")
+            for dropdown in timezone_config.get("dropdowns", []):
+                if "options" in dropdown:
+                    dropdown["selections"] = [
+                        {**opt, "default": opt.get("value") == current_tz}
+                        for opt in dropdown.pop("options", [])
+                    ]
+
+            # Show timezone selection dropdown to user
+            timezone_view = DynamicDropdownView(**timezone_config)
+            timezone_data, dropdown_message = await timezone_view.initiate_from_message(
+                modal_response or await button_interaction.original_response(),
+                "Please select a timezone for the event:",
+            )
+
+            # Use selected timezone or fallback to current
+            timezone = (
+                timezone_data.get("timezone_selection", [current_tz])[0]
+                if timezone_data and timezone_data.get("timezone_selection")
+                else current_tz
+            )
+
+            # Parse and update event details
+            event_time = parse_datetime(
+                form_data["event_date"], form_data["event_time"], timezone
+            )
+            event.details.name = form_data["event_name"]
+            event.details.description = form_data["event_description"]
+            event.details.time = event_time
+            event.details.location = form_data["event_location"]
+            await Database.update_document(event, {"details": event.details})
+
+            # Notify user of success
+            success_message = "Event updated successfully!"
+            target_msg = dropdown_message or modal_response
+            if target_msg:
+                await target_msg.edit(content=success_message, view=None)
+            else:
+                await button_interaction.followup.send(content=success_message, ephemeral=True)
+
+            # Show updated event embed
+            await self._show_event_embed(message, event)
+        except Exception as e:
+            # Handle and log any errors during update
+            self.logger.error(f"Failed to update event: {e}", exc_info=True)
+            error_message = f"Failed to update event: {e!s}"
+            if modal_response:
+                await modal_response.edit(content=error_message, view=None)
+            else:
+                await button_interaction.followup.send(content=error_message, ephemeral=True)
+
+    async def _get_prefilled__modal_config(self, event):
+        """Get modal config with fields pre-filled from event details."""
+        modal_config = self.config["edit_event_modal"].copy()
+        for field in modal_config["modal"]["fields"]:
+            match field["custom_id"]:
+                case "event_name":
+                    field["default"] = event.details.name
+                case "event_description":
+                    field["default"] = event.details.description
+                case "event_date":
+                    field["default"] = event.details.time.strftime("%m/%d/%y")
+                case "event_time":
+                    field["default"] = event.details.time.strftime("%I:%M %p")
+                case "event_location":
+                    field["default"] = event.details.location
+        return modal_config
 
     async def _list_guild_events(self, interaction: discord.Interaction) -> None:
         """List events attributed to a guild"""
