@@ -15,13 +15,14 @@ from discord import app_commands
 from discord.ext import commands
 
 from backend.db.documents.guild import Guild
+from backend.db.documents.user import User
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 from frontend.interactions.bases.modal_base import DynamicModalView
 
 from config import settings
 
-from .event_config import EVENT_CONFIG
-from ...interactions.bases.button_base import ConfirmDeleteView
+from event_config import EVENT_CONFIG
+from frontend.interactions.bases.button_base import ConfirmDeleteView
 
 ### CONSTANTS
 
@@ -641,7 +642,42 @@ class EventCogNew(commands.Cog):
         return view.value
 
     async def _delete_event_and_cleanup(self, event, guild_id):
-        return
+        """Remove event from database"""
+
+        # Remove from guild event list
+        try:
+            guild = Database.get_document(Guild, guild_id)
+            if guild and hasattr(guild, "events") and event._id in guild.events:
+                guild.events.remove(event._id)
+                Database.update_document(guild, {"events": guild.events})
+                self.logger.info(f"Removed event {event._id} from guild {guild_id}")
+        except Exception as e:
+            self.logger.error(f"Error removing event {event._id} from guild: {e}")
+
+        # Remove from all users' lists
+        all_users = (
+            set(getattr(event, "yes_users", []))
+            | set(getattr(event, "maybe_users", []))
+            | set(getattr(event, "no_users", []))
+        )
+        for user_id in all_users:
+            try:
+                user = Database.get_document(User, user_id)
+                if user and hasattr(user, "events") and event._id in user.events:
+                    user.events.remove(event._id)
+                    user.save()
+                    self.logger.info(f"Removed event {event._id} from user {user_id}'s events")
+            except Exception as e:
+                self.logger.error(f"Error removing event {event._id} from user {user_id}: {e}")
+
+        # Remove from database
+        try:
+            Database.delete_document(event)
+            self.logger.info(f"Event {event._id} '{event.details.name}' deleted")
+            return None
+        except Exception as e:
+            self.logger.error(f"Error deleting event {event._id}: {e}")
+            return e
 
     async def _edit_event(self, interaction: discord.Interaction) -> None:
         """Handle event editing"""
