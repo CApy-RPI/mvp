@@ -882,7 +882,66 @@ class EventCogNew(commands.Cog):
 
 
     async def _show_user_events(self, interaction: discord.Interaction) -> None:
-        """Show events subscribed to by a user"""
+        """Show events a user is registered for"""
+
+        user = Database.get_document(User, interaction.user.id)
+        if not user or not hasattr(user, "events") or not user.events:
+            await interaction.followup.send("You're not registered for any events.", ephemeral=True)
+            return
+
+        # Get all events the user is registered for
+        user_events = []
+        current_time = now()
+
+        for event_id in user.events:
+            event = Database.get_document(Event, event_id)
+            if event and hasattr(event, "details"):
+                event_time = event.details.time
+                # If the event time is offset-naive, assume it's in UTC
+                if event_time.tzinfo is None:
+                    event_time.replace(tzinfo=UTC)
+                if event_time >= current_time:
+                    user_events.append(event)
+
+        if not user_events:
+            await interaction.followup.send(
+                "You're not registered for any upcoming events.", ephemeral=True
+            )
+            return
+
+        # Sort events by datetime
+        user_events.sort(key=lambda e: e.details.time)
+
+        # Create an embed to display the events
+        embed = discord.Embed(
+            title="Your Events",
+            description=f"You are registered for {len(user_events)} upcoming events",
+            color=discord.Color.green(),
+        )
+
+        for event in user_events:
+            # Format date for display
+            localized_time = self._format_datetime(event.details.time)
+
+            # Determine registration status
+            status = "Unknown"
+            if interaction.user.id in event.yes_users:
+                status = "✅ Attending"
+            elif interaction.user.id in event.maybe_users:
+                status = "❔ Maybe"
+
+            # Add field for each event
+            embed.add_field(
+                name=event.details.name,
+                value=(
+                    f"**When:** {localized_time}\n"
+                    f"**Where:** {event.details.location}\n"
+                    f"**Your Status:** {status}"
+                ),
+                inline=False,
+            )
+
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     async def _announce_event(self, interaction: discord.Interaction) -> None:
         """Announce an event"""
