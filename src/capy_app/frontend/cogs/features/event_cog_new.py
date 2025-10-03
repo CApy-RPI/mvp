@@ -1,5 +1,6 @@
 import logging
 import re
+from contextlib import suppress
 from datetime import datetime, UTC
 from enum import Enum, StrEnum, auto
 from optparse import Option
@@ -138,6 +139,79 @@ def build_event_dropdown_config(options, action: Action):
         "timeout": 180,
         "dropdowns": dropdowns,
     }
+
+
+async def send_event_selection_error(interaction, error_msg, message = None):
+    """Helper for consolidating and sending error messages occurring in event selection"""
+    if message:
+        # If a message object is provided, try to edit it with the error message
+        with suppress(discord.NotFound, discord.HTTPException):
+            await message.edit(
+                content=error_msg,
+                view=None,
+                embed=None,
+            )
+    else:
+        try:
+            if interaction.response.is_done():
+                # If the interaction response is already sent, use followup
+                await interaction.followup.send(error_msg, ephemeral=True)
+            else:
+                # Otherwise, send the error as the initial response
+                await interaction.response.send_message(error_msg, ephemeral=True)
+        except (discord.NotFound, discord.HTTPException):
+            # Suppress common exceptions if message cannot be sent
+            pass
+    return
+
+
+async def get_dropdown_selection(interaction, view: DynamicDropdownView, action: Action):
+    """Shows a dropdown and returns the user selection"""
+    values = None
+    message = None
+
+    if interaction.response.is_done():
+        # If response is already set, create & use a followup message for the dropdown
+        message = await interaction.followup.send(
+            f"Please select an event to {action.value}:",
+            view=view,
+            ephemeral=True,
+            wait=True,
+        )
+        await view.wait()
+
+        selections = {}
+
+        # Collect selected values from dropdowns
+        for dropdown in getattr(view, "_dropdowns", []):
+            if hasattr(dropdown, "selected_values") and dropdown.selected_values:
+                selections[getattr(dropdown, "custom_id", "event_selection")] = (
+                    dropdown.selected_values
+                )
+        values = selections if getattr(view, "accepted", False) else None
+
+        # If user cancelled selection, update message and return None
+        if hasattr(view, "cancelled") and getattr(view, "cancelled", False):
+            await message.edit(
+                content=f"Event selection for {action.value} was cancelled.",
+                view=None,
+                embed=None,
+            )
+            return None, message
+    else:
+        # If response not sent, initiate dropdown from current interaction
+        values, message = await view.initiate_from_interaction(
+            interaction, f"Please select an event to {action.value}:"
+        )
+
+    if not getattr(view, "accepted", False):
+        if getattr(view, "_timed_out", False):
+            await message.edit(content="Event selection timed out.", view=None, embed=None)
+        else:
+            await message.edit(content="Event selection cancelled.", view=None, embed=None)
+        return None, message
+    # Return selected values and message object
+    return values, message
 
 
 class EventCogNew(commands.Cog):
@@ -472,7 +546,7 @@ class EventCogNew(commands.Cog):
                 view = DynamicDropdownView(**dropdown_config)
 
                 # Show dropdown
-                values, message = await self._get_dropdown_selection(interaction, view, action)
+                values, message = await get_dropdown_selection(interaction, view, action)
                 if not values or not message:
                     # If no selection made, set error message
                     error_msg = "No event selected."
@@ -502,7 +576,7 @@ class EventCogNew(commands.Cog):
             error_msg = "An unexpected error occurred while selecting the event."
         if error_msg:
             # If any error occurred, send error message and return None
-            await self._send_event_selection_error(
+            await send_event_selection_error(
                 interaction,
                 error_msg,
                 message,
@@ -540,57 +614,6 @@ class EventCogNew(commands.Cog):
             else:
                 upcoming.append(option)
         return {"upcoming": upcoming, "old": old}
-
-    async def _get_dropdown_selection(self, interaction, view: DynamicDropdownView, action: Action):
-        """Shows a dropdown and returns the user selection"""
-        values = None
-        message = None
-
-        if interaction.response.is_done():
-            # If response is already set, create & use a followup message for the dropdown
-            message = await interaction.followup.send(
-                f"Please select an event to {action.value}:",
-                view=view,
-                ephemeral=True,
-                wait=True,
-            )
-            await view.wait()
-
-            selections = {}
-
-            # Collect selected values from dropdowns
-            for dropdown in getattr(view, "_dropdowns", []):
-                if hasattr(dropdown, "selected_values") and dropdown.selected_values:
-                    selections[getattr(dropdown, "custom_id", "event_selection")] = (
-                        dropdown.selected_values
-                    )
-            values = selections if getattr(view, "accepted", False) else None
-
-            # If user cancelled selection, update message and return None
-            if hasattr(view, "cancelled") and getattr(view, "cancelled", False):
-                await message.edit(
-                    content=f"Event selection for {action.value} was cancelled.",
-                    view=None,
-                    embed=None,
-                )
-                return None, message
-        else:
-            # If response not sent, initiate dropdown from current interaction
-            values, message = await view.initiate_from_interaction(
-                interaction, f"Please select an event to {action.value}:"
-            )
-
-        if not getattr(view, "accepted", False):
-            if getattr(view, "_timed_out", False):
-                await message.edit(content="Event selection timed out.", view=None, embed=None)
-            else:
-                await message.edit(content="Event selection cancelled.", view=None, embed=None)
-            return None, message
-        # Return selected values and message object
-        return values, message
-
-    async def _send_event_selection_error(self, interaction: discord.Interaction, error_msg: str, message: Any = None) -> None:
-        return
 
     async def _show_delete_confirmation(self, message: discord.Message, event: Event):
         return
