@@ -871,6 +871,15 @@ class EventCogNew(commands.Cog):
 
     async def _show_event(self, interaction: discord.Interaction) -> None:
         """Show details of an event"""
+        # Interaction is already deferred
+        event, message = await self._get_event_selection(interaction, Action.VIEW)
+        if not event or not message:  # Check both event and message
+            # Error/cancel message already handled within get_event_selection if possible
+            return
+
+        # Pass the message object to show_event_embed
+        await self._show_event_embed(event, message)
+
 
     async def _show_user_events(self, interaction: discord.Interaction) -> None:
         """Show events subscribed to by a user"""
