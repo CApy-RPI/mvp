@@ -215,6 +215,12 @@ async def get_dropdown_selection(interaction, view: DynamicDropdownView, action:
     return values, message
 
 
+async def edit_message_safe(message, content):
+    """Safely edit a message, suppressing common exceptions."""
+    with suppress(discord.NotFound, discord.HTTPException):
+        await message.edit(content=content, view=None, embed=None)
+
+
 class EventCogNew(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
@@ -504,7 +510,7 @@ class EventCogNew(commands.Cog):
 
         if confirmed is None:
             # If confirmation times out, notify user
-            await self._edit_message_safe(message, "Event deletion timed out.")
+            await edit_message_safe(message, "Event deletion timed out.")
             return
 
         if confirmed:
@@ -512,17 +518,17 @@ class EventCogNew(commands.Cog):
             delete_error = await self._delete_event_and_cleanup(event, interaction.guild_id)
             if delete_error:
                 # If error occurs during deletion, notify user
-                await self._edit_message_safe(
+                await edit_message_safe(
                     message, f"Error deleting event '{event.details.name}': {delete_error}"
                 )
             else:
                 # Notify user of successful deletion
-                await self._edit_message_safe(
+                await edit_message_safe(
                     message, f"Event '{event.details.name}' has been deleted."
                 )
         else:
             # If user cancels deletion, notify user
-            await self._edit_message_safe(message, "Event deletion cancelled.")
+            await edit_message_safe(message, "Event deletion cancelled.")
 
 
     async def _get_event_selection(self, interaction: discord.Interaction, action: Action) -> tuple[Event | None, discord.Message | None]:
@@ -633,9 +639,6 @@ class EventCogNew(commands.Cog):
         await view.wait()
         # Return the confirmation choice (T/F/None)
         return view.value
-
-    async def _edit_message_safe(self, message, content):
-        return
 
     async def _delete_event_and_cleanup(self, event, guild_id):
         return
