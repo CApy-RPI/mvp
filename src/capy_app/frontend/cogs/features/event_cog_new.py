@@ -21,6 +21,7 @@ from frontend.interactions.bases.modal_base import DynamicModalView
 from config import settings
 
 from .event_config import EVENT_CONFIG
+from ...interactions.bases.button_base import ConfirmDeleteView
 
 ### CONSTANTS
 
@@ -616,7 +617,22 @@ class EventCogNew(commands.Cog):
         return {"upcoming": upcoming, "old": old}
 
     async def _show_delete_confirmation(self, message: discord.Message, event: Event):
-        return
+        """Show deletion confirmation to user"""
+        view = ConfirmDeleteView()
+        try:
+            await message.edit(
+                content=f"⚠️ Are you sure you want to delete the event '{event.details.name}'?",
+                view=view,
+                embed=None,
+            )
+        except (discord.NotFound, discord.HTTPException) as e:
+            # If message can't be edited, log and return None
+            self.logger.warning(f"Failed to edit message for delete confirmation: {e}")
+            return None
+
+        await view.wait()
+        # Return the confirmation choice (T/F/None)
+        return view.value
 
     async def _edit_message_safe(self, message, content):
         return
