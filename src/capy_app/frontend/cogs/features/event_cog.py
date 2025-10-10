@@ -1,7 +1,7 @@
 import logging
 import re
 from contextlib import suppress
-from datetime import datetime, UTC
+from datetime import datetime, UTC, tzinfo
 from enum import Enum, StrEnum, auto
 from optparse import Option
 from typing import Any
@@ -21,7 +21,7 @@ from frontend.interactions.bases.modal_base import DynamicModalView
 
 from config import settings
 
-from event_config import EVENT_CONFIG
+from .event_config import EVENT_CONFIG
 from frontend.interactions.bases.button_base import ConfirmDeleteView, EditView, ConfirmView
 
 ### CONSTANTS
@@ -40,10 +40,10 @@ REQUIRED_FIELDS = [
 # TODO: Expand pattern such that it validates date >= 01/01/2024 & day exists (month variation and leap year)
 DATE_PATTERN = re.compile(r"^((0[1-9]|1[0-2])/(0[1-9]|[1-2][0-9]|3[0-1])/(\d{2}))$")
 TIME_PATTERN = re.compile(
-    r"^((0[1-9]|1[0-2]):([0-5][0-9])\s+(AM|PM))$"
+    r"^((0[1-9]|1[0-2]):([0-5][0-9])\s+(AM|PM))$", re.IGNORECASE
 )  # Note: the original had /s+[A-Z]{2,4} tacked onto the end, and I don't know why.
 
-DATETIME_PATTERN = "%m/%d/%Y %I:%M %p"
+DATETIME_PATTERN = "%m/%d/%y %I:%M %p"
 
 EVENT_SELECTIONS = ("event_selection_upcoming","event_selection_old","event_selection")
 
@@ -60,7 +60,8 @@ class Action(StrEnum):
 def parse_datetime(date: str, time: str, timezone: str) -> datetime:
     """Parse time, date, and timezone into a datetime object"""
     dt = datetime.strptime(f"{date} {time}", DATETIME_PATTERN)
-    dt.replace(tzinfo=ZoneInfo(timezone))
+    # TODO I'm don't love creating an object just to throw it away- look into a pattern with timezone included
+    dt = localize(dt, ZoneInfo(timezone))
     return dt
 
 def now() -> datetime:
@@ -69,7 +70,7 @@ def now() -> datetime:
 
 def _event_time(ev: Event): # This is marked private so not to conflict with any variables event_time
     t = ev.details.time
-    return t.replace(tzinfo=UTC) if t.tzinfo is None else t
+    return localize(t) if t.tzinfo is None else t
 
 
 def get_guild_events_for_action(guild_id: int, action: Action) -> list[Event | None]:
@@ -87,7 +88,7 @@ def get_guild_events_for_action(guild_id: int, action: Action) -> list[Event | N
             event_time = event.details.time
             # If event time is naive, localize to UTC
             if event_time.tzinfo is None:
-                event_time = event_time.replace(tzinfo=UTC)
+                event_time = localize(event_time)
             # For delete, view, and edit include all events; otherwise, only future events
             if action in (Action.DELETE, Action.EDIT, Action.VIEW) or event_time >= current_time:
                 events.append(event)
@@ -224,6 +225,9 @@ async def edit_message_safe(message, content):
     with suppress(discord.NotFound, discord.HTTPException):
         await message.edit(content=content, view=None, embed=None)
 
+def localize(dt: datetime, tz: tzinfo = UTC) -> datetime:
+    """Localizes a datetime object to have a given timezone, defaulting to UTC."""
+    return dt.replace(tzinfo=tz)
 
 class EventCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
@@ -348,7 +352,7 @@ class EventCog(commands.Cog):
 
         # Ensure time format matches standard (HH:MM AM|PM)
         time_str = form_data["event_time"]
-        if not re.match(TIME_PATTERN, time_str, re.IGNORECASE):
+        if not re.match(TIME_PATTERN, time_str):
             self.logger.info(f"Time '{time_str}' does not match HH:MM AM|PM format")
             return False
 
@@ -423,7 +427,7 @@ class EventCog(commands.Cog):
         current_time = now()
         event_time = event.details.time
         if event_time.tzinfo is None:
-            event_time = event_time.replace(tzinfo=UTC)
+            event_time = localize(event_time)
         is_old = event_time < current_time
 
         # Create the embed, tinting red for old events
@@ -466,7 +470,7 @@ class EventCog(commands.Cog):
         try:
             # Ensure datetime has timezone
             if dt.tzinfo is None:
-                dt.replace(tzinfo=UTC)
+                dt = localize(dt)
 
             # Convert to desired timezone
             target_tz = ZoneInfo(timezone_str)
@@ -613,7 +617,7 @@ class EventCog(commands.Cog):
         for event in sorted_events:
             event_time = event.details.time
             if event_time.tzinfo is None:
-                event_time.replace(tzinfo=UTC)
+                event_time = localize(event_time)
             is_old = event_time < current_time
             option = {
                 "label": f"{'[OLD] ' if is_old else ''}{event.details.name}",
@@ -825,7 +829,7 @@ class EventCog(commands.Cog):
                 event_time = event.details.time
                 # If the event time is offset-naive, assume UTC
                 if event_time.tzinfo is None:
-                    event_time.replace(tzinfo=UTC)
+                    event_time = localize(event_time)
                 if event_time >= current_time:
                     upcoming_events.append(event)
                 else:
@@ -902,7 +906,7 @@ class EventCog(commands.Cog):
                 event_time = event.details.time
                 # If the event time is offset-naive, assume it's in UTC
                 if event_time.tzinfo is None:
-                    event_time.replace(tzinfo=UTC)
+                    event_time = localize(event_time)
                 if event_time >= current_time:
                     user_events.append(event)
 
@@ -1074,4 +1078,6 @@ class EventCog(commands.Cog):
                     embed=None,  # Clear embed
                 )
 
-
+async def setup(bot: commands.Bot) -> None:
+    """Set up the Event cog."""
+    await bot.add_cog(EventCog(bot))
