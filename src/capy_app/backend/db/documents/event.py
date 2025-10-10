@@ -15,6 +15,16 @@ class EventReactions(RestrictedEmbeddedDocument):
         no: Count of negative responses
     """
 
+    def modify(self, field: str, quantity: int): # Yes, this is kinda stupid, but it prevents having to sort lists on every reaction add and remove
+        """Increments or Decrements a reaction count based on the passed in emoji"""
+        match field:
+            case "✅":
+                self.yes += quantity
+            case "❌":
+                self.maybe += quantity
+            case "❔":
+                self.no += quantity
+
     yes: int = mongoengine.IntField(default=0)
     maybe: int = mongoengine.IntField(default=0)
     no: int = mongoengine.IntField(default=0)

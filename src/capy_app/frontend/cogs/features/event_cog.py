@@ -8,6 +8,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import discord
+import mongoengine
 
 from backend.db.database import Database
 from backend.db.documents.event import Event, EventDetails, EventReactions
@@ -56,6 +57,11 @@ class Action(StrEnum):
     VIEW = auto()
     EDIT = auto()
     ANNOUNCE = auto()
+
+class RSVPEmoji(StrEnum):
+    YES = "✅"
+    NO = "❌"
+    MAYBE = "❔"
 
 def parse_datetime(date: str, time: str, timezone: str) -> datetime:
     """Parse time, date, and timezone into a datetime object"""
@@ -231,6 +237,23 @@ async def edit_message_safe(message, content):
 def localize(dt: datetime, tz: tzinfo = UTC) -> datetime:
     """Localizes a datetime object to have a given timezone, defaulting to UTC."""
     return dt.replace(tzinfo=tz)
+
+
+async def fetch_message_if_possible(channel, message_id):
+    """Fetches a message, if possible"""
+    if isinstance(channel, (discord.TextChannel | discord.Thread)):
+        with suppress(discord.NotFound, discord.Forbidden):
+            return await channel.fetch_message(message_id)
+    return None
+
+
+async def remove_other_reactions(message, emoji, user):
+    """Removes all reactions other than a given reaction attributed to a given user"""
+    for reaction in message.reactions:
+        if str(reaction.emoji) != emoji and user:
+            with suppress(discord.NotFound, discord.HTTPException):
+                await reaction.remove(user)
+
 
 class EventCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
@@ -1094,7 +1117,7 @@ class EventCog(commands.Cog):
             return
 
         # Get message
-        message = await self._fetch_message_if_possible(channel, payload.message_id)
+        message = await fetch_message_if_possible(channel, payload.message_id)
         if not message:
             return
 
@@ -1120,26 +1143,62 @@ class EventCog(commands.Cog):
             return
 
         # Remove any other reactions from this user on this message
-        await self._remove_other_reactions(message, emoji, user)
+        await remove_other_reactions(message, emoji, user)
 
         # Update event attendance based on reaction
-        await self._handle_reaction_add(payload.user_id, event, emoji)
+        await self._handle_reaction_add(payload.user_id, message, event, emoji)
 
         # Update the announcement embed to reflect latest RSVP counts
-        await self._show_event_embed(message, event)
-
-
-    async def _fetch_message_if_possible(self, channel, payload):
-        """Fetches a message, if possible"""
+        await self._show_event_embed(event, message)
 
     async def _get_event_by_message_id(self, message_id):
         """Gets the event linked to a certain announcement message"""
+        try:
+            # Use MongoEngine directly for a query by message_id
+            event = Event.objects(message_id=message_id).first()
+            if not event:
+                return
+            return event
+        except Exception as e:
+            self.logger.error(f"Error finding event by message_id {message_id}: {e}")
+            return
 
-    async def _remove_other_reactions(self, message, emoji, user):
-        """Removes all non-RSVP reactions from a message"""
-
-    async def _handle_reaction_add(self, user_id, event, emoji):
+    async def _handle_reaction_add(self, user_id, message, event: Event, emoji):
         """Handles RSVP actions taken when a reaction is added"""
+
+        user = Database.get_document(User, user_id)
+        if not user:
+            self.logger.info(f"User {user_id} not registered; ignoring attendance add.")
+            return
+
+        vals: dict[RSVPEmoji, list[int]] = {
+            RSVPEmoji.YES: event.yes_users,
+            RSVPEmoji.MAYBE: event.maybe_users,
+            RSVPEmoji.NO: event.no_users
+        }
+
+        remove: set[RSVPEmoji] = set()
+
+        if emoji == "✅" or emoji == "❔":
+            remove.add(RSVPEmoji.NO)
+        if emoji == "✅" or emoji == "❌":
+            remove.add(RSVPEmoji.MAYBE)
+        if emoji == "❔" or emoji == "❌":
+            remove.add(RSVPEmoji.YES)
+
+        modified: dict[RSVPEmoji, int]
+
+        # Remove conflicting reactions by the user
+        for reaction in remove:
+            if user_id in vals[reaction]:
+                vals[reaction].remove(user_id)
+                event.details.reactions.modify(reaction.value, -1)
+
+        # Add user to selected list if not already there
+        if user_id not in vals[emoji]:
+            vals[emoji].append(user_id)
+            event.details.reactions.modify(emoji, 1)
+
 
 async def setup(bot: commands.Bot) -> None:
     """Set up the Event cog."""
