@@ -5,6 +5,7 @@ from datetime import datetime, UTC, tzinfo
 from enum import Enum, StrEnum, auto
 from optparse import Option
 from typing import Any
+from unittest import case
 from zoneinfo import ZoneInfo
 
 import discord
@@ -62,6 +63,20 @@ class RSVPEmoji(StrEnum):
     YES = "✅"
     NO = "❌"
     MAYBE = "❔"
+    NONE = "SOMETHING HAS GONE WRONG"
+
+    @staticmethod
+    def reverse(emoji):
+        """Returns the matching RSVP emoji key from an emoji"""
+        match emoji:
+            case "✅":
+                return RSVPEmoji.YES
+            case "❌":
+                return RSVPEmoji.NO
+            case "❔":
+                return RSVPEmoji.MAYBE
+            case _:
+                return None
 
 def parse_datetime(date: str, time: str, timezone: str) -> datetime:
     """Parse time, date, and timezone into a datetime object"""
@@ -1186,19 +1201,36 @@ class EventCog(commands.Cog):
         if emoji == "❔" or emoji == "❌":
             remove.add(RSVPEmoji.YES)
 
-        modified: dict[RSVPEmoji, int]
+        modified = False
 
         # Remove conflicting reactions by the user
         for reaction in remove:
             if user_id in vals[reaction]:
                 vals[reaction].remove(user_id)
                 event.details.reactions.modify(reaction.value, -1)
+                modified = True
 
         # Add user to selected list if not already there
         if user_id not in vals[emoji]:
             vals[emoji].append(user_id)
             event.details.reactions.modify(emoji, 1)
+            modified = True
 
+        rsvp = RSVPEmoji.reverse(emoji)
+        # Save the event document if modified
+        if modified:
+            event.save()
+            self.logger.info(f"Updated event {event._id} for user {user_id} with '{rsvp.name}' response.")
+
+        # Add event to user list if they fill yes or maybe, remove if they fill no
+        if rsvp == RSVPEmoji.NO and hasattr(user, "events") and event._id in user.events:
+            user.events.remove(event._id)
+            user.save()
+            self.logger.info(f"Removed event {event._id} from user {user_id}'s event list.")
+        elif event._id not in user.events:
+            user.events.append(event._id)
+            user.save()
+            self.logger.info(f"Updated user {user_id} for event {event._id} with '{rsvp.name}' response.")
 
 async def setup(bot: commands.Bot) -> None:
     """Set up the Event cog."""
