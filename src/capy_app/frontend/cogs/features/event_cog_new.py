@@ -22,7 +22,7 @@ from frontend.interactions.bases.modal_base import DynamicModalView
 from config import settings
 
 from event_config import EVENT_CONFIG
-from frontend.interactions.bases.button_base import ConfirmDeleteView, EditView
+from frontend.interactions.bases.button_base import ConfirmDeleteView, EditView, ConfirmView
 
 ### CONSTANTS
 
@@ -47,12 +47,15 @@ DATETIME_PATTERN = "%m/%d/%Y %I:%M %p"
 
 EVENT_SELECTIONS = ("event_selection_upcoming","event_selection_old","event_selection")
 
+ALLOWED_REACTIONS = ["✅", "❌", "❔"]
+
 ###
 
 class Action(StrEnum):
     DELETE = auto()
     VIEW = auto()
     EDIT = auto()
+    ANNOUNCE = auto()
 
 def parse_datetime(date: str, time: str, timezone: str) -> datetime:
     """Parse time, date, and timezone into a datetime object"""
@@ -945,3 +948,130 @@ class EventCogNew(commands.Cog):
 
     async def _announce_event(self, interaction: discord.Interaction) -> None:
         """Announce an event"""
+
+        # Get both event and the message from the dropdown interaction
+        event, message = await self._get_event_selection(interaction, Action.ANNOUNCE)
+        if not event or not message:  # Check both
+            # Error/cancel message already handled within get_event_selection if possible
+            return
+
+        # Use the regular ConfirmView for confirmation
+        view = ConfirmView(**self.config["confirm_announce"])
+
+        try:
+            await message.edit(  # Edit the message from the dropdown
+                content=(
+                    f"Are you sure you want to announce the event '{event.details.name}' "
+                    "in the announcements channel?"
+                ),
+                view=view,
+                embed=None,
+            )
+        except (discord.NotFound, discord.HTTPException) as e:
+            self.logger.warning(f"Failed to edit message for announce confirmation: {e}")
+            return  # Can't proceed if message is gone
+
+        await view.wait()
+
+        # Check if announcement was cancelled early
+        if not view.value:
+            with suppress(discord.NotFound, discord.HTTPException):
+                await message.edit(
+                    content="Event announcement cancelled.",
+                    view=None,
+                    embed=None,  # Clear embed
+                )  # Best effort
+            return
+
+        # Checking validity of interaction.guild for finding/creation of announcements channel
+        if not interaction.guild:
+            await message.edit(
+                content="Error: This command must be used in a server.",
+                view=None,
+                embed=None,
+            )
+            return
+
+        # Resolve announcements channel from server settings (fallback to name if not configured)
+        guild_data = Database.get_document(Guild, interaction.guild.id)
+        announcement_channel: discord.TextChannel | None = None
+        channel_id = (
+            getattr(getattr(guild_data, "channels", None), "announcements", None)
+            if guild_data
+            else None
+        )
+
+        if channel_id:
+            chan = interaction.guild.get_channel(channel_id)
+            if isinstance(chan, discord.TextChannel):
+                announcement_channel = chan
+        if announcement_channel is None:
+            # Fallback by name for legacy behavior
+            announcement_channel = discord.utils.get(
+                interaction.guild.text_channels, name="announcements"
+            )
+
+        if not announcement_channel:
+            with suppress(discord.Forbidden, discord.HTTPException):
+                await message.edit(
+                    content=(
+                        "Error: Announcements channel is not configured or found. "
+                        "Use /server edit to set the 'Announcements Channel'."
+                    ),
+                    view=None,
+                    embed=None,
+                )
+            return
+
+        # Create announcement embed
+        embed = discord.Embed(
+            title=f"📅 Event: {event.details.name}",
+            description=event.details.description,
+            color=discord.Color.blue(),
+        )
+
+        # Add event details
+        localized_time = self._format_datetime(event.details.time)
+        embed.add_field(name="Date/Time", value=localized_time, inline=True)
+        embed.add_field(name="Location", value=event.details.location, inline=True)
+
+
+        # Add footer with instructions
+        embed.set_footer(
+            text="React with ✅ to attend, ❌ if you can't make it, or ❔ if you're unsure."
+        )
+
+        try:
+            # Send the announcement
+            announcement = await announcement_channel.send(embed=embed)
+
+            # Add reactions
+            for reaction in ALLOWED_REACTIONS:
+                await announcement.add_reaction(reaction)
+
+            # Save message ID to event
+            event.message_id = announcement.id
+            Database.update_document(event, {"message_id": announcement.id})
+
+            # Update the original confirmation message
+            await message.edit(
+                content=f"Event announced in #{announcement_channel.name}!",
+                view=None,
+                embed=None,  # Clear embed
+            )
+        except discord.Forbidden:
+            self.logger.error(
+                f"Permission error announcing event {event._id} "
+                f"in channel {announcement_channel.id}"
+            )
+            with suppress(discord.NotFound, discord.HTTPException):
+                await message.edit(
+                    content=(
+                        "Error: I don't have permission to send messages or add reactions "
+                        "in the announcements channel."
+                    ),
+                    view=None,
+                    embed=None,  # Clear embed
+                )
+
+
