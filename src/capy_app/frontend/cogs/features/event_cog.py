@@ -1081,6 +1081,66 @@ class EventCog(commands.Cog):
                     embed=None,  # Clear embed
                 )
 
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload) -> None:
+        """Handles reactions added to announcement messages"""
+        # Ignore bot reactions
+        if not self.bot.user or payload.user_id == self.bot.user.id:
+            return
+
+        # Check if this is a reaction to an event announcement
+        channel = self.bot.get_channel(payload.channel_id)
+        if not channel:
+            return
+
+        # Get message
+        message = await self._fetch_message_if_possible(channel, payload.message_id)
+        if not message:
+            return
+
+        # Get Event
+        event = await self._get_event_by_message_id(payload.message_id)
+        if not event:
+            return
+
+        # Handle different reactions
+        emoji = str(payload.emoji)
+        user = self.bot.get_user(payload.user_id)
+
+        # Ignore and remove any non-RSVP reactions
+        if emoji not in ALLOWED_REACTIONS:
+            # Attempt to remove the unsupported reaction for this user (if permitted)
+            member = None
+            if isinstance(channel, discord.TextChannel) and channel.guild:
+                member = channel.guild.get_member(payload.user_id)
+            target_user = member or user
+            if target_user:
+                with suppress(discord.NotFound, discord.Forbidden, discord.HTTPException):
+                    await message.remove_reaction(payload.emoji, target_user)
+            return
+
+        # Remove any other reactions from this user on this message
+        await self._remove_other_reactions(message, emoji, user)
+
+        # Update event attendance based on reaction
+        await self._handle_reaction_add(payload.user_id, event, emoji)
+
+        # Update the announcement embed to reflect latest RSVP counts
+        await self._show_event_embed(message, event)
+
+
+    async def _fetch_message_if_possible(self, channel, payload):
+        """Fetches a message, if possible"""
+
+    async def _get_event_by_message_id(self, message_id):
+        """Gets the event linked to a certain announcement message"""
+
+    async def _remove_other_reactions(self, message, emoji, user):
+        """Removes all non-RSVP reactions from a message"""
+
+    async def _handle_reaction_add(self, user_id, event, emoji):
+        """Handles RSVP actions taken when a reaction is added"""
+
 async def setup(bot: commands.Bot) -> None:
     """Set up the Event cog."""
     await bot.add_cog(EventCog(bot))
