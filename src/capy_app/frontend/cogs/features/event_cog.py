@@ -171,6 +171,9 @@ async def send_event_selection_error(interaction, error_msg, message = None):
     return
 
 
+# TODO view.wait() does not terminate if accept/cancel is pressed on a non-first page.
+    # I don't know if there's an intended way to deal with this, so I'm leaving it to the developers of
+    # dropdown_base to fix.
 async def get_dropdown_selection(interaction, view: DynamicDropdownView, action: Action):
     """Shows a dropdown and returns the user selection"""
     values = None
