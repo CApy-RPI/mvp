@@ -719,7 +719,7 @@ class EventCog(commands.Cog):
                     embed=None,
                 )
 
-    async def _handle_edit_event_button(self, button_interaction, event, message):
+    async def _handle_edit_event_button(self, button_interaction, event: Event, message):
         """Handles logic for creation of the edit event button"""
         modal_config = await self._get_prefilled__modal_config(event)
         modal_view = DynamicModalView(**modal_config)
