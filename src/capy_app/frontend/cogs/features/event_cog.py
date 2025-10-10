@@ -772,7 +772,7 @@ class EventCog(commands.Cog):
             event.details.description = form_data["event_description"]
             event.details.time = event_time
             event.details.location = form_data["event_location"]
-            await Database.update_document(event, {"details": event.details})
+            Database.update_document(event, {"details": event.details})
 
             # Notify user of success
             success_message = "Event updated successfully!"
@@ -783,7 +783,7 @@ class EventCog(commands.Cog):
                 await button_interaction.followup.send(content=success_message, ephemeral=True)
 
             # Show updated event embed
-            await self._show_event_embed(message, event)
+            await self._show_event_embed(event, message)
         except Exception as e:
             # Handle and log any errors during update
             self.logger.error(f"Failed to update event: {e}", exc_info=True)
