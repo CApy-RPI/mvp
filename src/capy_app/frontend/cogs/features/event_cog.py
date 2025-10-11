@@ -1232,6 +1232,76 @@ class EventCog(commands.Cog):
             user.save()
             self.logger.info(f"Updated user {user_id} for event {event._id} with '{rsvp.name}' response.")
 
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload):
+        """Handle reaction removal from event announcements."""
+        # Ignore bot reactions
+        if not self.bot.user or payload.user_id == self.bot.user.id:
+            return
+
+        # Check if this is a reaction to an event announcement
+        channel = self.bot.get_channel(payload.channel_id)
+        if not channel:
+            return
+
+        # Fetch message to update the embed after processing
+        message = await fetch_message_if_possible(channel, payload.message_id)
+        if not message:
+            return
+
+        try:
+            event = await self._get_event_by_message_id(payload.message_id)
+            if not event:
+                return
+        except Exception as e:
+            self.logger.error(f"Error finding event by message_id {payload.message_id}: {e}")
+            return
+
+        # Handle different reactions being removed
+        emoji = str(payload.emoji)
+        user_id = payload.user_id
+
+        # Process the removal of reaction based on which emoji was removed
+        self._handle_reaction_remove(event, user_id, message, emoji)
+
+        # After updating RSVP state, refresh the embed with latest counts
+        await self._show_event_embed(event, message)
+
+    def _handle_reaction_remove(self, event, user_id, message, emoji):
+        """Handles RSVP actions taken when a reaction is removed"""
+        modified = False
+        rsvp = RSVPEmoji.reverse(emoji)
+
+        vals: dict[RSVPEmoji, list[int]] = {
+            RSVPEmoji.YES: event.yes_users,
+            RSVPEmoji.MAYBE: event.maybe_users,
+            RSVPEmoji.NO: event.no_users
+        }
+
+        # Remove reaction from count
+        if user_id in vals[rsvp]:
+            vals[rsvp].remove(user_id)
+            if event.details and event.details.reactions:
+                event.details.reactions.modify(emoji, -1)
+            modified = True
+
+            if rsvp == RSVPEmoji.YES or rsvp == RSVPEmoji.MAYBE:
+                user = Database.get_document(User, user_id)
+                if not user:
+                    return
+                still_positive = (user_id in event.yes_users) or (user_id in event.maybe_users)
+                if not still_positive and hasattr(user, "events") and event._id in user.events:
+                    user.events.remove(event._id)
+                    user.save()
+                    self.logger.info(f"Removed event {event._id} from user {user_id}'s event list after reaction removal.")
+            if modified:
+                event.save()
+                self.logger.info(f"Updated event {event._id} for user {user_id} after reaction removal.")
+
+    async def remove_event_from_user(self, event, user_id):
+        """"""
+
+
 async def setup(bot: commands.Bot) -> None:
     """Set up the Event cog."""
     await bot.add_cog(EventCog(bot))

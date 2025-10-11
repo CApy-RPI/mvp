@@ -19,11 +19,11 @@ class EventReactions(RestrictedEmbeddedDocument):
         """Increments or Decrements a reaction count based on the passed in emoji"""
         match field:
             case "✅":
-                self.yes += quantity
+                self.yes = max(0, self.yes + quantity)
             case "❌":
-                self.maybe += quantity
+                self.no = max(0, self.no + quantity)
             case "❔":
-                self.no += quantity
+                self.maybe = max(0, self.maybe + quantity)
 
     yes: int = mongoengine.IntField(default=0)
     maybe: int = mongoengine.IntField(default=0)
