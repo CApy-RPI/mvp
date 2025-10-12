@@ -9,16 +9,10 @@ PROFILE_CONFIG = {
             "title": "Profile Information",
             "fields": [
                 {
-                    "label": "First Name",
-                    "placeholder": "Enter your first name",
+                    "label": "Preferred Name",
+                    "placeholder": "Enter your preferred first and last name",
                     "required": True,
-                    "custom_id": "first_name",
-                },
-                {
-                    "label": "Last Name",
-                    "placeholder": "Enter your last name",
-                    "required": True,
-                    "custom_id": "last_name",
+                    "custom_id": "preferred_name",
                 },
                 {
                     "label": "Student ID",
@@ -41,6 +35,12 @@ PROFILE_CONFIG = {
                     "min_length": 4,
                     "max_length": 4,
                     "custom_id": "graduation_year",
+                },
+                {
+                    "label": "Major(s)",
+                    "placeholder": "Enter your Major(s) (separate multiple with commas)",
+                    "required": True,
+                    "custom_id": "majors",
                 },
             ],
         },

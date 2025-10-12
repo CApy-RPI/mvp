@@ -41,7 +41,7 @@ class UserProfile(RestrictedEmbeddedDocument):
         name: User's full name components
         school_email: User's academic email address
         student_id: Unique student identification number
-        major: List of user's declared majors
+        major: User's declared majors as a string
         graduation_year: Expected graduation year
         phone: Contact phone number (optional)
     """
@@ -49,7 +49,7 @@ class UserProfile(RestrictedEmbeddedDocument):
     name: UserName = mongoengine.EmbeddedDocumentField(UserName, required=True)
     school_email: str = mongoengine.EmailField(required=True, unique=True)
     student_id: int = mongoengine.IntField(required=True, unique=True)
-    major: list[str] = mongoengine.ListField(mongoengine.StringField(), required=True)
+    major: str = mongoengine.StringField(required=True)
     graduation_year: int = mongoengine.IntField(required=True)
     phone: int = mongoengine.IntField()
 

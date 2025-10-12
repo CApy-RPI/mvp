@@ -98,11 +98,14 @@ class ProfileCog(commands.Cog):
 
         # Pre-fill values for updates
         if action == "update" and user:
-            modal_view._modal.children[0].default = user.profile.name.first
-            modal_view._modal.children[1].default = user.profile.name.last
-            modal_view._modal.children[2].default = user.profile.student_id
-            modal_view._modal.children[3].default = user.profile.school_email
-            modal_view._modal.children[4].default = user.profile.graduation_year
+            # Combine first and last name into preferred name
+            preferred_name = f"{user.profile.name.first} {user.profile.name.last}".strip()
+            modal_view._modal.children[0].default = preferred_name
+            modal_view._modal.children[1].default = user.profile.student_id
+            modal_view._modal.children[2].default = user.profile.school_email
+            modal_view._modal.children[3].default = user.profile.graduation_year
+            # Pre-fill majors field with existing majors string
+            modal_view._modal.children[4].default = user.profile.major
 
         result = await modal_view.initiate_from_interaction(interaction)
         return cast(tuple[dict[str, str] | None, discord.Message | None], result)
@@ -127,6 +130,24 @@ class ProfileCog(commands.Cog):
 
         # The global limit is now enforced at the dropdown level
         return selected, message
+
+    def process_majors_from_text(self, majors_text: str) -> list[str]:
+        """Process majors from comma-separated text input"""
+        self.logger.debug(f"Processing majors text: '{majors_text}' (stripped: '{majors_text.strip()}')")
+
+        if not majors_text.strip():
+            self.logger.debug("Majors text is empty after stripping")
+            return []
+
+        # Split by commas and clean up each major
+        majors = [major.strip() for major in majors_text.split(",")]
+        self.logger.debug(f"Split majors: {majors}")
+
+        # Remove empty strings
+        majors = [major for major in majors if major]
+        self.logger.debug(f"Final majors after filtering: {majors}")
+
+        return majors
 
     async def verify_email(self, message: discord.Message, new_email: str, user: User | None) -> bool:
         """Verify user's email using button modal base"""
@@ -153,10 +174,8 @@ class ProfileCog(commands.Cog):
             await message.edit(content="Failed to send verification email.")
             return False
 
-        # Inform user and proceed to next step (majors) while email delivers
-        await message.edit(
-            content=("Verification code sent to your email. Please select your major(s) while you wait.")
-        )
+        # Inform user that verification code has been sent
+        await message.edit(content=("Verification code sent to your email. Please check your inbox."))
         return True
 
     async def prompt_and_verify_code(self, message: discord.Message) -> bool:
@@ -195,15 +214,24 @@ class ProfileCog(commands.Cog):
             return
         profile_data, message = prepared
 
-        selected_majors = await self._process_verification_and_majors(message, user, profile_data)
-        if not selected_majors:
+        # Process majors from form input
+        majors_text = profile_data.get("major(s)", "").strip()
+        processed_majors = self.process_majors_from_text(majors_text)
+
+        # Convert processed majors list back to string for storage
+        majors_string = ", ".join(processed_majors) if processed_majors else ""
+
+        self.logger.info(f"Processed majors from '{majors_text}' -> {processed_majors} -> '{majors_string}'")
+
+        # Process email verification after form submission
+        if not await self._process_email_verification(message, user, profile_data):
             return
 
         await self._save_profile(
             interaction,
             action,
             profile_data,
-            {"selected_majors": selected_majors, "user": user, "message": message},
+            {"majors_string": majors_string, "user": user, "message": message},
         )
 
     async def _prepare_profile_data(
@@ -218,21 +246,20 @@ class ProfileCog(commands.Cog):
             return None
         return profile_data, message
 
-    async def _process_verification_and_majors(
+    async def _process_email_verification(
         self, message: discord.Message, user: User | None, profile_data: dict[str, str]
-    ) -> list[str] | None:
-        """Handle email verification flow and major selection, returning majors or None to abort."""
+    ) -> bool:
+        """Handle email verification flow, returning True if successful or False to abort."""
         needs_verification = not (user and profile_data["school_email"] == user.profile.school_email)
-        if needs_verification and not await self.send_verification_code(message, profile_data["school_email"], user):
-            return None
 
-        selected_majors = await self._get_valid_majors(message, user)
-        if not selected_majors:
-            return None
+        if needs_verification:
+            if not await self.send_verification_code(message, profile_data["school_email"], user):
+                return False
 
-        if needs_verification and not await self.prompt_and_verify_code(message):
-            return None
-        return selected_majors
+            if not await self.prompt_and_verify_code(message):
+                return False
+
+        return True
 
     async def _validate_action(self, interaction, action, user) -> bool:
         if action == "create" and user:
@@ -255,8 +282,12 @@ class ProfileCog(commands.Cog):
         content = ""
         trycheck = False
 
-        if not (profile_data["first_name"].isalpha() and profile_data["last_name"].isalpha()):
-            content += "Names cannot consist of numbers or special characters.\n"
+        # Check if preferred name contains only letters and spaces
+        if not profile_data["preferred_name"].strip():
+            content += "Preferred name cannot be empty.\n"
+            trycheck = True
+        elif not all(char.isalpha() or char.isspace() for char in profile_data["preferred_name"]):
+            content += "Names can only contain letters and spaces.\n"
             trycheck = True
         if not (profile_data["graduation_year"].isdigit()):
             content += "Graduation year must be a number.\n"
@@ -267,6 +298,18 @@ class ProfileCog(commands.Cog):
         if not profile_data["school_email"].endswith("edu"):
             content += "School email must end with 'edu'.\n"
             trycheck = True
+
+        # Validate majors field
+        majors_text = profile_data.get("major(s)", "").strip()
+        if not majors_text:
+            content += "At least one major must be specified.\n"
+            trycheck = True
+        else:
+            # Check that processing majors results in at least one valid major
+            processed_majors = self.process_majors_from_text(majors_text)
+            if not processed_majors:
+                content += "Please enter valid major(s) separated by commas.\n"
+                trycheck = True
 
         grad_year_lower_bound = 1899
         grad_year_upper_bound = 2100
@@ -303,6 +346,14 @@ class ProfileCog(commands.Cog):
                 await message.edit(content=str(e))
                 time.sleep(5)
 
+    def get_majors_from_profile_data(self, profile_data: dict[str, str]) -> list[str]:
+        """Extract and validate majors from profile data text input"""
+        majors_text = profile_data.get("major(s)", "")
+        self.logger.debug(f"Raw majors text: '{majors_text}'")
+        processed_majors = self.process_majors_from_text(majors_text)
+        self.logger.debug(f"Processed majors result: {processed_majors}")
+        return processed_majors
+
     async def _save_profile(
         self,
         interaction: discord.Interaction,
@@ -311,30 +362,47 @@ class ProfileCog(commands.Cog):
         context: dict[str, Any],
     ) -> None:
         """Save the user profile to the database."""
-        selected_majors = context["selected_majors"]
+        self.logger.info(f"Starting to save profile for {action}")
+        majors_string = context["majors_string"]
         user = context["user"]
 
-        profile_data = {
-            "name": UserName(first=profile_data["first_name"], last=profile_data["last_name"]),
-            "major": selected_majors,
-            "graduation_year": profile_data["graduation_year"],
+        # Split preferred name into first and last name
+        name_parts = profile_data["preferred_name"].strip().split()
+        if len(name_parts) == 1:
+            first_name = name_parts[0]
+            last_name = ""
+        else:
+            first_name = name_parts[0]
+            last_name = " ".join(name_parts[1:])  # Handle multiple middle/last names
+
+        profile_data_dict = {
+            "name": UserName(first=first_name, last=last_name),
+            "major": majors_string,
+            "graduation_year": int(profile_data["graduation_year"]),
             "school_email": profile_data["school_email"],
-            "student_id": profile_data["student_id"],
+            "student_id": int(profile_data["student_id"]),
         }
 
-        if action == "create":
-            new_user = User(_id=interaction.user.id, profile=UserProfile(**profile_data))
-            Database.add_document(new_user)
-            user = new_user
-            self.logger.info(f"Created new profile for {interaction.user}")
-        else:
-            updates = {f"profile__{k}": v for k, v in profile_data.items()}
-            Database.update_document(user, updates)
-            user = Database.get_document(User, interaction.user.id)
-            self.logger.info(f"Updated profile for {interaction.user}")
+        try:
+            if action == "create":
+                new_user = User(_id=interaction.user.id, profile=UserProfile(**profile_data_dict))
+                Database.add_document(new_user)
+                user = new_user
+                self.logger.info(f"Successfully created new profile for {interaction.user}")
+            else:
+                updates = {f"profile__{k}": v for k, v in profile_data_dict.items()}
+                Database.update_document(user, updates)
+                user = Database.get_document(User, interaction.user.id)
+                self.logger.info(f"Successfully updated profile for {interaction.user}")
 
-        # Show the profile using the original interaction to get user's avatar
-        await self.show_profile_embed(interaction, user)
+            # Show the profile using the original interaction to get user's avatar
+            await self.show_profile_embed(interaction, user)
+        except Exception as e:
+            self.logger.error(f"Failed to save profile: {e}")
+            await interaction.followup.send(
+                "An error occurred while saving your profile. Please try again.",
+                ephemeral=True,
+            )
 
     async def show_profile_embed(
         self,
@@ -360,7 +428,7 @@ class ProfileCog(commands.Cog):
         embed.set_thumbnail(url=avatar_url)
         embed.add_field(name="First Name", value=user.profile.name.first, inline=True)
         embed.add_field(name="Last Name", value=user.profile.name.last, inline=True)
-        embed.add_field(name="Major", value=", ".join(user.profile.major), inline=True)
+        embed.add_field(name="Major", value=user.profile.major, inline=True)
         embed.add_field(name="Graduation Year", value=user.profile.graduation_year, inline=True)
         embed.add_field(name="School Email", value=user.profile.school_email, inline=True)
         embed.add_field(name="Student ID", value=user.profile.student_id, inline=True)
