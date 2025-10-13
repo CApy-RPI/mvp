@@ -2,14 +2,11 @@ import logging
 import re
 from contextlib import suppress
 from datetime import datetime, UTC, tzinfo
-from enum import Enum, StrEnum, auto
-from optparse import Option
+from enum import StrEnum, auto
 from typing import Any
-from unittest import case
 from zoneinfo import ZoneInfo
 
 import discord
-import mongoengine
 
 from backend.db.database import Database
 from backend.db.documents.event import Event, EventDetails, EventReactions
@@ -1269,7 +1266,6 @@ class EventCog(commands.Cog):
 
     def _handle_reaction_remove(self, event, user_id, message, emoji):
         """Handles RSVP actions taken when a reaction is removed"""
-        modified = False
         rsvp = RSVPEmoji.reverse(emoji)
 
         vals: dict[RSVPEmoji, list[int]] = {
@@ -1297,10 +1293,6 @@ class EventCog(commands.Cog):
             if modified:
                 event.save()
                 self.logger.info(f"Updated event {event._id} for user {user_id} after reaction removal.")
-
-    async def remove_event_from_user(self, event, user_id):
-        """"""
-
 
 async def setup(bot: commands.Bot) -> None:
     """Set up the Event cog."""
