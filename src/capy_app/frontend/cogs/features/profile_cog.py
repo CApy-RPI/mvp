@@ -24,6 +24,8 @@ from .major_handler import MajorHandler
 from .profile_config import PROFILE_CONFIG
 from .profile_handlers import EmailVerifier
 
+VERIFICATION_CODE_LENGTH = 6
+
 
 def out_of_bounds_exclusive(n: str, lower, upper):
     """Returns whether n is both a valid digit and out of the given bounds."""
@@ -174,7 +176,7 @@ class ProfileCog(commands.Cog):
         # UI-side validation: must be exactly 6 digits (allow spaces around/in between)
         raw_code = values.get("verification_code", "")
         normalized = raw_code.strip().replace(" ", "")
-        if not (len(normalized) == 6 and normalized.isdigit()):
+        if not (len(normalized) == VERIFICATION_CODE_LENGTH and normalized.isdigit()):
             await message.edit(content="Please enter a valid 6-digit numeric code.")
             return False
         return self.email_verifier.verify_code(message.author.id, normalized)
@@ -207,7 +209,7 @@ class ProfileCog(commands.Cog):
             # UI-side validation before verifying: enforce 6 digits
             raw_code = values.get("verification_code", "")
             normalized = raw_code.strip().replace(" ", "")
-            if not (len(normalized) == 6 and normalized.isdigit()):
+            if not (len(normalized) == VERIFICATION_CODE_LENGTH and normalized.isdigit()):
                 await message.edit(content="Please enter a valid 6-digit numeric code.")
                 # Do not count this as an attempt; let user re-enter
                 continue
