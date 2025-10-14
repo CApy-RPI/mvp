@@ -27,12 +27,9 @@ Welcome to **CAPY** — an all-in-one club managerial software built for efficie
 
 ## **Current Project Contributors**  
 
-- **Kaylee Xie** ([xiek@rpi.edu](mailto:xiek@rpi.edu))
-- **Sayed Imtiazuddin** ([imtias@rpi.edu](mailto:imtias@rpi.edu))
+- **Tag Ciccone** ([ciccot@rpi.edu](mailto:ciccot@rpi.edu))
 - **Brian Ng** ([ngb4@rpi.edu](mailto:ngb4@rpi.edu))
-- **Elias Cueto** ([cuetoe@rpi.edu](mailto:cuetoe@rpi.edu))
 - **Daniel Aube** ([aubed@rpi.edu](mailto:aubed@rpi.edu))
-- **Thomas Doherty** ([dohert7@rpi.edu](mailto:dohert7@rpi.edu))
 
 ## **Past Project Contributors**
 
@@ -41,8 +38,11 @@ Welcome to **CAPY** — an all-in-one club managerial software built for efficie
 - **Zane Brotherton** ([brothz@rpi.edu](mailto:brothz@rpi.edu))
 - **Gabriel Conner** ([conneg2@rpi.edu](mailto:conneg2@rpi.edu))
 - **Gianluca Zhang** ([zhangg6@rpi.edu](mailto:zhangg6@rpi.edu))
-- **Tag Ciccone** ([ciccot@rpi.edu](mailto:ciccot@rpi.edu))
 - **Caleb Alemu** ([cdsalemu78@gmail.com](mailto:cda1943@rit.edu))
+- **Kaylee Xie** ([xiek@rpi.edu](mailto:xiek@rpi.edu))
+- **Sayed Imtiazuddin** ([imtias@rpi.edu](mailto:imtias@rpi.edu))
+- **Elias Cueto** ([cuetoe@rpi.edu](mailto:cuetoe@rpi.edu))
+- **Thomas Doherty** ([dohert7@rpi.edu](mailto:dohert7@rpi.edu))
 
 ---
 
