@@ -988,6 +988,8 @@ class EventCog(commands.Cog):
 
         await interaction.followup.send(embed=embed, ephemeral=True)
 
+
+    #TODO Someone that's in the database needs to test all RSVP options + myevents
     async def _announce_event(self, interaction: discord.Interaction) -> None:
         """Announce an event"""
 
