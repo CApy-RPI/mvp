@@ -50,7 +50,14 @@ class EmailVerifier:
         if user_id not in self._codes:
             return False
         stored_code, _ = self._codes[user_id]
-        is_valid = secrets.compare_digest(code, stored_code)
+
+        # Normalize user input: strip whitespace and remove internal spaces
+        # Accept only exactly 6 digits after normalization
+        normalized = code.strip().replace(" ", "")
+        if not (len(normalized) == 6 and normalized.isdigit()):
+            return False
+
+        is_valid = secrets.compare_digest(normalized, stored_code)
         if is_valid:
             del self._codes[user_id]
         return is_valid

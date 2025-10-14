@@ -171,7 +171,13 @@ class ProfileCog(commands.Cog):
 
         if not values:
             return False
-        return self.email_verifier.verify_code(message.author.id, values["verification_code"])
+        # UI-side validation: must be exactly 6 digits (allow spaces around/in between)
+        raw_code = values.get("verification_code", "")
+        normalized = raw_code.strip().replace(" ", "")
+        if not (len(normalized) == 6 and normalized.isdigit()):
+            await message.edit(content="Please enter a valid 6-digit numeric code.")
+            return False
+        return self.email_verifier.verify_code(message.author.id, normalized)
 
     async def send_verification_code(self, message: discord.Message, new_email: str, user: User | None) -> bool:
         """Send verification code without prompting for input yet."""
@@ -198,7 +204,15 @@ class ProfileCog(commands.Cog):
             if not values:
                 return False
 
-            if self.email_verifier.verify_code(message.author.id, values["verification_code"]):
+            # UI-side validation before verifying: enforce 6 digits
+            raw_code = values.get("verification_code", "")
+            normalized = raw_code.strip().replace(" ", "")
+            if not (len(normalized) == 6 and normalized.isdigit()):
+                await message.edit(content="Please enter a valid 6-digit numeric code.")
+                # Do not count this as an attempt; let user re-enter
+                continue
+
+            if self.email_verifier.verify_code(message.author.id, normalized):
                 return True
 
             attempt += 1
