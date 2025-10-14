@@ -201,7 +201,8 @@ class DynamicDropdown(Select["DynamicDropdownView"]):
             view._collection[self.custom_id] = self.selected_values
 
             logger.debug(
-                f"Dropdown {self.custom_id} selected values: {self.selected_values}. Current collection: {view._collection}"
+                f"Dropdown {self.custom_id} selected values: {self.selected_values}. "
+                f"Current collection: {view._collection}"
             )
 
             if self._disable_on_select:

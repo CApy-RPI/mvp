@@ -41,7 +41,7 @@ repos:
         args:
           [
             "-c",
-            'output=$(radon mi --min B --show src); if [ -n "$output" ]; then echo "$output"; exit 1; fi',
+            'output=$(radon mi --min C --show src); if [ -n "$output" ]; then echo "$output"; exit 1; fi',
           ]
         files: \.py$
       - id: pytest

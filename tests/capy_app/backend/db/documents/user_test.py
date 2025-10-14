@@ -31,7 +31,7 @@ def test_create_user_success(_db):
         name=name,
         school_email="john.doe@school.edu",
         student_id=12345,
-        major=["Computer Science", "Mathematics"],
+        major="Computer Science,Mathematics",
         graduation_year=2025,
     )
 
@@ -47,7 +47,7 @@ def test_create_user_success(_db):
         invalid_profile = UserProfile(
             school_email="not.an.email",
             student_id=12345,
-            major=["Computer Science"],
+            major="Computer Science",
             graduation_year=2025,
         )
         User(_id=2, profile=invalid_profile).save()
@@ -57,7 +57,7 @@ def test_create_user_success(_db):
         invalid_profile = UserProfile(
             school_email="valid@school.edu",
             student_id="abc123",  # Should be numeric
-            major=["Computer Science"],
+            major="Computer Science",
             graduation_year=2025,
         )
         User(_id=3, profile=invalid_profile).save()
@@ -67,7 +67,7 @@ def test_create_user_success(_db):
         invalid_profile = UserProfile(
             school_email="valid@school.edu",
             student_id=12345,
-            major=[],  # Empty major list
+            major="",  # Empty string
             graduation_year=2025,
         )
         User(_id=4, profile=invalid_profile).save()
@@ -77,7 +77,7 @@ def test_create_user_success(_db):
         invalid_profile = UserProfile(
             school_email="valid@school.edu",
             student_id=12345,
-            major=["Computer Science"],
+            major="Computer Science",
             graduation_year=2000,  # Past year
         )
         User(_id=5, profile=invalid_profile).save()
@@ -87,7 +87,7 @@ def test_create_user_success(_db):
         invalid_profile = UserProfile(
             school_email="valid@school.edu",
             student_id=12345,
-            major=["Computer Science"],
+            major="Computer Science",
             graduation_year=2025,
             phone="not-a-phone",  # Invalid phone format
         )
@@ -129,7 +129,7 @@ def test_unique_school_email(_db):
         name=name_a,
         school_email="unique@school.edu",
         student_id=99999,
-        major=["Biology"],
+        major="Biology",
         graduation_year=2023,
     )
     user_a = User(_id=3, profile=profile_a)
@@ -140,7 +140,7 @@ def test_unique_school_email(_db):
         name=name_b,
         school_email="unique@school.edu",  # Same email
         student_id=88888,
-        major=["Chemistry"],
+        major="Chemistry",
         graduation_year=2023,
     )
     user_b = User(_id=4, profile=profile_b)
@@ -161,7 +161,7 @@ def test_unique_student_id(_db):
         name=name_c,
         school_email="charlie@school.edu",
         student_id=77777,
-        major=["Physics"],
+        major="Physics",
         graduation_year=2022,
     )
     user_c = User(_id=5, profile=profile_c)
@@ -172,7 +172,7 @@ def test_unique_student_id(_db):
         name=name_d,
         school_email="diana@school.edu",
         student_id=77777,  # Same student ID
-        major=["Engineering"],
+        major="Engineering",
         graduation_year=2022,
     )
     user_d = User(_id=6, profile=profile_d)
@@ -193,7 +193,7 @@ def test_optional_phone(_db):
         name=name,
         school_email="emily.black@school.edu",
         student_id=22222,
-        major=["Art History"],
+        major="Art History",
         graduation_year=2026,
         phone=1234567890,
     )
@@ -220,7 +220,7 @@ def test_add_guilds_and_events(_db):
         name=name,
         school_email="frank.wright@school.edu",
         student_id=33333,
-        major=["Economics"],
+        major="Economics",
         graduation_year=2025,
     )
     user = User(_id=8, profile=profile).save()

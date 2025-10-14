@@ -1,6 +1,7 @@
 """Profile management cog for handling user profiles."""
 
 import logging
+import re
 import time
 from pathlib import Path
 from typing import Any, cast
@@ -22,6 +23,13 @@ from config import settings
 from .major_handler import MajorHandler
 from .profile_config import PROFILE_CONFIG
 from .profile_handlers import EmailVerifier
+
+
+def out_of_bounds_exclusive(n: str, lower, upper):
+    """Returns whether n is both a valid digit and out of the given bounds."""
+    if not n.isdigit():
+        return False
+    return not lower < int(n) < upper
 
 
 class TryAgainView(discord.ui.View):
@@ -286,7 +294,7 @@ class ProfileCog(commands.Cog):
         if not profile_data["preferred_name"].strip():
             content += "Preferred name cannot be empty.\n"
             trycheck = True
-        elif not all(char.isalpha() or char.isspace() for char in profile_data["preferred_name"]):
+        elif not re.match(r"[a-zA-Z\s]+$", profile_data["preferred_name"].strip()):
             content += "Names can only contain letters and spaces.\n"
             trycheck = True
         if not (profile_data["graduation_year"].isdigit()):
@@ -313,9 +321,7 @@ class ProfileCog(commands.Cog):
 
         grad_year_lower_bound = 1899
         grad_year_upper_bound = 2100
-        if (profile_data["graduation_year"].isdigit()) and not (
-            grad_year_lower_bound < int(profile_data["graduation_year"]) < grad_year_upper_bound
-        ):
+        if out_of_bounds_exclusive(profile_data["graduation_year"], grad_year_lower_bound, grad_year_upper_bound):
             content += "Graduation year outside of acceptable bounds.\n"
             trycheck = True
 
