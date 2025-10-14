@@ -9,6 +9,21 @@ from .ticket_base import TicketBase
 
 class BugReportCog(TicketBase):
     def __init__(self, bot: commands.Bot) -> None:
+        command_config = {
+            "cmd_name": "bug",
+            "cmd_name_verbose": "Bug report",
+            "cmd_emoji": "🐛",
+            "description": "Report a bug in the bot",
+            "request_channel_id": settings.TICKET_BUG_REPORT_CHANNEL_ID,
+        }
+        color_config = {
+            "unmarked_color": STATUS_ERROR,
+            "marked_colors": {
+                "Important": STATUS_IMPORTANT,
+                "Resolved": STATUS_RESOLVED,
+                "Ignored": STATUS_IGNORED,
+            },
+        }
         super().__init__(
             bot,
             {
@@ -17,17 +32,8 @@ class BugReportCog(TicketBase):
                 "❌": "Ignored",
                 "🔄": "Unmarked",
             },
-            "bug",
-            "Bug report",
-            "🐛",
-            "Report a bug in the bot",
-            settings.TICKET_BUG_REPORT_CHANNEL_ID,
-            STATUS_ERROR,
-            {
-                "Important": STATUS_IMPORTANT,
-                "Resolved": STATUS_RESOLVED,
-                "Ignored": STATUS_IGNORED,
-            },
+            command_config,
+            color_config,
             " ⭐ Important • ✅ Resolve • ❌ Ignore • 🔄 Reset",
         )
 

@@ -12,7 +12,7 @@ import logging
 from typing import Any
 
 import discord
-from backend.db.database import Database as db
+from backend.db.database import Database
 
 from .guild_views import ChannelSelectView, RoleSelectView
 
@@ -47,7 +47,7 @@ async def handle_channel_update(
             f"channels__{name}": str(channel_id)  # Convert to string
             for name, channel_id in view.selected_channels.items()
         }
-        db.update_document(guild_data, updates)
+        Database.update_document(guild_data, updates)
         return True
     except Exception as e:
         logger.error(f"Failed to update channels: {e}")
@@ -84,7 +84,7 @@ async def handle_role_update(
             return True  # No changes needed
 
         updates = {f"roles__{name}": str(role_id) for name, role_id in view.selected_roles.items()}
-        db.update_document(guild_data, updates)
+        Database.update_document(guild_data, updates)
         return True
     except Exception as e:
         logger.error(f"Failed to update roles: {e}")

@@ -3,7 +3,7 @@
 import logging
 
 import discord
-from backend.db.database import Database as db
+from backend.db.database import Database
 from backend.db.documents.guild import Guild
 from discord.ext import commands
 
@@ -30,10 +30,10 @@ class GuildHandlerCog(commands.Cog):
         Returns:
             Guild: The guild document
         """
-        guild = db.get_document(Guild, guild_id)
+        guild = Database.get_document(Guild, guild_id)
         if not guild:
             guild = Guild(_id=guild_id)
-            db.add_document(guild)
+            Database.add_document(guild)
         return guild
 
     @commands.Cog.listener()

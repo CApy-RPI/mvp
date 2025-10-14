@@ -1,7 +1,5 @@
-# mypy: ignore-errors
-# TODO Remove on rewrite ^
-
 """Configuration for office hours dropdown menus."""
+
 # TIME_SLOTS = [
 #     {"label": "8:00 AM", "value": "8:00 AM"},
 #     {"label": "9:00 AM", "value": "9:00 AM"},

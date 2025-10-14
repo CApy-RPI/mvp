@@ -1,5 +1,6 @@
 import datetime
 import typing
+from typing import Any, ClassVar
 
 import mongoengine
 from backend.db.documents.restrict import RestrictedDocument, RestrictedEmbeddedDocument
@@ -67,17 +68,16 @@ class Guild(RestrictedDocument):
     _id: int = mongoengine.IntField(primary_key=True)
     users: list[int] = mongoengine.ListField(mongoengine.IntField())
     events: list[int] = mongoengine.ListField(mongoengine.IntField())
-    channels: GuildChannels = mongoengine.EmbeddedDocumentField(
-        GuildChannels, default=GuildChannels
-    )
+    channels: GuildChannels = mongoengine.EmbeddedDocumentField(GuildChannels, default=GuildChannels)
     roles: GuildRoles = mongoengine.EmbeddedDocumentField(GuildRoles, default=GuildRoles)
-    office_hours: list[OfficeHours] = mongoengine.EmbeddedDocumentListField(
-        OfficeHours, default=list
-    )
+    office_hours: list[OfficeHours] = mongoengine.EmbeddedDocumentListField(OfficeHours, default=list)
     created_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
     updated_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
 
-    meta = {"collection": "guilds", "indexes": ["created_at", "updated_at"]}
+    meta: ClassVar[dict[str, Any]] = {
+        "collection": "events",
+        "indexes": ["created_at", "updated_at"],
+    }
 
     def save(self, *args: typing.Any, **kwargs: typing.Any) -> "Guild":
         """Override save to update the updated_at timestamp."""

@@ -1,29 +1,35 @@
-# mypy: ignore-errors
-# flake8: noqa
-# TODO Remove on rewrite ^
-
 """Profile management cog for handling user profiles."""
 
 import logging
+import re
 import time
-from typing import Union, Dict
 from pathlib import Path
+from typing import Any, cast
 
 import discord
+from backend.db.database import Database
+from backend.db.documents.user import User, UserName, UserProfile
 from discord import app_commands
 from discord.ext import commands
-
-import time
-from config import settings
-from backend.db.database import Database as db
-from backend.db.documents.user import User, UserProfile, UserName
 from frontend.interactions.bases.button_base import ConfirmDeleteView
-from frontend.interactions.bases.modal_base import DynamicModalView
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
-from frontend.interactions.bases.modal_base import ButtonDynamicModalView
-from .profile_handlers import EmailVerifier
+from frontend.interactions.bases.modal_base import (
+    ButtonDynamicModalView,
+    DynamicModalView,
+)
+
+from config import settings
+
 from .major_handler import MajorHandler
 from .profile_config import PROFILE_CONFIG
+from .profile_handlers import VERIFICATION_CODE_LENGTH, EmailVerifier
+
+
+def out_of_bounds_exclusive(n: str, lower, upper):
+    """Returns whether n is both a valid digit and out of the given bounds."""
+    if not n.isdigit():
+        return False
+    return not lower < int(n) < upper
 
 
 class TryAgainView(discord.ui.View):
@@ -33,7 +39,7 @@ class TryAgainView(discord.ui.View):
         self.action = action
 
     @discord.ui.button(label="Try Again", style=discord.ButtonStyle.primary)
-    async def retry_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def retry_button(self, interaction: discord.Interaction, _: discord.ui.Button[Any]):
         await self.parent_cog.handle_profile(interaction, self.action)
         self.stop()
 
@@ -52,7 +58,7 @@ class ProfileCog(commands.Cog):
     def _load_major_list(self) -> list[str]:
         """Load the list of available majors from file."""
         try:
-            with open(settings.MAJORS_PATH, "r", encoding="utf-8") as f:
+            with Path(settings.MAJORS_PATH).open(encoding="utf-8") as f:
                 majors = [line.strip() for line in f.readlines() if line.strip()]
                 self.logger.info(f"Loaded {len(majors)} majors from file")
                 if not majors:
@@ -94,136 +100,216 @@ class ProfileCog(commands.Cog):
 
     async def get_profile_data(
         self, interaction: discord.Interaction, action: str, user: User | None
-    ) -> tuple[Dict[str, str] | None, discord.Message | None]:
+    ) -> tuple[dict[str, str] | None, discord.Message | None]:
         """Get profile data using modal base"""
         modal_view = DynamicModalView(**self.config["profile_modal"])
 
         # Pre-fill values for updates
         if action == "update" and user:
-            modal_view._modal.children[0].default = user.profile.name.first
-            modal_view._modal.children[1].default = user.profile.name.last
-            modal_view._modal.children[2].default = user.profile.student_id
-            modal_view._modal.children[3].default = user.profile.school_email
-            modal_view._modal.children[4].default = user.profile.graduation_year
+            # Combine first and last name into preferred name
+            preferred_name = f"{user.profile.name.first} {user.profile.name.last}".strip()
+            modal_view._modal.children[0].default = preferred_name
+            modal_view._modal.children[1].default = user.profile.student_id
+            modal_view._modal.children[2].default = user.profile.school_email
+            modal_view._modal.children[3].default = user.profile.graduation_year
+            # Pre-fill majors field with existing majors string
+            modal_view._modal.children[4].default = user.profile.major
 
-        return await modal_view.initiate_from_interaction(interaction)
+        result = await modal_view.initiate_from_interaction(interaction)
+        return cast(tuple[dict[str, str] | None, discord.Message | None], result)
 
     async def get_majors(
-        self, message: discord.Message, user: User | None
-    ) -> tuple[list[str], discord.Message]:
+        self, message: discord.Message, _user: User | None
+    ) -> tuple[list[str] | None, discord.Message]:
         """Get selected majors using dropdown base"""
         config = self.major_handler.get_dropdown_config(self.config["major_dropdown"])
         view = DynamicDropdownView(**config)
 
-        values, message = await view.initiate_from_message(
-            message, self.major_handler.get_help_text()
-        )
+        values, message = await view.initiate_from_message(message, self.major_handler.get_help_text())
+        self.logger.debug(f"Dropdown values: {values}")
 
         if not values:
-            return ["Not Set"], message
+            return None, message
 
         # Combine selections from all dropdowns
         selected = []
         for dropdown_id in values:
             selected.extend(values[dropdown_id])
 
-        if len(selected) > 2:
-            await message.edit(content="You can only select up to 2 majors.", view=10)
-            return ["Not Set"], message  # Limit to max 2 majors total
+        # The global limit is now enforced at the dropdown level
+        return selected, message
 
-        # TODO Check if more than 2-3 majors and warn
+    def process_majors_from_text(self, majors_text: str) -> list[str]:
+        """Process majors from comma-separated text input"""
+        self.logger.debug(f"Processing majors text: '{majors_text}' (stripped: '{majors_text.strip()}')")
 
-        return selected, message  # Limit to max 2 majors total
+        if not majors_text.strip():
+            self.logger.debug("Majors text is empty after stripping")
+            return []
 
-    async def verify_email(
-        self, message: discord.Message, new_email: str, user: User | None
-    ) -> bool:
+        # Split by commas and clean up each major
+        majors = [major.strip() for major in majors_text.split(",")]
+        self.logger.debug(f"Split majors: {majors}")
+
+        # Remove empty strings
+        majors = [major for major in majors if major]
+        self.logger.debug(f"Final majors after filtering: {majors}")
+
+        return majors
+
+    async def verify_email(self, message: discord.Message, new_email: str, user: User | None) -> bool:
         """Verify user's email using button modal base"""
         if user and new_email == user.profile.school_email:
             return True
-
-        if not new_email.endswith("edu"):
-            await message.edit(content="Invalid School email!")
-            return False
 
         if not self.email_verifier.send_verification_email(message.author.id, new_email):
             await message.edit(content="Failed to send verification email.")
             return False
 
+        verify_view = ButtonDynamicModalView(**self.config["verify_modal"])
+        values, _ = await verify_view.initiate_from_message(message)
+
+        if not values:
+            return False
+        # UI-side validation: must be exactly 6 digits (allow spaces around/in between)
+        raw_code = values.get("verification_code", "")
+        normalized = raw_code.strip().replace(" ", "")
+        if not (len(normalized) == VERIFICATION_CODE_LENGTH and normalized.isdigit()):
+            await message.edit(content="Please enter a valid 6-digit numeric code.")
+            return False
+        return self.email_verifier.verify_code(message.author.id, normalized)
+
+    async def send_verification_code(self, message: discord.Message, new_email: str, user: User | None) -> bool:
+        """Send verification code without prompting for input yet."""
+        if user and new_email == user.profile.school_email:
+            return True
+
+        if not self.email_verifier.send_verification_email(message.author.id, new_email):
+            await message.edit(content="Failed to send verification email.")
+            return False
+
+        # Inform user that verification code has been sent
+        await message.edit(content=("Verification code sent to your email. Please check your inbox."))
+        return True
+
+    async def prompt_and_verify_code(self, message: discord.Message) -> bool:
+        """Prompt user for verification code and validate it with retries."""
         max_attempts = 5
         attempt = 0
-
-        # Base prompt from config for first attempt
-        base_prompt: str | None = self.config["verify_modal"].get("message_prompt")
-
         while attempt < max_attempts:
-            # Create a fresh view each attempt to avoid state conflicts
             verify_view = ButtonDynamicModalView(**self.config["verify_modal"])
+            values, _ = await verify_view.initiate_from_message(message)
 
-            # Custom prompt for retries after the first failed attempt
-            if attempt == 0:
-                prompt_msg = base_prompt
-            else:
-                remaining = max_attempts - attempt
-                prompt_msg = (
-                    f"❌ Incorrect verification code. You have {remaining} attempt{'s' if remaining != 1 else ''} left.\n"
-                    "Click below to try again:"
-                )
-
-            values, message = await verify_view.initiate_from_message(message, prompt=prompt_msg)
-
-            # User closed the modal or it timed-out
+            # If user closes/cancels the modal, abort verification entirely
             if not values:
                 return False
 
-            is_valid = self.email_verifier.verify_code(
-                message.author.id, values["verification_code"]
-            )
+            # UI-side validation before verifying: enforce 6 digits
+            raw_code = values.get("verification_code", "")
+            normalized = raw_code.strip().replace(" ", "")
+            if not (len(normalized) == VERIFICATION_CODE_LENGTH and normalized.isdigit()):
+                await message.edit(content="Please enter a valid 6-digit numeric code.")
+                # Do not count this as an attempt; let user re-enter
+                continue
 
-            if is_valid:
+            if self.email_verifier.verify_code(message.author.id, normalized):
                 return True
 
             attempt += 1
-
-        # Exhausted attempts – inform the user and fail validation
-        await message.edit(
-            content="❌ Too many incorrect verification attempts. Verification failed.",
-            view=None,
-        )
+            attempts_left = max_attempts - attempt
+            if attempts_left > 0:
+                await message.edit(content=f"Incorrect code. Try again. Attempts left: {attempts_left}")
+            else:
+                await message.edit(content="Verification failed after 5 attempts. Please start over.")
         return False
 
     async def handle_profile(self, interaction: discord.Interaction, action: str) -> None:
         """Handle profile creation and updates."""
-        user = db.get_document(User, interaction.user.id)
-        self.logger.info(
-            f"Profile {action} requested by {interaction.user} (ID: {interaction.user.id})"
+        user = Database.get_document(User, interaction.user.id)
+        self.logger.info(f"Profile {action} requested by {interaction.user} (ID: {interaction.user.id})")
+
+        if not await self._validate_action(interaction, action, user):
+            return
+
+        prepared = await self._prepare_profile_data(interaction, action, user)
+        if not prepared:
+            return
+        profile_data, message = prepared
+
+        # Process majors from form input
+        majors_text = profile_data.get("major(s)", "").strip()
+        processed_majors = self.process_majors_from_text(majors_text)
+
+        # Convert processed majors list back to string for storage
+        majors_string = ", ".join(processed_majors) if processed_majors else ""
+
+        self.logger.info(f"Processed majors from '{majors_text}' -> {processed_majors} -> '{majors_string}'")
+
+        # Process email verification after form submission
+        if not await self._process_email_verification(message, user, profile_data):
+            return
+
+        await self._save_profile(
+            interaction,
+            action,
+            profile_data,
+            {"majors_string": majors_string, "user": user, "message": message},
         )
 
-        # Check if user exists for the given action
+    async def _prepare_profile_data(
+        self, interaction: discord.Interaction, action: str, user: User | None
+    ) -> tuple[dict[str, str], discord.Message] | None:
+        """Collect and validate profile data, returning payload and message or None to abort."""
+        profile_data, message = await self.get_profile_data(interaction, action, user)
+        if not profile_data or not message:
+            self.logger.info(f"Profile {action} cancelled by {interaction.user}")
+            return None
+        if not await self._validate_profile_data(profile_data, message, action):
+            return None
+        return profile_data, message
+
+    async def _process_email_verification(
+        self, message: discord.Message, user: User | None, profile_data: dict[str, str]
+    ) -> bool:
+        """Handle email verification flow, returning True if successful or False to abort."""
+        needs_verification = not (user and profile_data["school_email"] == user.profile.school_email)
+
+        if needs_verification:
+            if not await self.send_verification_code(message, profile_data["school_email"], user):
+                return False
+
+            if not await self.prompt_and_verify_code(message):
+                return False
+
+        return True
+
+    async def _validate_action(self, interaction, action, user) -> bool:
         if action == "create" and user:
             self.logger.warning(f"User {interaction.user} attempted to create duplicate profile")
             await interaction.response.send_message(
                 "You already have a profile. Use /profile update to modify it.",
                 ephemeral=True,
             )
-            return
+            return False
         elif action == "update" and not user:
             self.logger.warning(f"User {interaction.user} attempted to update non-existent profile")
             await interaction.response.send_message(
                 "You don't have a profile yet! Use /profile create first.",
                 ephemeral=True,
             )
-            return
+            return False
+        return True
 
-        # Get profile data directly from modal and get first message
-        profile_data, message = await self.get_profile_data(interaction, action, user)
-        if not profile_data or not message:
-            self.logger.info(f"Profile {action} cancelled by {interaction.user}")
-            return
-        trycheck = False
+    async def _validate_profile_data(self, profile_data, message, action) -> bool:
         content = ""
-        if not (profile_data["first_name"].isalpha() and profile_data["last_name"].isalpha()):
-            content += "Names cannot consist of numbers or special characters.\n"
+        trycheck = False
+
+        # Check if preferred name contains only letters and spaces
+        if not profile_data["preferred_name"].strip():
+            content += "Preferred name cannot be empty.\n"
+            trycheck = True
+        elif not re.match(r"[a-zA-Z\s]+$", profile_data["preferred_name"].strip()):
+            content += "Names can only contain letters and spaces.\n"
             trycheck = True
         if not (profile_data["graduation_year"].isdigit()):
             content += "Graduation year must be a number.\n"
@@ -231,106 +317,155 @@ class ProfileCog(commands.Cog):
         if not (profile_data["student_id"].isdigit()):
             content += "Student ID must be a number.\n"
             trycheck = True
-        if (profile_data["graduation_year"].isdigit()) and not (
-            int(profile_data["graduation_year"]) > 1899
-            and int(profile_data["graduation_year"]) < 2100
-        ):
+        if not profile_data["school_email"].endswith("edu"):
+            content += "School email must end with 'edu'.\n"
+            trycheck = True
+
+        # Validate majors field
+        majors_text = profile_data.get("major(s)", "").strip()
+        if not majors_text:
+            content += "At least one major must be specified.\n"
+            trycheck = True
+        else:
+            # Check that processing majors results in at least one valid major
+            processed_majors = self.process_majors_from_text(majors_text)
+            if not processed_majors:
+                content += "Please enter valid major(s) separated by commas.\n"
+                trycheck = True
+
+        grad_year_lower_bound = 1899
+        grad_year_upper_bound = 2100
+        if out_of_bounds_exclusive(profile_data["graduation_year"], grad_year_lower_bound, grad_year_upper_bound):
             content += "Graduation year outside of acceptable bounds.\n"
             trycheck = True
-        if trycheck == True:
+
+        if trycheck:
             view = TryAgainView(self, action)
             await message.edit(content=content, view=view)
-            return
+            return False
 
-        # Get major selection with dropdown using previous message
+        return True
+
+    async def _get_valid_majors(self, message, user) -> list[str] | None:
         while True:
             try:
                 selected_majors, message = await self.get_majors(message, user)
-                if selected_majors != ["Not Set"]:
-                    break
+
+                # If user canceled, return None to abort the entire process
+                if selected_majors is None:
+                    return None
+
+                # If majors were selected, return them
+                if selected_majors and selected_majors != ["Not Set"]:
+                    return selected_majors
 
                 await message.edit(content="⚠️ Please select 1 or 2 majors.")
                 time.sleep(1)
+
             except Exception as e:
-                await message.edit(content="⚠️ Please select 1 or 2 majors.")
-                time.sleep(1)
+                await message.edit(content=str(e))
+                time.sleep(5)
 
-        # Verify email if needed using previous message
-        if not await self.verify_email(message, profile_data["school_email"], user):
-            return
+    def get_majors_from_profile_data(self, profile_data: dict[str, str]) -> list[str]:
+        """Extract and validate majors from profile data text input"""
+        majors_text = profile_data.get("major(s)", "")
+        self.logger.debug(f"Raw majors text: '{majors_text}'")
+        processed_majors = self.process_majors_from_text(majors_text)
+        self.logger.debug(f"Processed majors result: {processed_majors}")
+        return processed_majors
 
-        # Create user profile data
-        profile_data = {
-            "name": UserName(first=profile_data["first_name"], last=profile_data["last_name"]),
-            "major": selected_majors,
-            "graduation_year": profile_data["graduation_year"],
+    async def _save_profile(
+        self,
+        interaction: discord.Interaction,
+        action: str,
+        profile_data: dict[str, str],
+        context: dict[str, Any],
+    ) -> None:
+        """Save the user profile to the database."""
+        self.logger.info(f"Starting to save profile for {action}")
+        majors_string = context["majors_string"]
+        user = context["user"]
+
+        # Split preferred name into first and last name
+        name_parts = profile_data["preferred_name"].strip().split()
+        if len(name_parts) == 1:
+            first_name = name_parts[0]
+            last_name = ""
+        else:
+            first_name = name_parts[0]
+            last_name = " ".join(name_parts[1:])  # Handle multiple middle/last names
+
+        profile_data_dict = {
+            "name": UserName(first=first_name, last=last_name),
+            "major": majors_string,
+            "graduation_year": int(profile_data["graduation_year"]),
             "school_email": profile_data["school_email"],
-            "student_id": profile_data["student_id"],
+            "student_id": int(profile_data["student_id"]),
         }
 
-        if action == "create":
-            new_user = User(_id=interaction.user.id, profile=UserProfile(**profile_data))
-            db.add_document(new_user)
-            user = new_user
-            self.logger.info(f"Created new profile for {interaction.user}")
-        else:
-            updates = {f"profile__{k}": v for k, v in profile_data.items()}
-            db.update_document(user, updates)
-            user = db.get_document(User, interaction.user.id)
-            self.logger.info(f"Updated profile for {interaction.user}")
+        try:
+            if action == "create":
+                new_user = User(_id=interaction.user.id, profile=UserProfile(**profile_data_dict))
+                Database.add_document(new_user)
+                user = new_user
+                self.logger.info(f"Successfully created new profile for {interaction.user}")
+            else:
+                updates = {f"profile__{k}": v for k, v in profile_data_dict.items()}
+                Database.update_document(user, updates)
+                user = Database.get_document(User, interaction.user.id)
+                self.logger.info(f"Successfully updated profile for {interaction.user}")
 
-        # Show the profile using the final message
-        await self.show_profile_embed(message, user)
+            # Show the profile using the original interaction to get user's avatar
+            await self.show_profile_embed(interaction, user)
+        except Exception as e:
+            self.logger.error(f"Failed to save profile: {e}")
+            await interaction.followup.send(
+                "An error occurred while saving your profile. Please try again.",
+                ephemeral=True,
+            )
 
     async def show_profile_embed(
         self,
-        message_or_interaction: Union[discord.Message, discord.Interaction],
+        message_or_interaction: discord.Message | discord.Interaction,
         user: User,
     ) -> None:
-        """Display a user's profile in an embed.
-
-        Args:
-            message_or_interaction: Either a Message or Interaction to respond to
-            user: The user profile to display
-
-        #TODO: Add profile customization options
-        #TODO: Add profile badges/achievements
-        """
-        # Determine if we're using a Message or Interaction
-
-        is_message = isinstance(message_or_interaction, discord.Message)
+        """Display a user's profile in an embed."""
+        is_interaction = isinstance(message_or_interaction, discord.Interaction)
 
         embed = discord.Embed(
             title=f"{user.profile.name.first}'s Profile",
             color=discord.Color.purple(),
         )
 
-        # Get the avatar URL differently based on the type
         avatar_url: str
-        if isinstance(message_or_interaction, discord.Message):
-            meta = message_or_interaction.interaction_metadata
-            avatar_url = (
-                meta.user.display_avatar.url
-                if meta
-                else message_or_interaction.author.display_avatar.url
-            )
+        if is_interaction:
+            interaction = cast(discord.Interaction, message_or_interaction)
+            avatar_url = interaction.user.display_avatar.url
         else:
-            avatar_url = message_or_interaction.user.display_avatar.url
-            avatar_url = message_or_interaction.user.display_avatar.url
+            message = cast(discord.Message, message_or_interaction)
+            avatar_url = message.author.display_avatar.url
+
         embed.set_thumbnail(url=avatar_url)
         embed.add_field(name="First Name", value=user.profile.name.first, inline=True)
         embed.add_field(name="Last Name", value=user.profile.name.last, inline=True)
-        embed.add_field(name="Major", value=", ".join(user.profile.major), inline=True)
+        embed.add_field(name="Major", value=user.profile.major, inline=True)
         embed.add_field(name="Graduation Year", value=user.profile.graduation_year, inline=True)
         embed.add_field(name="School Email", value=user.profile.school_email, inline=True)
         embed.add_field(name="Student ID", value=user.profile.student_id, inline=True)
 
-        # Use followup instead of edit_original_response
-        # Send differently based on the type
-        if is_message:
-            await message_or_interaction.edit(content=None, embed=embed, view=None)
+        if is_interaction:
+            interaction = cast(discord.Interaction, message_or_interaction)
+            if interaction.response.is_done():
+                try:
+                    await interaction.edit_original_response(embed=embed)
+                except Exception:
+                    # If there's no original message (e.g., modal used), send a followup instead
+                    await interaction.followup.send(embed=embed, ephemeral=True)
+            else:
+                await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
-            await message_or_interaction.followup.send(embed=embed, ephemeral=True)
+            message = cast(discord.Message, message_or_interaction)
+            await message.edit(content=None, embed=embed, view=None)
 
     async def show_profile(self, interaction: discord.Interaction) -> None:
         """Display the user's profile.
@@ -338,11 +473,9 @@ class ProfileCog(commands.Cog):
         Args:
             interaction: The Discord interaction
         """
-        user = db.get_document(User, interaction.user.id)
+        user = Database.get_document(User, interaction.user.id)
         if not user:
-            await interaction.edit_original_response(
-                content="You don't have a profile yet! Use /profile create first."
-            )
+            await interaction.edit_original_response(content="You don't have a profile yet! Use /profile create first.")
             return
 
         await self.show_profile_embed(interaction, user)
@@ -356,7 +489,7 @@ class ProfileCog(commands.Cog):
         #! Note: This action is irreversible
         #TODO: Add profile backup before deletion
         """
-        user = db.get_document(User, interaction.user.id)
+        user = Database.get_document(User, interaction.user.id)
         self.logger.info(f"Profile deletion requested by {interaction.user}")
 
         if not user:
@@ -372,14 +505,10 @@ class ProfileCog(commands.Cog):
 
         await view.wait()
         if view.value:
-            db.delete_document(user)
-            await interaction.edit_original_response(
-                content="Your profile has been deleted.", view=None
-            )
+            Database.delete_document(user)
+            await interaction.edit_original_response(content="Your profile has been deleted.", view=None)
         else:
-            await interaction.edit_original_response(
-                content="Profile deletion cancelled.", view=None
-            )
+            await interaction.edit_original_response(content="Profile deletion cancelled.", view=None)
 
 
 async def setup(bot: commands.Bot) -> None:

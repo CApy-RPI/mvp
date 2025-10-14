@@ -7,7 +7,7 @@ WORKDIR /capy_app
 COPY . .
 
 # Install dependencies
-RUN pip install --no-cache-dir -r requirements_dev.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Set PYTHONPATH so the app works
 ENV PYTHONPATH=/capy_app/src

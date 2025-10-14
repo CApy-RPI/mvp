@@ -10,38 +10,44 @@ repos:
         types: [python]
         require_serial: true
         verbose: true
-  - repo: https://github.com/psf/black
-    rev: 24.4.2
-    hooks:
-      - id: black
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.5.0
+    rev: v0.12.8
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
   - repo: local
     hooks:
-      - id: radon-cc
-        name: radon complexity check
-        entry: radon
+      - id: xenon
+        name: xenon complexity check
+        entry: xenon
         language: python
-        additional_dependencies: ["radon"]
-        args: ["cc", "--min", "B", "--show-complexity", "src"]
+        additional_dependencies: ["xenon"]
+        args:
+          [
+            "--max-absolute",
+            "B",
+            "--max-modules",
+            "B",
+            "--max-average",
+            "B",
+            "src",
+          ]
         files: \.py$
       - id: radon-mi
         name: radon maintainability index
-        entry: radon
-        language: python
-        additional_dependencies: ["radon"]
-        args: ["mi", "--min", "B", "--show", "src"]
+        entry: bash
+        language: system
+        args:
+          [
+            "-c",
+            'output=$(radon mi --min C --show src); if [ -n "$output" ]; then echo "$output"; exit 1; fi',
+          ]
         files: \.py$
       - id: pytest
         name: pytest
-        entry: pytest
-        language: python
-        additional_dependencies: ["pytest"]
-        stages: [pre-push]
+        entry: bash -c 'PYTHONPATH=src pytest'
+        language: system
         pass_filenames: false
         always_run: true
 default_stages: [pre-commit, pre-push]

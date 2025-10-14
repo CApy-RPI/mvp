@@ -9,7 +9,7 @@ from config import settings
 DROPDOWN_CONFIGS = {
     "simple_selection": {
         "ephemeral": False,
-        "add_buttons": False,
+        "buttons": (True, False),
         "dropdowns": [
             {
                 "placeholder": "Make your selection",
@@ -41,7 +41,7 @@ DROPDOWN_CONFIGS = {
     },
     "multi_selection": {
         "ephemeral": False,
-        "add_buttons": True,
+        "buttons": (True, True),
         "dropdowns": [
             {
                 "placeholder": "Choose a fruit",
@@ -74,7 +74,7 @@ DROPDOWN_CONFIGS = {
     },
     "paint_step1": {
         "ephemeral": False,
-        "add_buttons": False,
+        "buttons": (True, False),
         "dropdowns": [
             {
                 "placeholder": "Select color family",
@@ -105,7 +105,7 @@ DROPDOWN_CONFIGS = {
     },
     "paint_step2_warm": {
         "ephemeral": False,
-        "add_buttons": False,
+        "buttons": (True, False),
         "dropdowns": [
             {
                 "placeholder": "Select specific colors",
@@ -122,7 +122,7 @@ DROPDOWN_CONFIGS = {
     },
     "paint_step2_cool": {
         "ephemeral": False,
-        "add_buttons": False,
+        "buttons": (True, False),
         "dropdowns": [
             {
                 "placeholder": "Select specific colors",
@@ -139,7 +139,7 @@ DROPDOWN_CONFIGS = {
     },
     "paint_step2_neutral": {
         "ephemeral": False,
-        "add_buttons": False,
+        "buttons": (True, False),
         "dropdowns": [
             {
                 "placeholder": "Select specific colors",
@@ -156,7 +156,7 @@ DROPDOWN_CONFIGS = {
     },
     "paint_step3": {
         "ephemeral": False,
-        "add_buttons": True,
+        "buttons": (True, True),
         "dropdowns": [
             {
                 "placeholder": "Select 1-2 finishes",
@@ -237,9 +237,7 @@ class DropdownTestCog(commands.Cog):
         """Test the dropdown base with accept/cancel buttons"""
         view = DynamicDropdownView(**DROPDOWN_CONFIGS["multi_selection"])
 
-        selections, message = await view.initiate_from_interaction(
-            interaction, "Select from each category:"
-        )
+        selections, message = await view.initiate_from_interaction(interaction, "Select from each category:")
 
         if message:
             content = f"Selected values: {selections}" if selections else "Selection cancelled."
@@ -270,9 +268,7 @@ class DropdownTestCog(commands.Cog):
         view3 = DynamicDropdownView(**DROPDOWN_CONFIGS["paint_step3"])
         application_selections, message = await view3.initiate_from_message(
             message,
-            "Step 3: Choose your application preferences:\n"
-            "• Select 1-2 finish types\n"
-            "• Choose an application method",
+            "Step 3: Choose your application preferences:\n• Select 1-2 finish types\n• Choose an application method",
         )
         if not application_selections or not message:
             return
