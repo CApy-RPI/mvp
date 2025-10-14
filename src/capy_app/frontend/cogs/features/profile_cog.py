@@ -22,9 +22,7 @@ from config import settings
 
 from .major_handler import MajorHandler
 from .profile_config import PROFILE_CONFIG
-from .profile_handlers import EmailVerifier
-
-VERIFICATION_CODE_LENGTH = 6
+from .profile_handlers import VERIFICATION_CODE_LENGTH, EmailVerifier
 
 
 def out_of_bounds_exclusive(n: str, lower, upper):

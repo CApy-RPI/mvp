@@ -14,6 +14,8 @@ import typing
 
 from backend.modules.email import Email
 
+VERIFICATION_CODE_LENGTH = 6
+
 
 class EmailVerifier:
     """Handler for email verification codes and verification process."""
@@ -54,7 +56,7 @@ class EmailVerifier:
         # Normalize user input: strip whitespace and remove internal spaces
         # Accept only exactly 6 digits after normalization
         normalized = code.strip().replace(" ", "")
-        if not (len(normalized) == 6 and normalized.isdigit()):
+        if not (len(normalized) == VERIFICATION_CODE_LENGTH and normalized.isdigit()):
             return False
 
         is_valid = secrets.compare_digest(normalized, stored_code)
