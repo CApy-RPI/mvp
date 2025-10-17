@@ -86,9 +86,7 @@ class MajorHandler:
                     "custom_id": group_id,
                     "min_values": 0,
                     "max_values": 2,
-                    "selections": [
-                        {"label": major, "value": major} for major in majors
-                    ],
+                    "selections": [{"label": major, "value": major} for major in majors],
                 }
             )
 
@@ -143,9 +141,7 @@ class MajorHandler:
 
         return " ".join(result)
 
-    def validate_majors(
-        self, input_majors: list[str]
-    ) -> tuple[bool, list[str], list[str]]:
+    def validate_majors(self, input_majors: list[str]) -> tuple[bool, list[str], list[str]]:
         """Validate a list of major names against the valid majors list.
 
         Accepts input in any case and normalizes to title case with small words

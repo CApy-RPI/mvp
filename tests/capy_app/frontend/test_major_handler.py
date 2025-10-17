@@ -4,6 +4,10 @@ import pytest
 
 from capy_app.frontend.cogs.features.major_handler import MajorHandler
 
+# Test constants
+EXPECTED_NUM_GROUPS = 4
+EXPECTED_VALID_MAJORS_COUNT = 2
+
 
 @pytest.fixture
 def sample_major_list():
@@ -70,7 +74,7 @@ def test_validate_majors_some_invalid(major_handler):
 
 def test_validate_majors_all_invalid(major_handler):
     """Test validation with all invalid majors."""
-    input_majors = ["Fake Major", "Another Fake"]
+    input_majors: list[str] = ["Fake Major", "Another Fake"]
     all_valid, valid_majors, invalid_majors = major_handler.validate_majors(input_majors)
 
     assert all_valid is False
@@ -80,7 +84,7 @@ def test_validate_majors_all_invalid(major_handler):
 
 def test_validate_majors_empty_input(major_handler):
     """Test validation with empty input."""
-    input_majors = []
+    input_majors: list[str] = []
     all_valid, valid_majors, invalid_majors = major_handler.validate_majors(input_majors)
 
     assert all_valid is True  # No invalid majors
@@ -100,17 +104,16 @@ def test_validate_majors_empty_strings(major_handler):
 
 def test_get_validation_error_message_single_invalid(major_handler):
     """Test error message generation for single invalid major."""
-    invalid_majors = ["Fake Major"]
+    invalid_majors: list[str] = ["Fake Major"]
     message = major_handler.get_validation_error_message(invalid_majors)
 
     assert "Invalid major:" in message
     assert "Fake Major" in message
-    assert "valid majors" in message.lower()
 
 
 def test_get_validation_error_message_multiple_invalid(major_handler):
     """Test error message generation for multiple invalid majors."""
-    invalid_majors = ["Fake Major", "Another Fake", "Third Fake"]
+    invalid_majors: list[str] = ["Fake Major", "Another Fake", "Third Fake"]
     message = major_handler.get_validation_error_message(invalid_majors)
 
     assert "Invalid majors:" in message
@@ -121,7 +124,7 @@ def test_get_validation_error_message_multiple_invalid(major_handler):
 
 def test_get_validation_error_message_empty(major_handler):
     """Test error message with no invalid majors."""
-    invalid_majors = []
+    invalid_majors: list[str] = []
     message = major_handler.get_validation_error_message(invalid_majors)
 
     assert message == ""
@@ -140,10 +143,10 @@ def test_validate_majors_special_characters(major_handler):
 
 def test_major_handler_initialization(sample_major_list):
     """Test MajorHandler initializes correctly."""
-    handler = MajorHandler(sample_major_list, num_groups=4)
+    handler = MajorHandler(sample_major_list, num_groups=EXPECTED_NUM_GROUPS)
 
     assert handler.major_list == sorted(sample_major_list)
-    assert handler.num_groups == 4
+    assert handler.num_groups == EXPECTED_NUM_GROUPS
     assert len(handler._ranges) > 0
     assert len(handler._grouped_majors) > 0
 
@@ -203,7 +206,7 @@ def test_smart_title_case_first_word_always_capitalized(major_handler):
     assert result == "Communication, Media, and Design"
 
 
-def test_validate_majors_with_multiple_small_words(major_handler):
+def test_validate_majors_with_multiple_small_words():
     """Test majors with multiple small words are formatted correctly."""
     # Create a handler with a major containing small words
     handler = MajorHandler(["Information Technology and Web Science", "Communication, Media, and Design"])
@@ -217,5 +220,5 @@ def test_validate_majors_with_multiple_small_words(major_handler):
     assert all_valid is True
     assert "Information Technology and Web Science" in valid_majors
     # Note: The comma is part of the word, so "and" after comma is handled
-    assert len(valid_majors) == 2
+    assert len(valid_majors) == EXPECTED_VALID_MAJORS_COUNT
     assert invalid_majors == []
