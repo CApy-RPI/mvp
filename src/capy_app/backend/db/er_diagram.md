@@ -1,11 +1,11 @@
+# CAPY DB
+
 ```mermaid
 erDiagram
     User {
-        int _id PK
-        string first_name
-        string last_name
-        string preferred_name
-        string pronouns
+        int user_id PK
+        string email
+        string fullname
         int class_year
         string class_type
         boolean verified
@@ -14,61 +14,73 @@ erDiagram
     }
 
     University {
-        int _id PK
+        int university_id PK
         string name
     }
 
     Major {
-        int user_id FK
-        int school_id FK
         string major_name PK
         string major_code
         string department_code
-
     }
 
     Guild {
-        int _id PK
+        int guild_id PK
         string name
+        int channel_reports
+        int channel_announcements
+        int channel_moderator
+        string role_visitor
+        string role_member
+        string role_officer
+        string role_admin
+        string role_advisor
         datetime created_at
         datetime updated_at
     }
 
     Event {
-        int _id PK
-        list_int yes_users
-        list_int maybe_users
-        list_int no_users
-        int guild_id FK
+        int event_id PK
         int message_id
-        datetime created_at
-        datetime updated_at
-    }
-
-    EventDetails {
         string name
         datetime time
         string location
         string description
+        int react_yes
+        int react_maybe
+        int react_no
+        datetime created_at
+        datetime updated_at
     }
 
-    EventReactions {
-        int yes
-        int maybe
-        int no
+    User ||--|| University : "attends"
+    User ||--o{ Major : "studies"
+    Major }o--o{ University : "has"
+    User }o--o{ Guild : "in"
+
+    Hosting {
+        int user_id FK
+        int guild_id FK
+        int event_id FK
     }
 
-    User ||--o{ UserProfile : "has"
-    User ||--o{ UserName : "has"
-    Guild ||--o{ GuildChannels : "has"
-    Guild ||--o{ GuildRoles : "has"
-    Event ||--o{ EventDetails : "has"
-    EventDetails ||--o{ EventReactions : "has"
+    User ||--|{ Hosting : "hosts"
+    Guild ||--|{ Hosting : "is_hosted_in"
+    Event ||--|| Hosting : "is_hosted"
 
-    Event }|--|| Guild : "belongs to"
-    Event }o--o{ User : "responded"
+    EventReactionDependsOnEventAndUser {
+        boolean yes
+        boolean maybe
+        boolean no
+    }
 
-    User ||--o{ UserSchoolMajor : "selects"
-    University ||--o{ UserSchoolMajor : "attends"
-    Major ||--o{ UserSchoolMajor : "declares"
+    Reaction {
+        int user_id FK
+        int event_id FK
+    }
+
+    User ||--o{ Reaction : "reacts"
+    Event ||--o{ Reaction : "reacted_on"
+   EventReactionDependsOnEventAndUser ||--|| Reaction : "reaction" 
+
 ```
