@@ -1,6 +1,7 @@
 """Tests for major_handler validation functionality."""
 
 import pytest
+
 from capy_app.frontend.cogs.features.major_handler import MajorHandler
 
 
@@ -30,9 +31,7 @@ def major_handler(sample_major_list):
 def test_validate_majors_all_valid(major_handler):
     """Test validation with all valid majors."""
     input_majors = ["Computer Science", "Mathematics"]
-    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(
-        input_majors
-    )
+    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(input_majors)
 
     assert all_valid is True
     assert valid_majors == ["Computer Science", "Mathematics"]
@@ -42,9 +41,7 @@ def test_validate_majors_all_valid(major_handler):
 def test_validate_majors_case_insensitive(major_handler):
     """Test that validation is case-insensitive and returns correct casing."""
     input_majors = ["computer science", "MATHEMATICS", "PhYsIcS"]
-    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(
-        input_majors
-    )
+    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(input_majors)
 
     assert all_valid is True
     assert valid_majors == ["Computer Science", "Mathematics", "Physics"]
@@ -54,9 +51,7 @@ def test_validate_majors_case_insensitive(major_handler):
 def test_validate_majors_with_whitespace(major_handler):
     """Test validation handles extra whitespace."""
     input_majors = ["  Computer Science  ", " Mathematics "]
-    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(
-        input_majors
-    )
+    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(input_majors)
 
     assert all_valid is True
     assert valid_majors == ["Computer Science", "Mathematics"]
@@ -66,9 +61,7 @@ def test_validate_majors_with_whitespace(major_handler):
 def test_validate_majors_some_invalid(major_handler):
     """Test validation with some invalid majors."""
     input_majors = ["Computer Science", "Invalid Major", "Mathematics"]
-    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(
-        input_majors
-    )
+    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(input_majors)
 
     assert all_valid is False
     assert valid_majors == ["Computer Science", "Mathematics"]
@@ -78,9 +71,7 @@ def test_validate_majors_some_invalid(major_handler):
 def test_validate_majors_all_invalid(major_handler):
     """Test validation with all invalid majors."""
     input_majors = ["Fake Major", "Another Fake"]
-    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(
-        input_majors
-    )
+    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(input_majors)
 
     assert all_valid is False
     assert valid_majors == []
@@ -90,9 +81,7 @@ def test_validate_majors_all_invalid(major_handler):
 def test_validate_majors_empty_input(major_handler):
     """Test validation with empty input."""
     input_majors = []
-    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(
-        input_majors
-    )
+    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(input_majors)
 
     assert all_valid is True  # No invalid majors
     assert valid_majors == []
@@ -102,9 +91,7 @@ def test_validate_majors_empty_input(major_handler):
 def test_validate_majors_empty_strings(major_handler):
     """Test validation filters out empty strings."""
     input_majors = ["Computer Science", "", "  ", "Mathematics"]
-    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(
-        input_majors
-    )
+    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(input_majors)
 
     assert all_valid is True
     assert valid_majors == ["Computer Science", "Mathematics"]
@@ -144,9 +131,7 @@ def test_validate_majors_special_characters(major_handler):
     """Test validation with special characters in major names."""
     # Smart title case keeps small words like "and" lowercase
     input_majors = ["business and management"]
-    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(
-        input_majors
-    )
+    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(input_majors)
 
     assert all_valid is True
     assert valid_majors == ["Business and Management"]
@@ -166,9 +151,7 @@ def test_major_handler_initialization(sample_major_list):
 def test_validate_majors_all_lowercase_input(major_handler):
     """Test that all lowercase input is converted to title case."""
     input_majors = ["computer science", "mechanical engineering"]
-    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(
-        input_majors
-    )
+    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(input_majors)
 
     assert all_valid is True
     assert valid_majors == ["Computer Science", "Mechanical Engineering"]
@@ -178,9 +161,7 @@ def test_validate_majors_all_lowercase_input(major_handler):
 def test_validate_majors_all_uppercase_input(major_handler):
     """Test that all uppercase input is converted to title case."""
     input_majors = ["COMPUTER SCIENCE", "MECHANICAL ENGINEERING"]
-    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(
-        input_majors
-    )
+    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(input_majors)
 
     assert all_valid is True
     assert valid_majors == ["Computer Science", "Mechanical Engineering"]
@@ -190,9 +171,7 @@ def test_validate_majors_all_uppercase_input(major_handler):
 def test_validate_majors_mixed_case_input(major_handler):
     """Test that mixed case input is normalized to title case."""
     input_majors = ["CoMpUtEr ScIeNcE", "mEcHaNiCaL eNgInEeRiNg"]
-    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(
-        input_majors
-    )
+    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(input_majors)
 
     assert all_valid is True
     assert valid_majors == ["Computer Science", "Mechanical Engineering"]
@@ -227,9 +206,7 @@ def test_smart_title_case_first_word_always_capitalized(major_handler):
 def test_validate_majors_with_multiple_small_words(major_handler):
     """Test majors with multiple small words are formatted correctly."""
     # Create a handler with a major containing small words
-    handler = MajorHandler(
-        ["Information Technology and Web Science", "Communication, Media, and Design"]
-    )
+    handler = MajorHandler(["Information Technology and Web Science", "Communication, Media, and Design"])
 
     input_majors = [
         "INFORMATION TECHNOLOGY AND WEB SCIENCE",

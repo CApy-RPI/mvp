@@ -4,7 +4,7 @@ import logging
 import re
 import time
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 import discord
 from backend.db.database import Database
@@ -110,7 +110,7 @@ class ProfileCog(commands.Cog):
         interaction: discord.Interaction,
         action: str,
         user: User | None,
-        retry_data: dict[str, str] = None,
+        retry_data: Optional[dict[str, str]] = None,
     ) -> tuple[dict[str, str] | None, discord.Message | None]:
         """Get profile data using modal base"""
         modal_view = DynamicModalView(**self.config["profile_modal"])
@@ -273,7 +273,7 @@ class ProfileCog(commands.Cog):
         self,
         interaction: discord.Interaction,
         action: str,
-        retry_data: dict[str, str] = None,
+        retry_data: Optional[dict[str, str]] = None,
     ) -> None:
         """Handle profile creation and updates."""
         user = Database.get_document(User, interaction.user.id)
@@ -324,7 +324,7 @@ class ProfileCog(commands.Cog):
         interaction: discord.Interaction,
         action: str,
         user: User | None,
-        retry_data: dict[str, str] = None,
+        retry_data: Optional[dict[str, str]] = None,
     ) -> tuple[dict[str, str], discord.Message] | None:
         """Collect and validate profile data, returning payload and message or None to abort."""
         profile_data, message = await self.get_profile_data(
@@ -377,95 +377,130 @@ class ProfileCog(commands.Cog):
             return False
         return True
 
-    async def _validate_profile_data(self, profile_data, message, action) -> bool:
-        content = ""
-        trycheck = False
+    def _validate_name(self, profile_data: dict[str, str]) -> tuple[bool, str]:
+        """Validate preferred name field."""
+        name = profile_data["preferred_name"].strip()
+        if not name:
+            return False, "Preferred name cannot be empty.\n"
+        if not re.match(r"[a-zA-Z\s]+$", name):
+            return False, "Names can only contain letters and spaces.\n"
+        return True, ""
 
-        # Check if preferred name contains only letters and spaces
-        if not profile_data["preferred_name"].strip():
-            content += "Preferred name cannot be empty.\n"
-            trycheck = True
-        elif not re.match(r"[a-zA-Z\s]+$", profile_data["preferred_name"].strip()):
-            content += "Names can only contain letters and spaces.\n"
-            trycheck = True
-        if not (profile_data["graduation_year"].isdigit()):
-            content += "Graduation year must be a number.\n"
-            trycheck = True
-        if not (profile_data["student_id"].isdigit()):
-            content += "Student ID must be a number.\n"
-            trycheck = True
-        if not profile_data["school_email"].endswith("edu"):
-            content += "School email must end with 'edu'.\n"
-            trycheck = True
-
-        # Validate majors field
-        majors_text = profile_data.get("major(s)", "").strip()
-        if not majors_text:
-            content += "At least one major must be specified.\n"
-            trycheck = True
-        else:
-            # Check that processing majors results in at least one valid major
-            processed_majors = self.process_majors_from_text(majors_text)
-            if not processed_majors:
-                content += "Please enter valid major(s) separated by commas.\n"
-                trycheck = True
-            else:
-                # Validate each major against the valid majors list
-                all_valid, valid_majors, invalid_majors = (
-                    self.major_handler.validate_majors(processed_majors)
-                )
-                if not all_valid:
-                    content += self.major_handler.get_validation_error_message(
-                        invalid_majors
-                    )
-                    trycheck = True
-                elif len(valid_majors) > 2:
-                    content += "You can only specify up to 2 majors.\n"
-                    trycheck = True
+    def _validate_graduation_year(
+        self, profile_data: dict[str, str]
+    ) -> tuple[bool, str]:
+        """Validate graduation year field."""
+        grad_year = profile_data["graduation_year"]
+        if not grad_year.isdigit():
+            return False, "Graduation year must be a number.\n"
 
         grad_year_lower_bound = 1899
         grad_year_upper_bound = 2100
         if out_of_bounds_exclusive(
-            profile_data["graduation_year"],
-            grad_year_lower_bound,
-            grad_year_upper_bound,
+            grad_year, grad_year_lower_bound, grad_year_upper_bound
         ):
-            content += "Graduation year outside of acceptable bounds.\n"
-            trycheck = True
+            return False, "Graduation year outside of acceptable bounds.\n"
+        return True, ""
 
-        if trycheck:
-            # Create a copy of profile_data and clear only the invalid fields
-            retry_data = profile_data.copy()
+    def _validate_student_id(self, profile_data: dict[str, str]) -> tuple[bool, str]:
+        """Validate student ID field."""
+        if not profile_data["student_id"].isdigit():
+            return False, "Student ID must be a number.\n"
+        return True, ""
 
-            # Clear invalid fields based on what validation failed - match validation logic exactly
-            if not profile_data["preferred_name"].strip() or not re.match(
-                r"[a-zA-Z\s]+$", profile_data["preferred_name"].strip()
-            ):
-                retry_data["preferred_name"] = ""
-            if not profile_data["graduation_year"].isdigit() or out_of_bounds_exclusive(
-                profile_data["graduation_year"],
-                grad_year_lower_bound,
-                grad_year_upper_bound,
-            ):
-                retry_data["graduation_year"] = ""
-            if not profile_data["student_id"].isdigit():
-                retry_data["student_id"] = ""
-            if not profile_data["school_email"].endswith("edu"):
-                retry_data["school_email"] = ""
+    def _validate_email(self, profile_data: dict[str, str]) -> tuple[bool, str]:
+        """Validate school email field."""
+        if not profile_data["school_email"].endswith("edu"):
+            return False, "School email must end with 'edu'.\n"
+        return True, ""
 
-            # Clear majors field if invalid
-            majors_text = profile_data.get("major(s)", "").strip()
-            processed_majors = self.process_majors_from_text(majors_text)
-            if not majors_text or not processed_majors:
-                retry_data["major(s)"] = ""
-            else:
-                # Also clear if majors are invalid or exceed limit
-                all_valid, valid_majors, _invalid_majors = (
-                    self.major_handler.validate_majors(processed_majors)
-                )
-                if not all_valid or len(valid_majors) > 2:
-                    retry_data["major(s)"] = ""
+    def _validate_majors_field(self, profile_data: dict[str, str]) -> tuple[bool, str]:
+        """Validate majors field."""
+        majors_text = profile_data.get("major(s)", "").strip()
+        if not majors_text:
+            return False, "At least one major must be specified.\n"
 
+        processed_majors = self.process_majors_from_text(majors_text)
+        if not processed_majors:
+            return False, "Please enter valid major(s) separated by commas.\n"
+
+        all_valid, valid_majors, invalid_majors = self.major_handler.validate_majors(
+            processed_majors
+        )
+        if not all_valid:
+            return False, self.major_handler.get_validation_error_message(
+                invalid_majors
+            )
+
+        if len(valid_majors) > 2:
+            return False, "You can only specify up to 2 majors.\n"
+
+        return True, ""
+
+    def _prepare_retry_data(self, profile_data: dict[str, str]) -> dict[str, str]:
+        """Prepare retry data by clearing invalid fields."""
+        retry_data = profile_data.copy()
+
+        # Clear invalid name
+        name_valid, _ = self._validate_name(profile_data)
+        if not name_valid:
+            retry_data["preferred_name"] = ""
+
+        # Clear invalid graduation year
+        grad_year_valid, _ = self._validate_graduation_year(profile_data)
+        if not grad_year_valid:
+            retry_data["graduation_year"] = ""
+
+        # Clear invalid student ID
+        student_id_valid, _ = self._validate_student_id(profile_data)
+        if not student_id_valid:
+            retry_data["student_id"] = ""
+
+        # Clear invalid email
+        email_valid, _ = self._validate_email(profile_data)
+        if not email_valid:
+            retry_data["school_email"] = ""
+
+        # Clear invalid majors
+        majors_valid, _ = self._validate_majors_field(profile_data)
+        if not majors_valid:
+            retry_data["major(s)"] = ""
+
+        return retry_data
+
+    async def _validate_profile_data(self, profile_data, message, action) -> bool:
+        """Validate all profile data fields."""
+        content = ""
+        is_valid = True
+
+        # Validate each field
+        name_valid, name_error = self._validate_name(profile_data)
+        if not name_valid:
+            content += name_error
+            is_valid = False
+
+        grad_year_valid, grad_year_error = self._validate_graduation_year(profile_data)
+        if not grad_year_valid:
+            content += grad_year_error
+            is_valid = False
+
+        student_id_valid, student_id_error = self._validate_student_id(profile_data)
+        if not student_id_valid:
+            content += student_id_error
+            is_valid = False
+
+        email_valid, email_error = self._validate_email(profile_data)
+        if not email_valid:
+            content += email_error
+            is_valid = False
+
+        majors_valid, majors_error = self._validate_majors_field(profile_data)
+        if not majors_valid:
+            content += majors_error
+            is_valid = False
+
+        if not is_valid:
+            retry_data = self._prepare_retry_data(profile_data)
             view = TryAgainView(self, action, retry_data)
             await message.edit(content=content, view=view)
             return False

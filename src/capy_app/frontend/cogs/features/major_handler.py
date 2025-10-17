@@ -196,11 +196,9 @@ class MajorHandler:
             return ""
 
         if len(invalid_majors) == 1:
-            msg = f"❌ Invalid major: **{invalid_majors[0]}**\n"
+            msg = f"Invalid major: **{invalid_majors[0]}**\n"
         else:
             majors_list = ", ".join(f"**{m}**" for m in invalid_majors)
-            msg = f"❌ Invalid majors: {majors_list}\n"
+            msg = f"Invalid majors: {majors_list}\n"
 
-        msg += "\n📋 Please enter valid majors from the list. "
-        msg += "You can view all valid majors in the dropdown or check majors.txt."
         return msg
