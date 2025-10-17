@@ -295,11 +295,17 @@ class ProfileCog(commands.Cog):
         majors_text = profile_data.get("major(s)", "").strip()
         processed_majors = self.process_majors_from_text(majors_text)
 
-        # Convert processed majors list back to string for storage
-        majors_string = ", ".join(processed_majors) if processed_majors else ""
+        # Validate and normalize majors to correct casing
+        all_valid, validated_majors, _invalid_majors = (
+            self.major_handler.validate_majors(processed_majors)
+        )
+
+        # Use the validated majors (with correct casing from majors.txt)
+        majors_string = ", ".join(validated_majors) if validated_majors else ""
 
         self.logger.info(
-            f"Processed majors from '{majors_text}' -> {processed_majors} -> '{majors_string}'"
+            f"Processed majors: '{majors_text}' -> {processed_majors} -> "
+            f"validated: {validated_majors} -> '{majors_string}'"
         )
 
         # Process email verification after form submission
@@ -403,6 +409,19 @@ class ProfileCog(commands.Cog):
             if not processed_majors:
                 content += "Please enter valid major(s) separated by commas.\n"
                 trycheck = True
+            else:
+                # Validate each major against the valid majors list
+                all_valid, valid_majors, invalid_majors = (
+                    self.major_handler.validate_majors(processed_majors)
+                )
+                if not all_valid:
+                    content += self.major_handler.get_validation_error_message(
+                        invalid_majors
+                    )
+                    trycheck = True
+                elif len(valid_majors) > 2:
+                    content += "You can only specify up to 2 majors.\n"
+                    trycheck = True
 
         grad_year_lower_bound = 1899
         grad_year_upper_bound = 2100
@@ -434,9 +453,18 @@ class ProfileCog(commands.Cog):
             if not profile_data["school_email"].endswith("edu"):
                 retry_data["school_email"] = ""
 
+            # Clear majors field if invalid
             majors_text = profile_data.get("major(s)", "").strip()
-            if not majors_text or not self.process_majors_from_text(majors_text):
+            processed_majors = self.process_majors_from_text(majors_text)
+            if not majors_text or not processed_majors:
                 retry_data["major(s)"] = ""
+            else:
+                # Also clear if majors are invalid or exceed limit
+                all_valid, valid_majors, _invalid_majors = (
+                    self.major_handler.validate_majors(processed_majors)
+                )
+                if not all_valid or len(valid_majors) > 2:
+                    retry_data["major(s)"] = ""
 
             view = TryAgainView(self, action, retry_data)
             await message.edit(content=content, view=view)
