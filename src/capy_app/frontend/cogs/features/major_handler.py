@@ -4,10 +4,16 @@ import logging
 from math import ceil
 from typing import Any
 
+from rapidfuzz import fuzz, process
+
 from config import settings
 
 logger = logging.getLogger(__name__)
 logger.setLevel(settings.LOG_LEVEL)
+
+# Fuzzy matching thresholds
+AUTO_CORRECT_THRESHOLD = 90  # Auto-correct obvious typos
+SUGGESTION_THRESHOLD = 80  # Suggest corrections for moderate typos
 
 
 class MajorHandler:
@@ -86,7 +92,9 @@ class MajorHandler:
                     "custom_id": group_id,
                     "min_values": 0,
                     "max_values": 2,
-                    "selections": [{"label": major, "value": major} for major in majors],
+                    "selections": [
+                        {"label": major, "value": major} for major in majors
+                    ],
                 }
             )
 
@@ -141,11 +149,13 @@ class MajorHandler:
 
         return " ".join(result)
 
-    def validate_majors(self, input_majors: list[str]) -> tuple[bool, list[str], list[str]]:
+    def validate_majors(
+        self, input_majors: list[str]
+    ) -> tuple[bool, list[str], list[str]]:
         """Validate a list of major names against the valid majors list.
 
         Accepts input in any case and normalizes to title case with small words
-        (like "and", "of", etc.) kept lowercase.
+        (like "and", "of", etc.) kept lowercase. Uses fuzzy matching to handle typos.
 
         Args:
             input_majors: List of major names to validate
@@ -174,10 +184,91 @@ class MajorHandler:
                 title_cased = self._smart_title_case(major_stripped)
                 valid_majors.append(title_cased)
             else:
-                invalid_majors.append(major_stripped)
+                # Try fuzzy matching to handle typos
+                best_match = self._find_fuzzy_match(major_stripped)
+                if best_match:
+                    valid_majors.append(best_match)
+                    logger.info(f"Fuzzy matched '{major_stripped}' to '{best_match}'")
+                else:
+                    invalid_majors.append(major_stripped)
 
         all_valid = len(invalid_majors) == 0
         return all_valid, valid_majors, invalid_majors
+
+    def _find_fuzzy_match(self, input_major: str) -> str | None:
+        """Find the best fuzzy match for a major using rapidfuzz.
+
+        Args:
+            input_major: The major name to find a match for
+
+        Returns:
+            The matched major name if found, None otherwise
+        """
+        if not self.major_list:
+            return None
+
+        # Use process.extractOne to find the best match
+        result = process.extractOne(
+            input_major,
+            self.major_list,
+            scorer=fuzz.ratio,
+            score_cutoff=SUGGESTION_THRESHOLD,
+        )
+
+        if result:
+            matched_major, score, _index = result
+            logger.debug(
+                f"Fuzzy match for '{input_major}': '{matched_major}' (score: {score})"
+            )
+            return matched_major
+
+        return None
+
+    def validate_majors_with_corrections(
+        self, input_majors: list[str]
+    ) -> tuple[bool, list[str], list[str], dict[str, str]]:
+        """Validate majors and track which ones were auto-corrected.
+
+        Args:
+            input_majors: List of major names to validate
+
+        Returns:
+            A tuple containing:
+            - bool: True if all majors are valid/corrected, False if any invalid
+            - list[str]: List of valid majors in smart title case format
+            - list[str]: List of invalid majors from the input
+            - dict[str, str]: Mapping of original input -> corrected major
+        """
+        valid_majors = []
+        invalid_majors = []
+        corrections = {}
+
+        # Create a case-insensitive lookup dictionary for valid majors
+        major_lookup = {major.lower(): major for major in self.major_list}
+
+        for major in input_majors:
+            major_stripped = major.strip()
+            if not major_stripped:
+                continue
+
+            # Check if major exists (case-insensitive)
+            major_lower = major_stripped.lower()
+            if major_lower in major_lookup:
+                # Exact match - normalize to smart title case
+                title_cased = self._smart_title_case(major_stripped)
+                valid_majors.append(title_cased)
+            else:
+                # Try fuzzy matching to handle typos
+                best_match = self._find_fuzzy_match(major_stripped)
+                if best_match:
+                    valid_majors.append(best_match)
+                    corrections[major_stripped] = best_match
+                    logger.info(f"Auto-corrected '{major_stripped}' to '{best_match}'")
+                else:
+                    invalid_majors.append(major_stripped)
+
+        all_valid = len(invalid_majors) == 0
+        return all_valid, valid_majors, invalid_majors, corrections
 
     def get_validation_error_message(self, invalid_majors: list[str]) -> str:
         """Generate a user-friendly error message for invalid majors.
