@@ -602,7 +602,11 @@ class ErrorHandlerCog(commands.Cog):
 
         self.logger.error(f"{cmd_name}: {error}")
 
-        err_msg = f"Failed to execute command: {error}"
+        if isinstance(error, commands.CommandError):
+            error = error.original
+
+        # * Raw error message is not passed to user
+        err_msg = "Failed to execute command at this time. Please try again later."
         if interaction.response.is_done():
             await interaction.followup.send(err_msg)
         else:
