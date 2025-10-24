@@ -13,7 +13,7 @@ logger.setLevel(settings.LOG_LEVEL)
 
 # Fuzzy matching thresholds
 AUTO_CORRECT_THRESHOLD = 90  # Auto-correct obvious typos
-SUGGESTION_THRESHOLD = 80  # Suggest corrections for moderate typos
+SUGGESTION_THRESHOLD = 60  # Suggest corrections for moderate typos
 
 
 class MajorHandler:
