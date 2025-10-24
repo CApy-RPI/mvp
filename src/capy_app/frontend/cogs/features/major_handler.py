@@ -92,9 +92,7 @@ class MajorHandler:
                     "custom_id": group_id,
                     "min_values": 0,
                     "max_values": 2,
-                    "selections": [
-                        {"label": major, "value": major} for major in majors
-                    ],
+                    "selections": [{"label": major, "value": major} for major in majors],
                 }
             )
 
@@ -149,9 +147,7 @@ class MajorHandler:
 
         return " ".join(result)
 
-    def validate_majors(
-        self, input_majors: list[str]
-    ) -> tuple[bool, list[str], list[str]]:
+    def validate_majors(self, input_majors: list[str]) -> tuple[bool, list[str], list[str]]:
         """Validate a list of major names against the valid majors list.
 
         Accepts input in any case and normalizes to title case with small words
@@ -216,10 +212,9 @@ class MajorHandler:
         )
 
         if result:
-            matched_major, score, _index = result
-            logger.debug(
-                f"Fuzzy match for '{input_major}': '{matched_major}' (score: {score})"
-            )
+            matched_major: str = result[0]  # Extract the matched string explicitly
+            score: float = result[1]
+            logger.debug(f"Fuzzy match for '{input_major}': '{matched_major}' (score: {score})")
             return matched_major
 
         return None
