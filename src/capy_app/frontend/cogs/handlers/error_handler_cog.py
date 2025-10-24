@@ -592,12 +592,13 @@ class ErrorHandlerCog(commands.Cog):
             interaction: Command interaction
             error: Exception that occurred during command execution
         """
+        if interaction.command is None:
+            raise ValueError("Command is None")
+
         if isinstance(interaction.command, discord.app_commands.Command):
             cmd_name = interaction.command.qualified_name
-        elif isinstance(interaction.command, discord.app_commands.ContextMenu):
-            cmd_name = interaction.command.name
         else:
-            cmd_name = "WHOA something went wrong"
+            cmd_name = interaction.command.name
 
         self.logger.error(f"{cmd_name}: {error}")
 
