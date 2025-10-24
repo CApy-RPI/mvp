@@ -1,11 +1,11 @@
-import discord
 import logging
-from discord.ext import commands
+import random
+
+import discord
 from discord import app_commands
+from discord.ext import commands
 
 from config import settings
-import random
-import asyncio
 
 
 class HigherLowerCog(commands.Cog):
@@ -18,14 +18,10 @@ class HigherLowerCog(commands.Cog):
         name="higherlower",
         description="Picks a random number between user specified bounds that you have to guess",
     )
-    async def higherlower(
-        self, interaction: discord.Interaction, lower_bound: int, upper_bound: int
-    ):
+    async def higherlower(self, interaction: discord.Interaction, lower_bound: int, upper_bound: int):
         """Higher/Lower guessing game."""
         if lower_bound > upper_bound:
-            await interaction.response.send_message(
-                "❌ Lower bound must be <= upper bound", ephemeral=True
-            )
+            await interaction.response.send_message("❌ Lower bound must be <= upper bound", ephemeral=True)
             return
 
         target = random.randint(lower_bound, upper_bound)
@@ -37,11 +33,7 @@ class HigherLowerCog(commands.Cog):
         )
 
         def check(msg: discord.Message):
-            return (
-                msg.author == interaction.user
-                and msg.channel == interaction.channel
-                and msg.content.isdigit()
-            )
+            return msg.author == interaction.user and msg.channel == interaction.channel and msg.content.isdigit()
 
         while True:
             try:
@@ -53,14 +45,10 @@ class HigherLowerCog(commands.Cog):
                 elif guess > target:
                     await interaction.followup.send("🔼 Too high! Try again...", ephemeral=True)
                 else:
-                    await interaction.followup.send(
-                        f"✅ You got it! The number was **{target}** 🎉", ephemeral=True
-                    )
+                    await interaction.followup.send(f"✅ You got it! The number was **{target}** 🎉", ephemeral=True)
                     break
-            except asyncio.TimeoutError:
-                await interaction.followup.send(
-                    "⌛ You took too long to respond. Game over!", ephemeral=True
-                )
+            except TimeoutError:
+                await interaction.followup.send("⌛ You took too long to respond. Game over!", ephemeral=True)
                 break
 
 

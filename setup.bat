@@ -5,7 +5,7 @@ echo Setting up development environment...
 
 REM Create virtual environment
 echo Creating virtual environment...
-python -m venv .venv
+py -m venv .venv
 if !errorlevel! neq 0 (
     echo Failed to create virtual environment
     exit /b 1

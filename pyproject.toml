@@ -34,6 +34,9 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "N", "UP", "C90", "B", "A", "C4", "T20", "SIM", "ARG", "PTH", "PL", "RUF"]
 
+[tool.ruff.lint.pylint]
+max-args = 7
+
 [tool.ruff.lint.isort]
 split-on-trailing-comma = true
 force-single-line = false

@@ -1,10 +1,10 @@
-import discord
 import logging
-from discord.ext import commands
+
+import discord
 from discord import app_commands
+from discord.ext import commands
 
 from config import settings
-import asyncio
 
 
 class TicTacToeCog(commands.Cog):
@@ -20,9 +20,7 @@ class TicTacToeCog(commands.Cog):
     async def tictactoe(self, interaction: discord.Interaction, opponent: discord.User):
         """Tic Tac Toe game between two players."""
         if opponent == interaction.user:
-            await interaction.response.send_message(
-                "❌ You cannot play against yourself!", ephemeral=True
-            )
+            await interaction.response.send_message("❌ You cannot play against yourself!", ephemeral=True)
             return
 
         board = [" " for _ in range(9)]
@@ -30,10 +28,10 @@ class TicTacToeCog(commands.Cog):
         symbols = ["❌", "⭕"]
         turn = 0
 
+        def num_to_emoji(i):
+            board[i] if board[i] != " " else f"{i + 1}\N{COMBINING ENCLOSING KEYCAP}"
+
         def render_board():
-            num_to_emoji = lambda i: (
-                board[i] if board[i] != " " else f"{i+1}\N{COMBINING ENCLOSING KEYCAP}"
-            )
             return (
                 f"\n{num_to_emoji(0)} | {num_to_emoji(1)} | {num_to_emoji(2)}\n"
                 f"----+---+----\n"
@@ -61,11 +59,13 @@ class TicTacToeCog(commands.Cog):
         )
 
         def check(msg: discord.Message):
+            max_input = 9
+            min_input = 1
             return (
                 msg.author == players[turn]
                 and msg.channel == interaction.channel
                 and msg.content.isdigit()
-                and 1 <= int(msg.content) <= 9
+                and min_input <= int(msg.content) <= max_input
                 and board[int(msg.content) - 1] == " "
             )
 
@@ -76,16 +76,12 @@ class TicTacToeCog(commands.Cog):
                 board[move] = symbols[turn]
 
                 if check_win(symbols[turn]):
-                    await interaction.followup.send(
-                        f"{render_board()}\n✅ {players[turn].mention} wins! 🎉"
-                    )
+                    await interaction.followup.send(f"{render_board()}\n✅ {players[turn].mention} wins! 🎉")
                     return
 
                 turn = 1 - turn
-                await interaction.followup.send(
-                    f"{render_board()}\n{players[turn].mention}, it's your turn!"
-                )
-            except asyncio.TimeoutError:
+                await interaction.followup.send(f"{render_board()}\n{players[turn].mention}, it's your turn!")
+            except TimeoutError:
                 await interaction.followup.send("⌛ Game timed out!")
                 return
 
