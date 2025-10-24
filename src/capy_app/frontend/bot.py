@@ -29,6 +29,8 @@ class Bot(commands.AutoShardedBot):
         self.logger = logging.getLogger("discord.main")
         self.logger.setLevel(settings.LOG_LEVEL)
 
+        self.tree.error(coro=self._dispatch_slash_command_error)
+
     async def on_member_join(self, member: discord.Member) -> None:
         """Handle event when a new member joins a guild.
 
@@ -129,6 +131,9 @@ class Bot(commands.AutoShardedBot):
 
         await ctx.send(f"Please use {dev_channel.mention} instead which this session is locked to.")
         self.logger.info(f"Command from {ctx.author} in disallowed channel {ctx.channel}")
+
+    async def _dispatch_slash_command_error(self, interaction, error):
+        self.dispatch("slash_command_error", interaction, error)
 
     def run_bot(self) -> None:
         """Run the bot instance."""

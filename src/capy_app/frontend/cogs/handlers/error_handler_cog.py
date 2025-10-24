@@ -87,22 +87,23 @@ class ErrorHandlerCog(commands.Cog):
 
         return channel
 
-    def _create_urls(self, ctx: commands.Context[typing.Any]) -> dict[str, str]:
+    def _create_urls(self, interaction: discord.Interaction[typing.Any]) -> dict[str, str]:
         """Create URLs for server, channel, and user."""
-        if isinstance(ctx.channel, discord.DMChannel):
+        if isinstance(interaction.channel, discord.DMChannel):
             return {
-                "user": f"https://discord.com/users/{ctx.author.id}",
-                "message": f"https://discord.com/channels/@me/{ctx.channel.id}/{ctx.message.id}",
+                "user": f"https://discord.com/users/{interaction.user.id}",
             }
 
-        if ctx.guild is None:
+        if interaction.guild is None:
             raise ValueError("Guild context is None")
 
+        if interaction.channel is None:
+            raise ValueError("Channel is None")
+
         return {
-            "server": f"https://discord.com/guilds/{ctx.guild.id}",
-            "channel": f"https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}",
-            "user": f"https://discord.com/users/{ctx.author.id}",
-            "message": f"https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}/{ctx.message.id}",
+            "server": f"https://discord.com/guilds/{interaction.guild.id}",
+            "channel": f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}",
+            "user": f"https://discord.com/users/{interaction.user.id}",
         }
 
     def _get_guild_info(self, guild: discord.Guild | None, url: str | None = None) -> str:
@@ -116,13 +117,11 @@ class ErrorHandlerCog(commands.Cog):
     def _get_channel_info(
         self,
         channel: (
-            discord.TextChannel
-            | discord.VoiceChannel
-            | discord.StageChannel
-            | discord.Thread
-            | discord.PartialMessageable
+            discord.abc.GuildChannel
             | discord.GroupChannel
             | discord.DMChannel
+            | discord.Thread
+            | discord.PartialMessageable
         ),
         url: str | None = None,
     ) -> str:
@@ -138,33 +137,35 @@ class ErrorHandlerCog(commands.Cog):
         except AttributeError:
             return f"Unknown Channel ({channel.id})"
 
+    # TODO: Since we have ephemerals, dropdowns, etc. now, I'm not sure how to best replicate the old ability to
+    #   include & jump to the offending content.
     def _create_error_embed(
         self,
-        ctx: commands.Context[typing.Any],
+        interaction: discord.Interaction[typing.Any],
         error: Exception,
         urls: dict[str, str],
     ) -> discord.Embed:
         """Create error embed message."""
+        if interaction.command is None:
+            raise ValueError("Command is None")
+
         embed = discord.Embed(
             title=f"Command Error - {self.STATUS_UNMARKED}",
-            description=f"Command: {ctx.command}\nError: {error!s}",
+            description=f"Command: {interaction.command.name}\nError: {error!s}",
             color=discord.Color.red(),
         )
-
-        # Add command message field
-        embed.add_field(name="Message", value=f"`{ctx.message.content}`", inline=False)
 
         # Build context field based on channel type
         context_lines = []
 
-        if not (is_dm := isinstance(ctx.channel, discord.DMChannel)):
-            if not ctx.guild:
-                raise ValueError("Guild context is None")
-            if not ctx.channel:
-                raise ValueError("Channel context is None")
+        if not (is_dm := isinstance(interaction.channel, discord.DMChannel)):
+            if not interaction.guild:
+                raise ValueError("Guild is None")
+            if not interaction.channel:
+                raise ValueError("Channel is None")
 
-            guild_info = self._get_guild_info(ctx.guild, urls.get("server"))
-            channel_info = self._get_channel_info(ctx.channel, urls.get("channel"))
+            guild_info = self._get_guild_info(interaction.guild, urls.get("server"))
+            channel_info = self._get_channel_info(interaction.channel, urls.get("channel"))
 
             context_lines.extend(
                 [
@@ -175,9 +176,8 @@ class ErrorHandlerCog(commands.Cog):
 
         context_lines.extend(
             [
-                f"User: [{ctx.author} ({ctx.author.id})]({urls['user']})",
+                f"User: [{interaction.user} ({interaction.user.id})]({urls['user']})",
                 f"DM: {is_dm}",
-                f"[Jump to Message]({urls['message']})",
             ]
         )
 
@@ -330,15 +330,15 @@ class ErrorHandlerCog(commands.Cog):
         success, msg = await self._create_invite_and_update(channel)
         await self._update_message_with_status(message, embed, msg, success=success)
 
-    async def _log_error(self, ctx: commands.Context[typing.Any], error: Exception) -> None:
+    async def _log_error(self, interaction: discord.Interaction[typing.Any], error: Exception) -> None:
         """Log error to designated channel with reaction controls."""
         error_channel = await self._get_error_channel()
         if not error_channel:
             self.logger.error("Error channel not found")
             return
 
-        urls = self._create_urls(ctx)
-        embed = self._create_error_embed(ctx, error, urls)
+        urls = self._create_urls(interaction)
+        embed = self._create_error_embed(interaction, error, urls)
         await self._send_error_message(error_channel, embed)
 
     def _get_message_status(self, embed: discord.Embed) -> str:
@@ -544,6 +544,7 @@ class ErrorHandlerCog(commands.Cog):
                 return
             await self._delete_messages(ctx, matching_messages, status_str)
 
+    # TODO buttons might be a more elegant way to do this.
     @commands.Cog.listener()
     async def on_reaction_add(
         self,
@@ -584,16 +585,29 @@ class ErrorHandlerCog(commands.Cog):
         await message.edit(embed=embed)
 
     @commands.Cog.listener()
-    async def on_command_error(self, ctx: commands.Context[typing.Any], error: Exception) -> None:
-        """Handle command execution errors.
+    async def on_slash_command_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        """Handle slash command execution errors.
 
         Args:
-            ctx: Command context object
+            interaction: Command interaction
             error: Exception that occurred during command execution
         """
-        self.logger.error(f"{ctx.command}: {error}")
-        await ctx.send(f"Failed to execute command: {error}")
-        await self._log_error(ctx, error)
+        if isinstance(interaction.command, discord.app_commands.Command):
+            cmd_name = interaction.command.qualified_name
+        elif isinstance(interaction.command, discord.app_commands.ContextMenu):
+            cmd_name = interaction.command.name
+        else:
+            cmd_name = "WHOA something went wrong"
+
+        self.logger.error(f"{cmd_name}: {error}")
+
+        err_msg = f"Failed to execute command: {error}"
+        if interaction.response.is_done():
+            await interaction.followup.send(err_msg)
+        else:
+            await interaction.response.send_message(err_msg, ephemeral=True)
+
+        await self._log_error(interaction, error)
 
 
 async def setup(bot: commands.Bot) -> None:
