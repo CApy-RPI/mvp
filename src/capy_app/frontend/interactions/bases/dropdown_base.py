@@ -39,24 +39,13 @@ class RightButton(Button["DynamicDropdownView"]):
         """Handle accept button click."""
         assert self.view is not None
         logger.debug("Right button clicked")
-        old_view: DynamicDropdownView = self.view
-        next_page = old_view.page_number + 1
-
-        if next_page >= len(old_view._dropdowns_data):
+        if self.view.page_number + 1 >= len(self.view._dropdowns_data):
             logger.debug("Already on last page")
             await interaction.response.defer()
             return
 
-        new_view = DynamicDropdownView(
-            dropdowns=old_view._dropdowns_data,
-            page_number=next_page,
-            ephemeral=old_view._ephemeral,
-            buttons=(old_view._auto_buttons, old_view._add_buttons),
-            collection=old_view._collection,
-        )
-        new_view._message = old_view._message  # Maintain message reference
-        new_view.data_future = old_view.data_future
-        await interaction.response.edit_message(view=new_view)
+        await self.view.turn_page(1)
+        await interaction.response.edit_message(view=self.view)
 
 
 class LeftButton(Button["DynamicDropdownView"]):
@@ -71,24 +60,14 @@ class LeftButton(Button["DynamicDropdownView"]):
     async def callback(self, interaction: Interaction) -> None:
         assert self.view is not None
         logger.debug("Left button clicked")
-        old_view: DynamicDropdownView = self.view
-        prev_page = old_view.page_number - 1
 
-        if prev_page < 0:
+        if self.view.page_number - 1 < 0:
             logger.debug("Already on first page")
             await interaction.response.defer()
             return
 
-        new_view = DynamicDropdownView(
-            dropdowns=old_view._dropdowns_data,
-            page_number=prev_page,
-            ephemeral=old_view._ephemeral,
-            buttons=(old_view._auto_buttons, old_view._add_buttons),
-            collection=old_view._collection,
-        )
-        new_view._message = old_view._message  # Maintain message reference
-        new_view.data_future = old_view.data_future
-        await interaction.response.edit_message(view=new_view)
+        await self.view.turn_page(-1)
+        await interaction.response.edit_message(view=self.view)
 
 
 class AcceptButton(Button["DynamicDropdownView"]):
@@ -458,3 +437,13 @@ class DynamicDropdownView(View):
     async def get_data(self) -> tuple[dict[str, list[str]] | None, Message | None]:
         # Wait for data to be set (e.g. via button interaction)
         return await self.data_future
+
+    async def turn_page(self, number):
+        self.page_number += number
+        self.clear_items()
+        self._has_buttons = False
+        if self.page_number < len(self._dropdowns_data):
+            self._add_dropdown(**self._dropdowns_data[self.page_number])
+        else:
+            logger.warning(f"Page number {self.page_number} out of range for dropdowns_data")
+        self._add_accept_cancel_buttons_if_needed()
