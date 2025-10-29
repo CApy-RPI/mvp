@@ -1,0 +1,8 @@
+### Bot Onboarding Flow
+
+Access: first available channel (admin only command /setup)
+
+1. announcement channel
+2. admin role -> certain actions
+3. link to docs
+4. run /help for help! 

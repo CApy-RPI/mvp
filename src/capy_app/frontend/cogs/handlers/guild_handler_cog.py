@@ -6,6 +6,7 @@ import discord
 from backend.db.database import Database
 from backend.db.documents.guild import Guild
 from discord.ext import commands
+from frontend.onboarding.onboarding_manager import OnboardingConfig, OnboardingManager
 
 
 class GuildHandlerCog(commands.Cog):
@@ -19,6 +20,7 @@ class GuildHandlerCog(commands.Cog):
         """
         self.bot = bot
         self.logger = logging.getLogger(f"discord.cog.{self.__class__.__name__.lower()}")
+        self.onboarding = OnboardingManager(OnboardingConfig.from_settings())
 
     @staticmethod
     async def ensure_guild_exists(guild_id: int) -> Guild:
@@ -45,6 +47,11 @@ class GuildHandlerCog(commands.Cog):
         """
         self.logger.info(f"Joined guild: {guild.name} ({guild.id})")
         await self.ensure_guild_exists(guild.id)
+        # Kick off onboarding (best-effort; do not fail join flow)
+        try:
+            await self.onboarding.handle_guild_join(guild)
+        except Exception as e:
+            self.logger.error(f"Onboarding error: {e}")
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: discord.Guild) -> None:
