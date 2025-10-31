@@ -71,11 +71,11 @@ class SuggestionView(discord.ui.View):
 
     @discord.ui.button(label="Try Again", style=discord.ButtonStyle.primary)
     async def retry_button(self, interaction: discord.Interaction, _button: discord.ui.Button[Any]):
-        """Reject suggestions and return to form with original invalid input."""
+        """Reject suggestions and return to form with all data except majors."""
         self.accepted = False
-        # Keep the original input in retry_data so user can see what they typed
-        invalid_data = {"major(s)": self.profile_data.get("major(s)", "")}
-        await self.parent_cog.handle_profile(interaction, self.action, retry_data=invalid_data)
+        # Keep all profile data EXCEPT the major field - user needs to re-enter majors
+        retry_data = {k: v for k, v in self.profile_data.items() if k != "major(s)"}
+        await self.parent_cog.handle_profile(interaction, self.action, retry_data=retry_data)
         self.stop()
 
 
