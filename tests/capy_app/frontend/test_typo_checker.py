@@ -99,11 +99,14 @@ def test_fuzzy_match_mixed_valid_and_typos(major_handler):
 def test_validate_majors_with_corrections_tracking(major_handler):
     """Test that corrections are properly tracked."""
     input_majors = ["Compter Science", "Physics"]
-    all_valid, valid_majors, invalid_majors, corrections = major_handler.validate_majors_with_corrections(input_majors)
+    all_valid, valid_majors, invalid_majors, auto_corrections, suggestions = (
+        major_handler.validate_majors_with_corrections(input_majors)
+    )
 
     assert all_valid is True
     assert "Computer Science" in valid_majors
     assert "Physics" in valid_majors
-    assert "Compter Science" in corrections
-    assert corrections["Compter Science"] == "Computer Science"
+    assert "Compter Science" in auto_corrections
+    assert auto_corrections["Compter Science"] == "Computer Science"
     assert invalid_majors == []
+    assert suggestions == {}

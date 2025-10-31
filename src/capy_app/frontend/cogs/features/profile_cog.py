@@ -48,6 +48,37 @@ class TryAgainView(discord.ui.View):
         self.stop()
 
 
+class SuggestionView(discord.ui.View):
+    """View for confirming suggested major corrections."""
+
+    def __init__(self, parent_cog, action, profile_data, suggestions, validated_majors):
+        super().__init__(timeout=60)
+        self.parent_cog = parent_cog
+        self.action = action
+        self.profile_data = profile_data
+        self.suggestions = suggestions
+        self.validated_majors = validated_majors
+        self.accepted = False
+
+    @discord.ui.button(label="Accept Suggestions", style=discord.ButtonStyle.success)
+    async def accept_button(self, _interaction: discord.Interaction, _button: discord.ui.Button[Any]):
+        """Accept the suggested corrections and continue with profile."""
+        self.accepted = True
+        # Apply the suggestions to validated_majors
+        for _original, suggested in self.suggestions.items():
+            self.validated_majors.append(suggested)
+        self.stop()
+
+    @discord.ui.button(label="Try Again", style=discord.ButtonStyle.primary)
+    async def retry_button(self, interaction: discord.Interaction, _button: discord.ui.Button[Any]):
+        """Reject suggestions and return to form with original invalid input."""
+        self.accepted = False
+        # Keep the original input in retry_data so user can see what they typed
+        invalid_data = {"major(s)": self.profile_data.get("major(s)", "")}
+        await self.parent_cog.handle_profile(interaction, self.action, retry_data=invalid_data)
+        self.stop()
+
+
 class ProfileCog(commands.Cog):
     """Profile management cog for handling user profiles."""
 
@@ -258,37 +289,11 @@ class ProfileCog(commands.Cog):
             return
         profile_data, message = prepared
 
-        # Process majors from form input
-        majors_text = profile_data.get("major(s)", "").strip()
-        processed_majors = self.process_majors_from_text(majors_text)
-
-        # Validate and normalize majors with fuzzy matching for typos
-        all_valid, validated_majors, invalid_majors, corrections = self.major_handler.validate_majors_with_corrections(
-            processed_majors
-        )
-
-        # Use the validated majors (with correct casing from majors.txt)
-        majors_string = ", ".join(validated_majors) if validated_majors else ""
-
-        self.logger.info(
-            f"Processed majors: '{majors_text}' -> {processed_majors} -> "
-            f"validated: {validated_majors} -> '{majors_string}'"
-        )
-
-        # Show corrections to user if any typos were auto-corrected
-        if corrections:
-            correction_msg = "✅ **Auto-corrected typos:**\n"
-            for original, corrected in corrections.items():
-                correction_msg += f"  • '{original}' → '{corrected}'\n"
-            await message.edit(content=correction_msg)
-            await message.channel.send("Continuing with profile...", delete_after=2)
-
-        # Show error if any majors were invalid
-        if invalid_majors:
-            error_msg = self.major_handler.get_validation_error_message(invalid_majors)
-            error_msg += "\nPlease check your spelling and try again."
-            await message.edit(content=error_msg)
-            return
+        # Process and validate majors
+        majors_result = await self._process_and_validate_majors(profile_data, message, action)
+        if majors_result is None:
+            return  # Validation failed or user needs to retry
+        majors_string = majors_result
 
         # Process email verification after form submission
         if not await self._process_email_verification(message, user, profile_data):
@@ -300,6 +305,99 @@ class ProfileCog(commands.Cog):
             profile_data,
             {"majors_string": majors_string, "user": user, "message": message},
         )
+
+    async def _process_and_validate_majors(
+        self, profile_data: dict[str, str], message: discord.Message, action: str
+    ) -> str | None:
+        """Process and validate majors, handling auto-corrections and suggestions.
+
+        Returns the validated majors string if successful, or None if validation failed.
+        """
+        # Process majors from form input
+        majors_text = profile_data.get("major(s)", "").strip()
+        processed_majors = self.process_majors_from_text(majors_text)
+
+        # Validate and normalize majors with fuzzy matching for typos
+        all_valid, validated_majors, invalid_majors, auto_corrections, suggestions = (
+            self.major_handler.validate_majors_with_corrections(processed_majors)
+        )
+
+        # Use the validated majors (with correct casing from majors.txt)
+        majors_string = ", ".join(validated_majors) if validated_majors else ""
+
+        self.logger.info(
+            f"Processed majors: '{majors_text}' -> {processed_majors} -> "
+            f"validated: {validated_majors} -> '{majors_string}'"
+        )
+
+        # Show auto-corrections to user if any typos were auto-corrected (score >= 90%)
+        if auto_corrections:
+            await self._show_auto_corrections(message, auto_corrections)
+
+        # Handle suggestions (60-90% confidence) - need user confirmation
+        if suggestions:
+            suggestion_result = await self._handle_suggestions(
+                message, action, profile_data, suggestions, validated_majors
+            )
+            if suggestion_result is None:
+                return None  # User clicked Try Again
+            majors_string = suggestion_result
+
+        # Show error if any majors were invalid
+        if invalid_majors:
+            error_msg = self.major_handler.get_validation_error_message(invalid_majors)
+            error_msg += "\nPlease check your spelling and try again."
+            await message.edit(content=error_msg)
+            return None
+
+        return majors_string
+
+    async def _show_auto_corrections(self, message: discord.Message, auto_corrections: dict[str, str]) -> None:
+        """Display auto-corrected typos to the user."""
+        correction_msg = "✅ **Auto-corrected typos:**\n"
+        for original, corrected in auto_corrections.items():
+            correction_msg += f"  • '{original}' → '{corrected}'\n"
+        await message.edit(content=correction_msg)
+        await message.channel.send("Continuing with profile...", delete_after=2)
+
+    async def _handle_suggestions(
+        self,
+        message: discord.Message,
+        action: str,
+        profile_data: dict[str, str],
+        suggestions: dict[str, str],
+        validated_majors: list[str],
+    ) -> str | None:
+        """Handle major suggestions that need user confirmation.
+
+        Returns the validated majors string if accepted, or None if user wants to retry.
+        """
+        suggestion_msg = "❓ **Did you mean:**\n"
+        for original, suggested in suggestions.items():
+            suggestion_msg += f"  • '{original}' → '{suggested}'?\n"
+        suggestion_msg += "\nPlease choose an option below:"
+
+        # Create view with Accept and Try Again buttons
+        view = SuggestionView(self, action, profile_data, suggestions, validated_majors)
+        await message.edit(content=suggestion_msg, view=view)
+
+        # Wait for user to click a button
+        await view.wait()
+
+        # If user accepted suggestions, continue with the updated validated_majors
+        if view.accepted:
+            # Update majors_string with the newly added suggestions
+            majors_string = ", ".join(view.validated_majors) if view.validated_majors else ""
+            self.logger.info(f"User accepted suggestions. Final majors: {view.validated_majors}")
+            # Continue with profile processing
+            await message.edit(
+                content="✅ Suggestions accepted. Continuing with profile...",
+                view=None,
+            )
+            return majors_string
+
+        # User clicked Try Again - already handled by the button callback
+        return None
 
     async def _prepare_profile_data(
         self,

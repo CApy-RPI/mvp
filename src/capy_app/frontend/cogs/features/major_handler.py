@@ -181,31 +181,36 @@ class MajorHandler:
                 valid_majors.append(title_cased)
             else:
                 # Try fuzzy matching to handle typos
-                best_match = self._find_fuzzy_match(major_stripped)
-                if best_match:
+                match_result = self._find_fuzzy_match(major_stripped)
+                if match_result:
+                    best_match, score = match_result
                     valid_majors.append(best_match)
-                    logger.info(f"Fuzzy matched '{major_stripped}' to '{best_match}'")
+                    logger.info(f"Fuzzy matched '{major_stripped}' to '{best_match}' (score: {score:.1f}%)")
                 else:
                     invalid_majors.append(major_stripped)
 
         all_valid = len(invalid_majors) == 0
         return all_valid, valid_majors, invalid_majors
 
-    def _find_fuzzy_match(self, input_major: str) -> str | None:
+    def _find_fuzzy_match(self, input_major: str) -> tuple[str, float] | None:
         """Find the best fuzzy match for a major using rapidfuzz.
 
         Args:
             input_major: The major name to find a match for
 
         Returns:
-            The matched major name if found, None otherwise
+            A tuple of (matched_major, score) if found, None otherwise
         """
         if not self.major_list:
             return None
 
+        # Normalize input to title case for case-insensitive fuzzy matching
+        # This improves matching accuracy since the major list is in title case
+        normalized_input = self._smart_title_case(input_major)
+
         # Use process.extractOne to find the best match
         result = process.extractOne(
-            input_major,
+            normalized_input,
             self.major_list,
             scorer=fuzz.ratio,
             score_cutoff=SUGGESTION_THRESHOLD,
@@ -215,28 +220,30 @@ class MajorHandler:
             matched_major: str = result[0]  # Extract the matched string explicitly
             score: float = result[1]
             logger.debug(f"Fuzzy match for '{input_major}': '{matched_major}' (score: {score})")
-            return matched_major
+            return matched_major, score
 
         return None
 
     def validate_majors_with_corrections(
         self, input_majors: list[str]
-    ) -> tuple[bool, list[str], list[str], dict[str, str]]:
-        """Validate majors and track which ones were auto-corrected.
+    ) -> tuple[bool, list[str], list[str], dict[str, str], dict[str, str]]:
+        """Validate majors and track which ones were auto-corrected vs suggested.
 
         Args:
             input_majors: List of major names to validate
 
         Returns:
             A tuple containing:
-            - bool: True if all majors are valid/corrected, False if any invalid
+            - bool: True if all majors are valid/corrected, False if any invalid or need confirmation
             - list[str]: List of valid majors in smart title case format
             - list[str]: List of invalid majors from the input
-            - dict[str, str]: Mapping of original input -> corrected major
+            - dict[str, str]: Mapping of original input -> auto-corrected major (score >= 90%)
+            - dict[str, str]: Mapping of original input -> suggested major (60% <= score < 90%)
         """
         valid_majors = []
         invalid_majors = []
-        corrections = {}
+        auto_corrections = {}
+        suggestions = {}
 
         # Create a case-insensitive lookup dictionary for valid majors
         major_lookup = {major.lower(): major for major in self.major_list}
@@ -254,16 +261,24 @@ class MajorHandler:
                 valid_majors.append(title_cased)
             else:
                 # Try fuzzy matching to handle typos
-                best_match = self._find_fuzzy_match(major_stripped)
-                if best_match:
-                    valid_majors.append(best_match)
-                    corrections[major_stripped] = best_match
-                    logger.info(f"Auto-corrected '{major_stripped}' to '{best_match}'")
+                match_result = self._find_fuzzy_match(major_stripped)
+                if match_result:
+                    best_match, score = match_result
+                    if score >= AUTO_CORRECT_THRESHOLD:
+                        # Auto-correct with high confidence
+                        valid_majors.append(best_match)
+                        auto_corrections[major_stripped] = best_match
+                        logger.info(f"Auto-corrected '{major_stripped}' to '{best_match}' (score: {score:.1f}%)")
+                    else:
+                        # Suggest correction for moderate confidence
+                        suggestions[major_stripped] = best_match
+                        logger.info(f"Suggesting '{major_stripped}' -> '{best_match}' (score: {score:.1f}%)")
                 else:
                     invalid_majors.append(major_stripped)
 
-        all_valid = len(invalid_majors) == 0
-        return all_valid, valid_majors, invalid_majors, corrections
+        # If there are suggestions, we need user confirmation
+        all_valid = len(invalid_majors) == 0 and len(suggestions) == 0
+        return all_valid, valid_majors, invalid_majors, auto_corrections, suggestions
 
     def get_validation_error_message(self, invalid_majors: list[str]) -> str:
         """Generate a user-friendly error message for invalid majors.
