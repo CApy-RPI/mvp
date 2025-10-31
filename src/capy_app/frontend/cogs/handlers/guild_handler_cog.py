@@ -8,6 +8,8 @@ from backend.db.documents.guild import Guild
 from discord.ext import commands
 from frontend.onboarding.onboarding_manager import OnboardingConfig, OnboardingManager
 
+from config import settings
+
 
 class GuildHandlerCog(commands.Cog):
     """A cog for handling guild joins and database management."""
@@ -49,6 +51,11 @@ class GuildHandlerCog(commands.Cog):
         await self.ensure_guild_exists(guild.id)
         # Kick off onboarding (best-effort; do not fail join flow)
         try:
+            if settings.DEBUG_GUILD_ID:
+                self.logger.info(f"Connected to debug guild {settings.DEBUG_GUILD_ID}")
+                synced = await self.bot.tree.sync(guild=self.bot.get_guild(settings.DEBUG_GUILD_ID))
+                self.logger.info(f"Synced {len(synced)} application commands")
+
             await self.onboarding.handle_guild_join(guild)
         except Exception as e:
             self.logger.error(f"Onboarding error: {e}")

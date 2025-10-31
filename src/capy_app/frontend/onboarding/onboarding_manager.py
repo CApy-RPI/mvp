@@ -126,6 +126,9 @@ class OnboardingManager:
 
     def _build_intro_description(self) -> str:
         lines: list[str] = []
+        # Nudge admins to run the integrated setup flow
+        lines.append("Welcome to Capy — let's get onboarded!")
+        lines.append("Run `/server setup` to get started.")
         lines.append(self.cfg.message)
 
         if self.cfg.require_manage_guild:
