@@ -442,8 +442,5 @@ class DynamicDropdownView(View):
         self.page_number += number
         self.clear_items()
         self._has_buttons = False
-        if self.page_number < len(self._dropdowns_data):
-            self._add_dropdown(**self._dropdowns_data[self.page_number])
-        else:
-            logger.warning(f"Page number {self.page_number} out of range for dropdowns_data")
+        self._add_dropdown(**self._dropdowns_data[self.page_number])
         self._add_accept_cancel_buttons_if_needed()
