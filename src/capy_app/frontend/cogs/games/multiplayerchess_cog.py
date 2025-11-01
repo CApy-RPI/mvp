@@ -1,3 +1,4 @@
+# ruff: noqa
 import logging
 
 import discord
@@ -18,20 +19,33 @@ white_king_moved = False
 """
 rank8 = 0
 rank7 = 1
-# rank6 = 2
+rank6 = 2
 rank5 = 3
 rank4 = 4
-# rank3 = 5
+rank3 = 5
 rank2 = 6
 rank1 = 7
 column1 = 0
-# column2 = 1
-# column3 = 2
-# column4 = 3
-# column5 = 4
-# column6 = 5
-# column7 = 6
+column2 = 1
+column3 = 2
+column4 = 3
+column5 = 4
+column6 = 5
+column7 = 6
 column8 = 7
+num_ranks = 8
+ranks = [-1, rank1, rank2, rank3, rank4, rank5, rank6, rank7, rank8]
+columns = [
+    -1,
+    column1,
+    column2,
+    column3,
+    column4,
+    column5,
+    column6,
+    column7,
+    column8,
+]
 # dictionary to track move history
 Move = tuple[str, tuple[int, int], tuple[int, int]]
 moves: dict[int, Move] = {}
@@ -59,6 +73,15 @@ def path_clear(board, start, end):
     return True
 
 
+# returns the piece at the given location of the board
+def get_piece_at(board, location):
+    if location[0] < 0 or location[0] > num_ranks - 1:
+        return "X"
+    if location[1] < 0 or location[1] > num_ranks - 1:
+        return "X"
+    return board[location[0], location[1]]
+
+
 # returns opposite color of given color
 def opponent_color(color):
     return "black" if color == "white" else "white"
@@ -79,16 +102,249 @@ def on_board(pos):
     return rank8 <= r <= rank1 and column1 <= c <= column8
 
 
+# returns the number associated with the letter of a column
+def col_to_num(letter):
+    moves: dict[str, int] = {}
+    moves["a"] = 0
+    moves["b"] = 1
+    moves["c"] = 2
+    moves["d"] = 3
+    moves["e"] = 4
+    moves["f"] = 5
+    moves["g"] = 6
+    moves["h"] = 7
+    return moves.get(letter)
+
+
+# returns piece, start, end if notation valid
+# else returns False, False, False
+def knight_parser(msg, turn, color, start, end):
+    # most cases
+    if msg.size() == 3:
+        end = [col_to_num(msg[1]), ranks[int(msg[2])]]
+        for i in [1, 2, -1, -2]:
+            for j in [1, 2, -1, -2]:
+                if (get_piece_at(end[0] + i, end[1] + j) == "♞" and same_color("♞", color) and abs(i) != abs(j)) or (
+                    get_piece_at(end[0] + i, end[1] + j) == "♘" and same_color("♘", color) and abs(i) != abs(j)
+                ):
+                    start = [end[0] + i, end[1] + j]
+    # case: knights on same rank or column reachable to end
+    # Example: Nfd2 or N3d2
+    if msg.size() == 4 and "x" not in msg:
+        end = [col_to_num(msg[2]), ranks[int(msg[3])]]
+        if msg[1].isdigit():
+            # there is a knight on same column that can reach end
+            knight_row = ranks[msg[1]]
+            for i in [1, 2, -1, -2]:
+                for j in [1, 2, -1, -2]:
+                    if (
+                        get_piece_at(end[0] + i, end[1] + j) == "♞"
+                        and same_color("♞", color)
+                        and knight_row == end[0] + i
+                        and abs(i) != abs(j)
+                    ) or (
+                        get_piece_at(end[0] + i, end[1] + j) == "♘"
+                        and same_color("♘", color)
+                        and knight_row == end[0] + i
+                        and abs(i) != abs(j)
+                    ):
+                        start = [end[0] + i, end[1] + j]
+        if msg[1].isalpha():
+            # there is a knight on same rank that can reach end
+            knight_col = columns[msg[1]]
+            for i in [1, 2, -1, -2]:
+                for j in [1, 2, -1, -2]:
+                    if (
+                        get_piece_at(end[0] + i, end[1] + j) == "♞"
+                        and same_color("♞", color)
+                        and knight_col == end[1] + j
+                        and abs(i) != abs(j)
+                    ) or (
+                        get_piece_at(end[0] + i, end[1] + j) == "♘"
+                        and same_color("♘", color)
+                        and knight_col == end[1] + j
+                        and abs(i) != abs(j)
+                    ):
+                        start = [end[0] + i, end[1] + j]
+    # rare case: knights on same rank AND same column reachable to end
+    # Example: Nf3d2
+    if msg.size() == 5 and "x" not in msg:
+        knight_row = ranks[msg[2]]
+        knight_col = col_to_num(msg[1])
+        start = [knight_row, knight_col]
+    # case: knight takes
+    # Example: Nxd2
+    if msg.size() == 4:
+        end = [col_to_num(msg[1]), ranks[int(msg[2])]]
+        for i in [1, 2, -1, -2]:
+            for j in [1, 2, -1, -2]:
+                if (get_piece_at(end[0] + i, end[1] + j) == "♞" and same_color("♞", color) and abs(i) != abs(j)) or (
+                    get_piece_at(end[0] + i, end[1] + j) == "♘" and same_color("♘", color) and abs(i) != abs(j)
+                ):
+                    start = [end[0] + i, end[1] + j]
+        end = [col_to_num(msg[2]), ranks[int(msg[3])]]
+    # case: knight takes and (knights on same rank or column reachable to end)
+    # Example: Nfxd2 or N3xd2
+    if msg.size() == 5:
+        end = [col_to_num(msg[3]), ranks[int(msg[4])]]
+        if msg[1].isdigit():
+            # there is a knight on same column that can reach end
+            knight_row = ranks[msg[1]]
+            for i in [1, 2, -1, -2]:
+                for j in [1, 2, -1, -2]:
+                    if (
+                        get_piece_at(end[0] + i, end[1] + j) == "♞"
+                        and same_color("♞", color)
+                        and knight_row == end[0] + i
+                        and abs(i) != abs(j)
+                    ) or (
+                        get_piece_at(end[0] + i, end[1] + j) == "♘"
+                        and same_color("♘", color)
+                        and knight_row == end[0] + i
+                        and abs(i) != abs(j)
+                    ):
+                        start = [end[0] + i, end[1] + j]
+        if msg[1].isalpha():
+            # there is a knight on same rank that can reach end
+            knight_col = columns[msg[1]]
+            for i in [1, 2, -1, -2]:
+                for j in [1, 2, -1, -2]:
+                    if (
+                        get_piece_at(end[0] + i, end[1] + j) == "♞"
+                        and same_color("♞", color)
+                        and knight_col == end[1] + j
+                        and abs(i) != abs(j)
+                    ) or (
+                        get_piece_at(end[0] + i, end[1] + j) == "♘"
+                        and same_color("♘", color)
+                        and knight_col == end[1] + j
+                        and abs(i) != abs(j)
+                    ):
+                        start = [end[0] + i, end[1] + j]
+    # rare case: knight takes and (knights on same rank AND same column reachable to end)
+    # Example: Nf3xd2
+    if msg.size() == 6:
+        end = [col_to_num(msg[4]), int(msg[5])]
+        knight_row = ranks[msg[2]]
+        knight_col = col_to_num(msg[1])
+        start = [knight_row, knight_col]
+
+    # return info
+    if start[0] == -1 or end[0] == -1:
+        return False, False, False
+    return (
+        "♘" if color == "black" else "♞",
+        start,
+        end,
+    )
+
+
+# returns piece, start, end if notation valid
+# else returns False, False, False
+def king_parser(msg, turn, color, start, end):
+    # case: King move
+    # Example: Ke2
+    if "x" not in msg:
+        end = [col_to_num(msg[1]), ranks[int(msg[2])]]
+    # case: King takes
+    # Example: Kxe2
+    if "x" in msg:
+        end = [col_to_num(msg[1]), ranks[int(msg[2])]]
+
+    # find start
+    for i in [1, 0, -1]:
+        for j in [1, 0, -1]:
+            if (get_piece_at(end[0] + i, end[1] + j) == "♚" and same_color("♚", color) and not (i == 0 and j == 0)) or (
+                get_piece_at(end[0] + i, end[1] + j) == "♔" and same_color("♔", color) and not (i == 0 and j == 0)
+            ):
+                start = [end[0] + i, end[1] + j]
+    # return info
+    if start[0] == -1 or end[0] == -1:
+        return False, False, False
+    return (
+        "♔" if color == "black" else "♚",
+        start,
+        end,
+    )
+
+
+# returns piece, start, end if notation valid
+# else returns False, False, False
+def queen_parser(msg, turn, color, start, end):
+    return "♔", start, end
+
+
+# returns piece, start, end if notation valid
+# else returns False, False, False
+def bishop_parser(msg, turn, color, start, end):
+    return "♔", start, end
+
+
+# returns piece, start, end if notation valid
+# else returns False, False, False
+def rook_parser(msg, turn, color, start, end):
+    return "♔", start, end
+
+
+# returns piece, start, end if notation valid
+# else returns False, False, False
+def pawn_parser(msg, turn, color, start, end):
+    return "♔", start, end
+
+
 # TODO:
 # parse the chess notation to obtain piece, start location, end location
 # returns (False, False, False) if given string is NOT in valid notation form,
 # otherwise returns piece, start location, end location
-def parse_notation(msg):
-    # if notation is valid
+def parse_notation(msg, turn):
+    color = "white" if turn % 2 == 0 else "black"
+    start, end = [-1, -1]
+    piece, start, end = False, False, False
+    # castling
+    if msg == "O-O":
+        return (
+            "♔",
+            [rank8, column5],
+            [rank8, column7] if color == "black" else "♚",
+            [rank1, column5],
+            [rank1, column7],
+        )
+    elif msg == "O-O-O":
+        return (
+            "♔",
+            [rank8, column5],
+            [rank8, column3] if color == "black" else "♚",
+            [rank1, column5],
+            [rank1, column3],
+        )
+    # Knight
+    elif msg[0] == "N":
+        piece, start, end = knight_parser(msg, turn, color, start, end)
 
-    # subtract 1 from location(s)
-    # since in CS we count from 0
-    return msg
+    # King
+    elif msg[0] == "K":
+        piece, start, end = king_parser(msg, turn, color, start, end)
+
+    # Queen
+    elif msg[0] == "Q":
+        piece, start, end = queen_parser(msg, turn, color, start, end)
+
+    # Bishop
+    elif msg[0] == "B":
+        piece, start, end = bishop_parser(msg, turn, color, start, end)
+
+    # Rook
+    elif msg[0] == "R":
+        piece, start, end = rook_parser(msg, turn, color, start, end)
+
+    # pawn
+    elif msg[0] in ["a", "b", "c", "d", "e", "f", "g", "h"]:
+        piece, start, end = pawn_parser(msg, turn, color, start, end)
+
+    else:
+        return False, False, False
+
+    return piece, start, end
 
 
 # TODO:
@@ -270,7 +526,7 @@ class MultiChess(commands.Cog):
         )
 
         def check(msg: discord.Message):
-            parsed = parse_notation(msg.content)
+            parsed = parse_notation(msg.content, turn)
             msg_options = ["draw?", "accept", "decline", "resign"]
             color = "white" if turn % 2 == 0 else "black"
             return (
@@ -278,7 +534,7 @@ class MultiChess(commands.Cog):
                 msg.author == players[turn % 2]  # correct player sent the msg
                 and msg.channel == interaction.channel  # channel is correct
                 and (  # if notation, check notation validity
-                    msg.content in msg_options or parse_notation(msg.content)[0]
+                    msg.content in msg_options or parse_notation(msg.content, turn)[0]
                 )
                 and is_move_legal(board, turn, parsed[0], color, parsed[1], parsed[2])  # move must be legal
             )
