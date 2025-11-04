@@ -77,31 +77,53 @@ class GuildCog(commands.Cog):
         else:
             await interaction.response.send_message(content or "", ephemeral=True)
 
-    async def _verify_guild_access(
-        self, interaction: discord.Interaction, require_manage: bool = False
-    ) -> tuple[bool, str]:
-        """Verify guild access and permissions."""
+    async def _verify_guild_access(self, interaction: discord.Interaction) -> tuple[bool, str]:
+        """Verify the user is allowed to run server commands.
+
+        Allowed if the invoker either:
+        - Has the Discord Administrator permission, or
+        - Holds the configured Admin role in guild settings.
+        """
         self.logger.debug(
-            "verify_access: user=%s guild=%s require_manage=%s",
+            "verify_access: user=%s guild=%s",
             getattr(interaction.user, "id", None),
             getattr(interaction.guild, "id", None),
-            require_manage,
         )
         if not isinstance(interaction.guild, discord.Guild):
             self.logger.info("verify_access: failed (not in guild)")
             return False, "This command can only be used in a server."
-
-        if require_manage and not interaction.user.guild_permissions.manage_guild:
-            self.logger.info("verify_access: failed (missing Manage Server)")
-            return False, "You need 'Manage Server' permission to modify settings."
 
         guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
         if not guild_data:
             self.logger.warning("verify_access: failed (no guild_data)")
             return False, "Failed to access guild settings."
 
-        self.logger.debug("verify_access: ok")
-        return True, ""
+        # Allow Discord administrators
+        try:
+            if getattr(interaction.user.guild_permissions, "administrator", False):
+                self.logger.debug("verify_access: ok (administrator)")
+                return True, ""
+        except Exception:
+            pass
+
+        # Allow members with the configured Admin role
+        admin_role_id_str: str | None = getattr(getattr(guild_data, "roles", None), "admin", None)
+        if admin_role_id_str and isinstance(interaction.user, discord.Member):
+            try:
+                admin_role_id = int(admin_role_id_str)
+                if any(r.id == admin_role_id for r in interaction.user.roles):
+                    self.logger.debug("verify_access: ok (admin role)")
+                    return True, ""
+            except Exception:
+                # If role id is not an integer or any other issue, treat as not present
+                self.logger.debug("verify_access: admin role not valid/assigned")
+
+        self.logger.info(
+            "verify_access: failed (no admin permission or role) user=%s guild=%s",
+            getattr(interaction.user, "id", None),
+            getattr(interaction.guild, "id", None),
+        )
+        return False, "Only administrators or members with the configured Admin role may run server commands."
 
     async def _process_settings_selection(
         self,
@@ -194,12 +216,13 @@ class GuildCog(commands.Cog):
             getattr(interaction.user, "id", None),
             getattr(interaction.guild, "id", None),
         )
-        access_ok, error_msg = await self._verify_guild_access(
-            interaction, require_manage=(action in ["setup", "edit", "clear"])
-        )
-        # if not access_ok:
-        #     await interaction.edit_original_response(content=error_msg)
-        #     return
+        access_ok, error_msg = await self._verify_guild_access(interaction)
+        if not access_ok:
+            if interaction.response.is_done():
+                await interaction.edit_original_response(content=error_msg)
+            else:
+                await interaction.response.send_message(error_msg, ephemeral=True)
+            return
 
         try:
             guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
@@ -234,6 +257,13 @@ class GuildCog(commands.Cog):
 
     async def setup_flow(self, interaction: discord.Interaction) -> None:
         """Guided onboarding with ephemeral dropdowns for channels and roles."""
+        access_ok, error_msg = await self._verify_guild_access(interaction)
+        if not access_ok:
+            if interaction.response.is_done():
+                await interaction.edit_original_response(content=error_msg)
+            else:
+                await interaction.response.send_message(error_msg, ephemeral=True)
+            return
         intro = (
             "Welcome to Capy — let's get onboarded!\n\n"
             "You'll configure the required channels and roles Capy uses.\n\n"
