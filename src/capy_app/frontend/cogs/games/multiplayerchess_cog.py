@@ -244,12 +244,12 @@ def knight_parser(msg, turn, color, start, end):
 def king_parser(msg, turn, color, start, end):
     # case: King move
     # Example: Ke2
-    if "x" not in msg:
+    if "x" not in msg and msg.size() == 3:
         end = [col_to_num(msg[1]), ranks[int(msg[2])]]
     # case: King takes
     # Example: Kxe2
-    if "x" in msg:
-        end = [col_to_num(msg[1]), ranks[int(msg[2])]]
+    if "x" in msg and msg.size() == 4:
+        end = [col_to_num(msg[2]), ranks[int(msg[3])]]
 
     # find start
     for i in [1, 0, -1]:
@@ -271,7 +271,95 @@ def king_parser(msg, turn, color, start, end):
 # returns piece, start, end if notation valid
 # else returns False, False, False
 def queen_parser(msg, turn, color, start, end):
-    return "♔", start, end
+    start = [-1, -1]
+    end = [-1, -1]
+    directions = [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+        [1, 1],
+        [1, -1],
+        [-1, 1],
+        [-1, -1],
+    ]
+    # case: Queen move
+    # Example: Qe2
+    # case: Queen takes
+    # Example: Qxe2
+    if ("x" in msg and msg.size() == 4) or ("x" not in msg and msg.size() == 3):
+        if "x" in msg and msg.size() == 4:
+            end = [col_to_num(msg[2]), ranks[int(msg[3])]]
+        if "x" not in msg and msg.size() == 3:
+            end = [col_to_num(msg[1]), ranks[int(msg[2])]]
+        # find all squares queen can reach from end
+        reachable = []
+        for dx, dy in directions:
+            cx, cy = end[0] + dx, end[1] + dy
+            while 0 <= cx < num_ranks and 0 <= cy < num_ranks:
+                reachable.append([cx, cy])
+                cx += dx
+                cy += dy
+        for square in reachable:
+            if (get_piece_at(square[0], square[1]) == "♛" and same_color("♛", color)) or (
+                get_piece_at(square[0], square[1]) == "♕" and same_color("♕", color)
+            ):
+                start = square
+
+    # rare case: Queen moves (multiple queens can access end)
+    # Example: Qce4 or Q4e4
+    # rare case: Queen takes (multiple queens can access end)
+    # Example: Qcxe4 or Q4xe4
+    if ("x" in msg and msg.size() == 5) or ("x" not in msg and msg.size() == 4):
+        if "x" in msg and msg.size() == 5:
+            end = [col_to_num(msg[3]), ranks[int(msg[4])]]
+        if "x" not in msg and msg.size() == 4:
+            end = [col_to_num(msg[2]), ranks[int(msg[3])]]
+        # find all squares queen can reach from end
+        reachable = []
+        for dx, dy in directions:
+            cx, cy = end[0] + dx, end[1] + dy
+            while 0 <= cx < num_ranks and 0 <= cy < num_ranks:
+                reachable.append([cx, cy])
+                cx += dx
+                cy += dy
+        if msg[1].isalpha():
+            start[0] = col_to_num(msg[1])
+            for square in reachable:
+                if square[0] == start[0] and (
+                    (get_piece_at(square[0], square[1]) == "♛" and same_color("♛", color))
+                    or (get_piece_at(square[0], square[1]) == "♕" and same_color("♕", color))
+                ):
+                    start[1] = square[1]
+        if msg[1].isdigit():
+            start[1] = ranks[msg[1]]
+            for square in reachable:
+                if square[1] == start[1] and (
+                    (get_piece_at(square[0], square[1]) == "♛" and same_color("♛", color))
+                    or (get_piece_at(square[0], square[1]) == "♕" and same_color("♕", color))
+                ):
+                    start[0] = square[0]
+    # rare case: Queen takes (Queens on same rank and column reachable to end)
+    # Example: Qg4xe2
+    # rare case: Queen moves (Queens on same rank and column reachable to end)
+    # Example: Qg4e2
+    if ("x" in msg and msg.size() == 6) or ("x" not in msg and msg.size() == 5):
+        if "x" in msg and msg.size() == 6:
+            end = [col_to_num(msg[4]), ranks[int(msg[5])]]
+            start = [col_to_num(msg[1]), ranks[int(msg[2])]]
+        if "x" not in msg and msg.size() == 5:
+            end = [col_to_num(msg[3]), ranks[int(msg[4])]]
+            start = [col_to_num(msg[1]), ranks[int(msg[2])]]
+
+    # return
+    if start[0] == -1 or end[0] == -1:
+        return False, False, False
+
+    return (
+        "♕" if color == "black" else "♛",
+        start,
+        end,
+    )
 
 
 # returns piece, start, end if notation valid
