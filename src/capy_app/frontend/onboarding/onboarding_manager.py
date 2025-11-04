@@ -74,6 +74,43 @@ class OnboardingManager:
                         ephemeral=True,
                     )
 
+    class SetupServerView(discord.ui.View):
+        """View that offers a button to start the server setup flow."""
+
+        def __init__(self, docs_url: str | None, require_manage: bool) -> None:
+            super().__init__(timeout=600)
+            self.require_manage = require_manage
+            if docs_url:
+                self.add_item(discord.ui.Button(label="Setup Guide", url=docs_url))
+
+        @discord.ui.button(label="Start Server Setup", style=discord.ButtonStyle.primary)
+        async def start_setup(self, interaction: discord.Interaction, _button: discord.ui.Button[object]) -> None:  # type: ignore[name-defined]
+            try:
+                # Optional permission gate
+                if self.require_manage and not getattr(interaction.user.guild_permissions, "manage_guild", False):
+                    await interaction.response.send_message(
+                        "Only members with 'Manage Server' can run setup.",
+                        ephemeral=True,
+                    )
+                    return
+
+                cog = interaction.client.get_cog("GuildCog") if interaction.client else None  # type: ignore[attr-defined]
+                if not cog:
+                    await interaction.response.send_message(
+                        "Setup system is unavailable right now. Please try again later.",
+                        ephemeral=True,
+                    )
+                    return
+
+                await cog.setup_flow(interaction)  # type: ignore[attr-defined]
+            except Exception as e:
+                logger.error("Failed to start server setup from onboarding: %s", e)
+                if not interaction.response.is_done():
+                    await interaction.response.send_message(
+                        "Something went wrong starting setup. Try /server setup.",
+                        ephemeral=True,
+                    )
+
     async def handle_guild_join(self, guild: discord.Guild) -> None:
         """Entry point for guild join onboarding.
 
@@ -152,16 +189,13 @@ class OnboardingManager:
                 name="Get Everyone Set Up",
                 value=(
                     f"It looks like about {missing_profiles} member(s) may still need a profile.\n"
-                    "Click the button below to create yours — it opens ephemerally."
+                    "I've sent DMs to members who need one so they can create it."
                 ),
                 inline=False,
             )
 
-        # Build the action view: Setup Guide (URL)
-        view: discord.ui.View = discord.ui.View()
-        if self.cfg.docs_url:
-            view.add_item(discord.ui.Button(label="Setup Guide", url=self.cfg.docs_url))
-        # Keep interactive button only in DM flow to avoid public noise
+        # Build the action view: Start Setup button (+ optional docs URL)
+        view: discord.ui.View = self.SetupServerView(self.cfg.docs_url, self.cfg.require_manage_guild)
 
         try:
             await channel.send(embed=embed, view=view)
