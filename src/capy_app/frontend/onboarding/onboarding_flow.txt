@@ -2,6 +2,8 @@
 
 Access: first available channel (admin only command /setup)
 
+- remove reports
+
 Bot: 
 1. announcement channel
 2. admin role -> certain actions

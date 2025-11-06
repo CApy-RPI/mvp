@@ -66,9 +66,9 @@ class User(RestrictedDocument):
         updated_at: Timestamp of last update
     """
 
-    _id: int = mongoengine.IntField(primary_key=True)
-    guilds: list[int] = mongoengine.ListField(mongoengine.IntField())
-    events: list[int] = mongoengine.ListField(mongoengine.IntField())
+    _id: int = mongoengine.LongField(primary_key=True)
+    guilds: list[int] = mongoengine.ListField(mongoengine.LongField())
+    events: list[int] = mongoengine.ListField(mongoengine.LongField())
     profile: UserProfile = mongoengine.EmbeddedDocumentField(UserProfile, required=True)
     created_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
     updated_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
