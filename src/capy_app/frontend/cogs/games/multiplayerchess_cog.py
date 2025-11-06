@@ -114,19 +114,63 @@ def letter_to_piece(letter, color):
 # assumes the move given is valid
 # returns NONE
 def make_move(board, color, turn, piece, start, end):
-    # TODO:
+    # TODO: check a1 rook moved in is_move_valid
     # check for promotion
     if promotion_type != "X":
         promotion_piece = letter_to_piece(promotion_type, color)
         board[end[0]][end[1]] = promotion_piece
         board[start[0]][start[1]] = ""
+        moves[turn] = ("promotion", tuple(start), tuple(end))
 
     # check for castling
-    # check for en passant
+    elif q_castling and color == "black":
+        # a8 rook moves
+        board[rank8][column1] = ""
+        board[rank8][column4] = "♖"
+        # king moves
+        board[rank8][column5] = ""
+        board[rank8][column3] = "♔"
+        moves[turn] = ("q_castling", tuple(start), tuple(end))
+    elif q_castling and color == "white":
+        # a1 rook moves
+        board[rank1][column1] = ""
+        board[rank1][column4] = "♜"
+        # king moves
+        board[rank1][column5] = ""
+        board[rank1][column3] = "♚"
+        moves[turn] = ("q_castling", tuple(start), tuple(end))
+    elif k_castling and color == "black":
+        # h8 rook moves
+        board[rank8][column8] = ""
+        board[rank8][column6] = "♖"
+        # king moves
+        board[rank8][column5] = ""
+        board[rank8][column7] = "♔"
+        moves[turn] = ("k_castling", tuple(start), tuple(end))
+    elif k_castling and color == "black":
+        # h1 rook moves
+        board[rank1][column8] = ""
+        board[rank1][column6] = "♜"
+        # king moves
+        board[rank1][column5] = ""
+        board[rank1][column7] = "♚"
+        moves[turn] = ("k_castling", tuple(start), tuple(end))
 
-    board[start[0]][start[1]] = ""
-    board[end[0]][end[1]] = piece
-    moves[turn] = (piece, tuple(start), tuple(end))
+    # check for en passant
+    elif en_passant:
+        board[start[0]][start[1]] = ""
+        board[end[0]][end[1]] = piece
+        # pawn taken in en passant removed
+        if color == "black":
+            board[end[0] - 1][end[1]] = ""
+        if color == "white":
+            board[end[0] + 1][end[1]] = ""
+        moves[turn] = ("en passant", tuple(start), tuple(end))
+
+    else:
+        board[start[0]][start[1]] = ""
+        board[end[0]][end[1]] = piece
+        moves[turn] = (piece, tuple(start), tuple(end))
 
 
 # returns true if position pos is on board, else false
@@ -137,16 +181,16 @@ def on_board(pos):
 
 # returns the number associated with the letter of a column
 def col_to_num(letter):
-    moves: dict[str, int] = {}
-    moves["a"] = 0
-    moves["b"] = 1
-    moves["c"] = 2
-    moves["d"] = 3
-    moves["e"] = 4
-    moves["f"] = 5
-    moves["g"] = 6
-    moves["h"] = 7
-    return moves.get(letter)
+    cols: dict[str, int] = {}
+    cols["a"] = 0
+    cols["b"] = 1
+    cols["c"] = 2
+    cols["d"] = 3
+    cols["e"] = 4
+    cols["f"] = 5
+    cols["g"] = 6
+    cols["h"] = 7
+    return cols.get(letter)
 
 
 # returns piece, start, end if notation valid
@@ -615,6 +659,7 @@ def parse_notation(board, msg, turn):
     piece, start, end = False, False, False
     # castling
     if msg == "O-O":
+        k_castling = True
         return (
             "♔",
             [rank8, column5],
@@ -623,6 +668,7 @@ def parse_notation(board, msg, turn):
             [rank1, column7],
         )
     elif msg == "O-O-O":
+        q_castling = False
         return (
             "♔",
             [rank8, column5],
