@@ -17,6 +17,10 @@ h8_rook_moved = False
 black_king_moved = False
 white_king_moved = False
 """
+promotion_type = "X"
+q_castling = False
+k_castling = False
+en_passant = False
 rank8 = 0
 rank7 = 1
 rank6 = 2
@@ -73,13 +77,13 @@ def path_clear(board, start, end):
     return True
 
 
-# returns the piece at the given location of the board
+# returns the piece at the given (x,y) location of the board
 def get_piece_at(board, location):
     if location[0] < 0 or location[0] > num_ranks - 1:
         return "X"
     if location[1] < 0 or location[1] > num_ranks - 1:
         return "X"
-    return board[location[0], location[1]]
+    return board[location[1], location[0]]
 
 
 # returns opposite color of given color
@@ -87,10 +91,39 @@ def opponent_color(color):
     return "black" if color == "white" else "white"
 
 
+# returns the piece associated with the letter representing the piece
+def letter_to_piece(letter, color):
+    symbols_black: dict[str, str] = {}
+    symbols_black["Q"] = "♕"
+    symbols_black["R"] = "♖"
+    symbols_black["B"] = "♗"
+    symbols_black["N"] = "♘"
+    symbols_black["K"] = "♔"
+    symbols_black["pawn"] = "♙"
+    symbols_white: dict[str, str] = {}
+    symbols_white["Q"] = "♛"
+    symbols_white["R"] = "♜"
+    symbols_white["B"] = "♝"
+    symbols_white["N"] = "♞"
+    symbols_black["K"] = "♚"
+    symbols_black["pawn"] = "♟"
+    return symbols_black.get(letter) if color == "black" else symbols_white.get(letter)
+
+
 # make the move specified by the user
 # assumes the move given is valid
 # returns NONE
-def make_move(board, turn, piece, start, end):
+def make_move(board, color, turn, piece, start, end):
+    # TODO:
+    # check for promotion
+    if promotion_type != "X":
+        promotion_piece = letter_to_piece(promotion_type, color)
+        board[end[0]][end[1]] = promotion_piece
+        board[start[0]][start[1]] = ""
+
+    # check for castling
+    # check for en passant
+
     board[start[0]][start[1]] = ""
     board[end[0]][end[1]] = piece
     moves[turn] = (piece, tuple(start), tuple(end))
@@ -118,14 +151,16 @@ def col_to_num(letter):
 
 # returns piece, start, end if notation valid
 # else returns False, False, False
-def knight_parser(msg, turn, color, start, end):
+def knight_parser(board, msg, turn, color, start, end):
     # most cases
     if msg.size() == 3:
         end = [col_to_num(msg[1]), ranks[int(msg[2])]]
         for i in [1, 2, -1, -2]:
             for j in [1, 2, -1, -2]:
-                if (get_piece_at(end[0] + i, end[1] + j) == "♞" and same_color("♞", color) and abs(i) != abs(j)) or (
-                    get_piece_at(end[0] + i, end[1] + j) == "♘" and same_color("♘", color) and abs(i) != abs(j)
+                if (
+                    get_piece_at(board, [end[0] + i, end[1] + j]) == "♞" and same_color("♞", color) and abs(i) != abs(j)
+                ) or (
+                    get_piece_at(board, [end[0] + i, end[1] + j]) == "♘" and same_color("♘", color) and abs(i) != abs(j)
                 ):
                     start = [end[0] + i, end[1] + j]
     # case: knights on same rank or column reachable to end
@@ -138,12 +173,12 @@ def knight_parser(msg, turn, color, start, end):
             for i in [1, 2, -1, -2]:
                 for j in [1, 2, -1, -2]:
                     if (
-                        get_piece_at(end[0] + i, end[1] + j) == "♞"
+                        get_piece_at(board, [end[0] + i, end[1] + j]) == "♞"
                         and same_color("♞", color)
                         and knight_row == end[0] + i
                         and abs(i) != abs(j)
                     ) or (
-                        get_piece_at(end[0] + i, end[1] + j) == "♘"
+                        get_piece_at(board, [end[0] + i, end[1] + j]) == "♘"
                         and same_color("♘", color)
                         and knight_row == end[0] + i
                         and abs(i) != abs(j)
@@ -155,12 +190,12 @@ def knight_parser(msg, turn, color, start, end):
             for i in [1, 2, -1, -2]:
                 for j in [1, 2, -1, -2]:
                     if (
-                        get_piece_at(end[0] + i, end[1] + j) == "♞"
+                        get_piece_at(board, [end[0] + i, end[1] + j]) == "♞"
                         and same_color("♞", color)
                         and knight_col == end[1] + j
                         and abs(i) != abs(j)
                     ) or (
-                        get_piece_at(end[0] + i, end[1] + j) == "♘"
+                        get_piece_at(board, [end[0] + i, end[1] + j]) == "♘"
                         and same_color("♘", color)
                         and knight_col == end[1] + j
                         and abs(i) != abs(j)
@@ -178,8 +213,10 @@ def knight_parser(msg, turn, color, start, end):
         end = [col_to_num(msg[1]), ranks[int(msg[2])]]
         for i in [1, 2, -1, -2]:
             for j in [1, 2, -1, -2]:
-                if (get_piece_at(end[0] + i, end[1] + j) == "♞" and same_color("♞", color) and abs(i) != abs(j)) or (
-                    get_piece_at(end[0] + i, end[1] + j) == "♘" and same_color("♘", color) and abs(i) != abs(j)
+                if (
+                    get_piece_at(board, [end[0] + i, end[1] + j]) == "♞" and same_color("♞", color) and abs(i) != abs(j)
+                ) or (
+                    get_piece_at(board, [end[0] + i, end[1] + j]) == "♘" and same_color("♘", color) and abs(i) != abs(j)
                 ):
                     start = [end[0] + i, end[1] + j]
         end = [col_to_num(msg[2]), ranks[int(msg[3])]]
@@ -193,12 +230,12 @@ def knight_parser(msg, turn, color, start, end):
             for i in [1, 2, -1, -2]:
                 for j in [1, 2, -1, -2]:
                     if (
-                        get_piece_at(end[0] + i, end[1] + j) == "♞"
+                        get_piece_at(board, [end[0] + i, end[1] + j]) == "♞"
                         and same_color("♞", color)
                         and knight_row == end[0] + i
                         and abs(i) != abs(j)
                     ) or (
-                        get_piece_at(end[0] + i, end[1] + j) == "♘"
+                        get_piece_at(board, [end[0] + i, end[1] + j]) == "♘"
                         and same_color("♘", color)
                         and knight_row == end[0] + i
                         and abs(i) != abs(j)
@@ -210,12 +247,12 @@ def knight_parser(msg, turn, color, start, end):
             for i in [1, 2, -1, -2]:
                 for j in [1, 2, -1, -2]:
                     if (
-                        get_piece_at(end[0] + i, end[1] + j) == "♞"
+                        get_piece_at(board, [end[0] + i, end[1] + j]) == "♞"
                         and same_color("♞", color)
                         and knight_col == end[1] + j
                         and abs(i) != abs(j)
                     ) or (
-                        get_piece_at(end[0] + i, end[1] + j) == "♘"
+                        get_piece_at(board, [end[0] + i, end[1] + j]) == "♘"
                         and same_color("♘", color)
                         and knight_col == end[1] + j
                         and abs(i) != abs(j)
@@ -241,7 +278,7 @@ def knight_parser(msg, turn, color, start, end):
 
 # returns piece, start, end if notation valid
 # else returns False, False, False
-def king_parser(msg, turn, color, start, end):
+def king_parser(board, msg, turn, color, start, end):
     # case: King move
     # Example: Ke2
     if "x" not in msg and msg.size() == 3:
@@ -254,23 +291,25 @@ def king_parser(msg, turn, color, start, end):
     # find start
     for i in [1, 0, -1]:
         for j in [1, 0, -1]:
-            if (get_piece_at(end[0] + i, end[1] + j) == "♚" and same_color("♚", color) and not (i == 0 and j == 0)) or (
-                get_piece_at(end[0] + i, end[1] + j) == "♔" and same_color("♔", color) and not (i == 0 and j == 0)
+            if (
+                get_piece_at(board, [end[0] + i, end[1] + j]) == "♚"
+                and same_color("♚", color)
+                and not (i == 0 and j == 0)
+            ) or (
+                get_piece_at(board, [end[0] + i, end[1] + j]) == "♔"
+                and same_color("♔", color)
+                and not (i == 0 and j == 0)
             ):
                 start = [end[0] + i, end[1] + j]
     # return info
     if start[0] == -1 or end[0] == -1:
         return False, False, False
-    return (
-        "♔" if color == "black" else "♚",
-        start,
-        end,
-    )
+    return ("♔" if color == "black" else "♚", [start[1], start[0]], [end[1], end[0]])
 
 
 # returns piece, start, end if notation valid
 # else returns False, False, False
-def queen_parser(msg, turn, color, start, end):
+def queen_parser(board, msg, turn, color, start, end):
     start = [-1, -1]
     end = [-1, -1]
     directions = [
@@ -301,8 +340,8 @@ def queen_parser(msg, turn, color, start, end):
                 cx += dx
                 cy += dy
         for square in reachable:
-            if (get_piece_at(square[0], square[1]) == "♛" and same_color("♛", color)) or (
-                get_piece_at(square[0], square[1]) == "♕" and same_color("♕", color)
+            if (get_piece_at(board, [square[0], square[1]]) == "♛" and same_color("♛", color)) or (
+                get_piece_at(board, [square[0], square[1]]) == "♕" and same_color("♕", color)
             ):
                 start = square
 
@@ -327,16 +366,16 @@ def queen_parser(msg, turn, color, start, end):
             start[0] = col_to_num(msg[1])
             for square in reachable:
                 if square[0] == start[0] and (
-                    (get_piece_at(square[0], square[1]) == "♛" and same_color("♛", color))
-                    or (get_piece_at(square[0], square[1]) == "♕" and same_color("♕", color))
+                    (get_piece_at(board, [square[0], square[1]]) == "♛" and same_color("♛", color))
+                    or (get_piece_at(board, [square[0], square[1]]) == "♕" and same_color("♕", color))
                 ):
                     start[1] = square[1]
         if msg[1].isdigit():
             start[1] = ranks[msg[1]]
             for square in reachable:
                 if square[1] == start[1] and (
-                    (get_piece_at(square[0], square[1]) == "♛" and same_color("♛", color))
-                    or (get_piece_at(square[0], square[1]) == "♕" and same_color("♕", color))
+                    (get_piece_at(board, [square[0], square[1]]) == "♛" and same_color("♛", color))
+                    or (get_piece_at(board, [square[0], square[1]]) == "♕" and same_color("♕", color))
                 ):
                     start[0] = square[0]
     # rare case: Queen takes (Queens on same rank and column reachable to end)
@@ -344,49 +383,235 @@ def queen_parser(msg, turn, color, start, end):
     # rare case: Queen moves (Queens on same rank and column reachable to end)
     # Example: Qg4e2
     if ("x" in msg and msg.size() == 6) or ("x" not in msg and msg.size() == 5):
+        start = [col_to_num(msg[1]), ranks[int(msg[2])]]
         if "x" in msg and msg.size() == 6:
             end = [col_to_num(msg[4]), ranks[int(msg[5])]]
-            start = [col_to_num(msg[1]), ranks[int(msg[2])]]
         if "x" not in msg and msg.size() == 5:
             end = [col_to_num(msg[3]), ranks[int(msg[4])]]
-            start = [col_to_num(msg[1]), ranks[int(msg[2])]]
 
     # return
     if start[0] == -1 or end[0] == -1:
         return False, False, False
 
-    return (
-        "♕" if color == "black" else "♛",
-        start,
-        end,
-    )
+    return ("♕" if color == "black" else "♛", [start[1], start[0]], [end[1], end[0]])
 
 
 # returns piece, start, end if notation valid
 # else returns False, False, False
-def bishop_parser(msg, turn, color, start, end):
-    return "♔", start, end
+def bishop_parser(board, msg, turn, color, start, end):
+    start = [-1, -1]
+    end = [-1, -1]
+    directions = [[1, 1], [1, -1], [-1, 1], [-1, -1]]
+    # case: Bishop moves
+    # Example: Be4
+    # case: Bishop takes
+    # Example: Bxe4
+    if ("x" in msg and msg.size() == 4) or ("x" not in msg and msg.size() == 3):
+        if "x" in msg and msg.size() == 4:
+            end = [col_to_num(msg[2]), ranks[int(msg[3])]]
+        if "x" not in msg and msg.size() == 3:
+            end = [col_to_num(msg[1]), ranks[int(msg[2])]]
+        # find all squares bishop can reach from end
+        reachable = []
+        for dx, dy in directions:
+            cx, cy = end[0] + dx, end[1] + dy
+            while 0 <= cx < num_ranks and 0 <= cy < num_ranks:
+                reachable.append([cx, cy])
+                cx += dx
+                cy += dy
+        # find the start square
+        for square in reachable:
+            if (get_piece_at(board, [square[0], square[1]]) == "♝" and same_color("♝", color)) or (
+                get_piece_at(board, [square[0], square[1]]) == "♗" and same_color("♗", color)
+            ):
+                start = square
+
+    # rare case: Bishop moves (multiple bishops can access end)
+    # Example: Bce4 or B6e4
+    # rare case: Bishop takes (multiple bishops can access end)
+    # Example: Bcxe4 or B6xe4
+    if ("x" in msg and msg.size() == 5) or ("x" not in msg and msg.size() == 4):
+        if "x" in msg and msg.size() == 5:
+            end = [col_to_num(msg[3]), ranks[int(msg[4])]]
+        if "x" not in msg and msg.size() == 4:
+            end = [col_to_num(msg[2]), ranks[int(msg[3])]]
+        # find all squares bishop can reach from end
+        reachable = []
+        for dx, dy in directions:
+            cx, cy = end[0] + dx, end[1] + dy
+            while 0 <= cx < num_ranks and 0 <= cy < num_ranks:
+                reachable.append([cx, cy])
+                cx += dx
+                cy += dy
+        # find the start square
+        if msg[1].isalpha():
+            start[0] = col_to_num(msg[1])
+            for square in reachable:
+                if square[0] == start[0] and (
+                    (get_piece_at(board, [square[0], square[1]]) == "♝" and same_color("♝", color))
+                    or (get_piece_at(board, [square[0], square[1]]) == "♗" and same_color("♗", color))
+                ):
+                    start[1] = square[1]
+        if msg[1].isdigit():
+            start[1] = ranks[msg[1]]
+            for square in reachable:
+                if square[1] == start[1] and (
+                    (get_piece_at(board, [square[0], square[1]]) == "♝" and same_color("♝", color))
+                    or (get_piece_at(board, [square[0], square[1]]) == "♗" and same_color("♗", color))
+                ):
+                    start[0] = square[0]
+
+    # rare case: Bishop moves (multiple bishops can access end)
+    # Example: Bc6e4
+    # rare case: Bishop takes (multiple bishops can access end)
+    # Example: Bc6xe4
+    if ("x" in msg and msg.size() == 6) or ("x" not in msg and msg.size() == 5):
+        start = [col_to_num(msg[1]), ranks[int(msg[2])]]
+        if "x" in msg and msg.size() == 6:
+            end = [col_to_num(msg[4]), ranks[int(msg[5])]]
+        if "x" not in msg and msg.size() == 5:
+            end = [col_to_num(msg[3]), ranks[int(msg[4])]]
+
+    # return
+    if start[0] == -1 or end[0] == -1:
+        return False, False, False
+
+    return ("♗" if color == "black" else "♝", [start[1], start[0]], [end[1], end[0]])
 
 
 # returns piece, start, end if notation valid
 # else returns False, False, False
-def rook_parser(msg, turn, color, start, end):
-    return "♔", start, end
+def rook_parser(board, msg, turn, color, start, end):
+    start = [-1, -1]
+    end = [-1, -1]
+    directions = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+
+    # case: Rook moves
+    # Example: Re4
+    # case: Rook takes
+    # Example: Rxe4
+    if ("x" in msg and msg.size() == 4) or ("x" not in msg and msg.size() == 3):
+        if "x" in msg and msg.size() == 4:
+            end = [col_to_num(msg[2]), ranks[int(msg[3])]]
+        if "x" not in msg and msg.size() == 3:
+            end = [col_to_num(msg[1]), ranks[int(msg[2])]]
+        # find all squares rook can reach from end
+        reachable = []
+        for dx, dy in directions:
+            cx, cy = end[0] + dx, end[1] + dy
+            while 0 <= cx < num_ranks and 0 <= cy < num_ranks:
+                reachable.append([cx, cy])
+                cx += dx
+                cy += dy
+        # find the start square
+        for square in reachable:
+            if (get_piece_at(board, [square[0], square[1]]) == "♜" and same_color("♜", color)) or (
+                get_piece_at(board, [square[0], square[1]]) == "♖" and same_color("♖", color)
+            ):
+                start = square
+    # case: Rook moves (multiple rooks can access end)
+    # Example: Rce4 or R2e4
+    # case: Rook takes (multiple rooks can access end)
+    # Example: Rcxe4 or R2xe4
+    if ("x" in msg and msg.size() == 5) or ("x" not in msg and msg.size() == 4):
+        if "x" in msg and msg.size() == 5:
+            end = [col_to_num(msg[3]), ranks[int(msg[4])]]
+        if "x" not in msg and msg.size() == 4:
+            end = [col_to_num(msg[2]), ranks[int(msg[3])]]
+        # find all squares rook can reach from end
+        reachable = []
+        for dx, dy in directions:
+            cx, cy = end[0] + dx, end[1] + dy
+            while 0 <= cx < num_ranks and 0 <= cy < num_ranks:
+                reachable.append([cx, cy])
+                cx += dx
+                cy += dy
+        # find the start square
+        if msg[1].isalpha():
+            start[0] = col_to_num(msg[1])
+            for square in reachable:
+                if square[0] == start[0] and (
+                    (get_piece_at(board, [square[0], square[1]]) == "♝" and same_color("♝", color))
+                    or (get_piece_at(board, [square[0], square[1]]) == "♗" and same_color("♗", color))
+                ):
+                    start[1] = square[1]
+        if msg[1].isdigit():
+            start[1] = ranks[msg[1]]
+            for square in reachable:
+                if square[1] == start[1] and (
+                    (get_piece_at(board, [square[0], square[1]]) == "♝" and same_color("♝", color))
+                    or (get_piece_at(board, [square[0], square[1]]) == "♗" and same_color("♗", color))
+                ):
+                    start[0] = square[0]
+
+    # return
+    if start[0] == -1 or end[0] == -1:
+        return False, False, False
+
+    return ("♖" if color == "black" else "♜", [start[1], start[0]], [end[1], end[0]])
 
 
 # returns piece, start, end if notation valid
 # else returns False, False, False
-def pawn_parser(msg, turn, color, start, end):
-    return "♔", start, end
+def pawn_parser(board, msg, turn, color, start, end):
+    start = [-1, -1]
+    end = [-1, -1]
+    # case: pawn move
+    # Example: e4
+    if msg.size() == 2:
+        end = [col_to_num(msg[0]), ranks[int(msg[1])]]
+        # black single move
+        if color == "black" and get_piece_at(board, [end[0], end[1] - 1]) == "♙":
+            start = [end[0], end[1] - 1]
+        # white single move
+        elif color == "white" and get_piece_at(board, [end[0], end[1] + 1]) == "♟":
+            start = [end[0], end[1] + 1]
+        else:
+            # black double move
+            if color == "black" and get_piece_at(board, [end[0], end[1] - 2]) == "♙":
+                start = [end[0], end[1] - 2]
+            # white double move
+            if color == "white" and get_piece_at(board, [end[0], end[1] + 2]) == "♟":
+                start = [end[0], end[1] + 2]
+
+    # case: pawn takes
+    # Example: dxe4
+    if msg.size() == 4 and msg[1] == "x":
+        end = [col_to_num(msg[2]), ranks[int(msg[3])]]
+        start = [col_to_num(msg[0]), -1]
+
+        # black takes
+        if color == "black" and get_piece_at(board, [start[0], end[1] - 1]) == "♙":
+            start = [start[0], end[1] - 1]
+        # white takes
+        if color == "white" and get_piece_at(board, [start[0], end[1] + 1]) == "♟":
+            start = [start[0], end[1] + 1]
+
+    # case: pawn promotes
+    # Example: e8=Q
+    if msg.size() == 4 and msg[1] == "=":
+        end = [col_to_num(msg[0]), ranks[int(msg[1])]]
+        # black promotes
+        if color == "black" and get_piece_at(board, [end[0], end[1] - 1]) == "♙":
+            start = [end[0], end[1] - 1]
+        # white promotes
+        if color == "white" and get_piece_at(board, [end[0], end[1] + 1]) == "♟":
+            start = [end[0], end[1] + 1]
+        promotion_type = msg[3]
+
+    # return
+    if start[0] == -1 or end[0] == -1:
+        return False, False, False
+
+    return ("♙" if color == "black" else "♟", [start[1], start[0]], [end[1], end[0]])
 
 
 # TODO:
 # parse the chess notation to obtain piece, start location, end location
 # returns (False, False, False) if given string is NOT in valid notation form,
 # otherwise returns piece, start location, end location
-def parse_notation(msg, turn):
+def parse_notation(board, msg, turn):
     color = "white" if turn % 2 == 0 else "black"
-    start, end = [-1, -1]
     piece, start, end = False, False, False
     # castling
     if msg == "O-O":
@@ -407,27 +632,27 @@ def parse_notation(msg, turn):
         )
     # Knight
     elif msg[0] == "N":
-        piece, start, end = knight_parser(msg, turn, color, start, end)
+        piece, start, end = knight_parser(board, msg, turn, color, start, end)
 
     # King
     elif msg[0] == "K":
-        piece, start, end = king_parser(msg, turn, color, start, end)
+        piece, start, end = king_parser(board, msg, turn, color, start, end)
 
     # Queen
     elif msg[0] == "Q":
-        piece, start, end = queen_parser(msg, turn, color, start, end)
+        piece, start, end = queen_parser(board, msg, turn, color, start, end)
 
     # Bishop
     elif msg[0] == "B":
-        piece, start, end = bishop_parser(msg, turn, color, start, end)
+        piece, start, end = bishop_parser(board, msg, turn, color, start, end)
 
     # Rook
     elif msg[0] == "R":
-        piece, start, end = rook_parser(msg, turn, color, start, end)
+        piece, start, end = rook_parser(board, msg, turn, color, start, end)
 
     # pawn
     elif msg[0] in ["a", "b", "c", "d", "e", "f", "g", "h"]:
-        piece, start, end = pawn_parser(msg, turn, color, start, end)
+        piece, start, end = pawn_parser(board, msg, turn, color, start, end)
 
     else:
         return False, False, False
@@ -467,6 +692,7 @@ def print_board(board):
     return strbldr
 
 
+# TODO: finish function
 # returns true if move legal, else false
 def is_move_legal(board, turn, piece, color, start, end):
     # check to be sure piece, start, end are not false
@@ -482,16 +708,16 @@ def is_move_legal(board, turn, piece, color, start, end):
     """
     # check if this move will result in us being in check
     board_post_move = board
-    make_move(board_post_move, turn, piece, start, end)
+    make_move(board_post_move, color, turn, piece, start, end)
     if is_in_check(board_post_move, color):
         return False
     """
 
     # declaring variables
-    endx = end[0]
-    endy = end[1]
-    startx = start[0]
-    starty = start[1]
+    endx = end[1]
+    endy = end[0]
+    startx = start[1]
+    starty = start[0]
     dx = endx - startx
     dy = endy - starty
     target_piece = board[endx][endy]
@@ -511,10 +737,8 @@ def is_move_legal(board, turn, piece, color, start, end):
             last_dx = abs(last_endx - last_startx)
         # pawns move forward only
         pawn_double_step = 2
-        if (
-            (dy > 0 and color == "white")
-            or (dy < 0 and color == "black")
-            or (dx == 0 and abs(dy) == 1 and target_piece == "")
+        if ((dy > 0 and color == "white") or (dy < 0 and color == "black")) and (
+            (dx == 0 and abs(dy) == 1 and target_piece == "")
             or (
                 dx == 0
                 and abs(dy) == pawn_double_step
@@ -523,21 +747,35 @@ def is_move_legal(board, turn, piece, color, start, end):
                 and ((starty == rank7 and color == "black") or (starty == rank2 and color == "white"))
             )
             or (abs(dx) == 1 and abs(dy) == 1 and not same_color(target_piece, color))
-            or (  # en passant
-                abs(dx) == 1
-                and abs(dy) == 1
-                and ((starty == rank4 and color == "black") or (starty == rank5 and color == "white"))
-                and target_piece == ""
-                and last_piece in ["♙", "♟"]
-                and last_dy == pawn_double_step
-                and last_dx == 0
-                and endx == last_endx  # end on the same column
-                and (
-                    last_endx - 1 == startx or last_endx + 1 == startx
-                )  # end of last move is next to start of current piece
-            )
         ):
-            pass
+            # check for pawn promotion
+            if promotion_type != "X":
+                # must be moving to rank1 as black or rank8 as white, must promote to valid piece
+                if promotion_type in ["Q", "R", "B", "N"] and (
+                    (starty == rank7 and color == "white" and endy == rank8)
+                    or (starty == rank2 and color == "black" and endy == rank1)
+                ):
+                    return True
+                else:
+                    return False
+            else:
+                return True
+        elif (  # en passant
+            ((dy > 0 and color == "white") or (dy < 0 and color == "black"))
+            and abs(dx) == 1
+            and abs(dy) == 1
+            and ((starty == rank4 and color == "black") or (starty == rank5 and color == "white"))
+            and target_piece == ""
+            and last_piece in ["♙", "♟"]
+            and last_dy == pawn_double_step
+            and last_dx == 0
+            and endx == last_endx  # end on the same column
+            and (
+                last_endx - 1 == startx or last_endx + 1 == startx
+            )  # end of last move is next to start of current piece
+        ):
+            en_passant = True
+            return True
 
         else:
             return False
@@ -614,7 +852,7 @@ class MultiChess(commands.Cog):
         )
 
         def check(msg: discord.Message):
-            parsed = parse_notation(msg.content, turn)
+            parsed = parse_notation(board, msg.content, turn)
             msg_options = ["draw?", "accept", "decline", "resign"]
             color = "white" if turn % 2 == 0 else "black"
             return (
@@ -622,14 +860,14 @@ class MultiChess(commands.Cog):
                 msg.author == players[turn % 2]  # correct player sent the msg
                 and msg.channel == interaction.channel  # channel is correct
                 and (  # if notation, check notation validity
-                    msg.content in msg_options or parse_notation(msg.content, turn)[0]
+                    msg.content in msg_options or parsed[0] is not False
                 )
                 and is_move_legal(board, turn, parsed[0], color, parsed[1], parsed[2])  # move must be legal
             )
 
         while True:
             try:
-                move_msg = await self.bot.wait_for("message", check=check, timeout=60.0)
+                move_msg = await self.bot.wait_for("message", check=check, timeout=100.0)
 
                 # check for draw offer
                 if move_msg.content == "draw?":
@@ -655,6 +893,25 @@ class MultiChess(commands.Cog):
                     await interaction.followup.send(f"{print_board(board)}\nIt's a draw!")
                     return
                 """
+
+                # TODO: actually make the move specified by user
+                # uses piece, start, end from parsed
+                # check for globals like q_castling, k_castling, en_passant, promotion_type AND :
+                """
+                # update tracking of whether pieces have moved (for castling)
+                a1_rook_moved = False
+                h1_rook_moved = False
+                a8_rook_moved = False
+                h8_rook_moved = False
+                black_king_moved = False
+                white_king_moved = False
+                """
+
+                # reset necessary globals
+                q_castling = False
+                k_castling = False
+                en_passant = False
+                promotion_type = "X"
 
                 turn += 1
                 await interaction.followup.send(f"{print_board(board)}\n{players[turn % 2].mention}, it's your turn!")

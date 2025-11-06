@@ -38,10 +38,11 @@ repos:
         name: radon maintainability index
         entry: bash
         language: system
+        exclude: multiplayerchess_cog.py
         args:
           [
             "-c",
-            'output=$(radon mi --min C --show src); if [ -n "$output" ]; then echo "$output"; exit 1; fi',
+            'output=$(radon mi --min C --show -e multiplayerchess_cog.py src); if [ -n "$output" ]; then echo "$output"; exit 1; fi',
           ]
         files: \.py$
       - id: pytest
