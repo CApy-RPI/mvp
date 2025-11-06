@@ -72,10 +72,18 @@ class GuildCog(commands.Cog):
         if message:
             await message.edit(content=content, embed=embed, view=None)
             return
+        # If we haven't responded yet, use interaction.response; otherwise use followup
+        if not interaction.response.is_done():
+            if embed is not None:
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+            else:
+                await interaction.response.send_message(content or "", ephemeral=True)
+            return
+        # Already responded (e.g., deferred or previous message) -> followup
         if embed is not None:
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
         else:
-            await interaction.response.send_message(content or "", ephemeral=True)
+            await interaction.followup.send(content or "", ephemeral=True)
 
     async def _verify_guild_access(self, interaction: discord.Interaction) -> tuple[bool, str]:
         """Verify the user is allowed to run server commands.

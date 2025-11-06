@@ -17,6 +17,8 @@ from backend.db.documents.user import User
 
 from config import settings
 
+from .profile_scanner import ProfileBatchHelper
+
 logger = logging.getLogger("discord.onboarding")
 
 
@@ -45,6 +47,11 @@ class OnboardingManager:
     def __init__(self, config: OnboardingConfig | None = None) -> None:
         self.cfg = config or OnboardingConfig.from_settings()
         self.logger = logger
+        # Initialize profile scanning helper (used for batching/extensibility)
+        try:
+            self.profile_helper: object | None = ProfileBatchHelper()
+        except Exception:
+            self.profile_helper = None
 
     class CreateProfileView(discord.ui.View):
         """View with a button that launches the profile creation flow ephemerally."""
@@ -56,6 +63,11 @@ class OnboardingManager:
         async def create_profile(self, interaction: discord.Interaction, _button: discord.ui.Button[object]) -> None:  # type: ignore[name-defined]
             # Route to the ProfileCog flow so it can present the modal ephemerally
             try:
+                logger.info(
+                    "onboarding: create_profile clicked by user=%s guild=%s",
+                    getattr(interaction.user, "id", None),
+                    getattr(getattr(interaction, "guild", None), "id", None),
+                )
                 cog = interaction.client.get_cog("ProfileCog") if interaction.client else None  # type: ignore[attr-defined]
                 if not cog:
                     await interaction.response.send_message(
@@ -86,6 +98,11 @@ class OnboardingManager:
         @discord.ui.button(label="Start Server Setup", style=discord.ButtonStyle.primary)
         async def start_setup(self, interaction: discord.Interaction, _button: discord.ui.Button[object]) -> None:  # type: ignore[name-defined]
             try:
+                logger.info(
+                    "onboarding: start_setup clicked by user=%s guild=%s",
+                    getattr(interaction.user, "id", None),
+                    getattr(getattr(interaction, "guild", None), "id", None),
+                )
                 # Optional permission gate
                 if self.require_manage and not getattr(interaction.user.guild_permissions, "manage_guild", False):
                     await interaction.response.send_message(
@@ -120,14 +137,21 @@ class OnboardingManager:
         if not isinstance(guild, discord.Guild):  # defensive
             return
 
+        self.logger.info(
+            "onboarding: handle_guild_join guild=%s mode=%s require_manage=%s",
+            getattr(guild, "id", None),
+            self.cfg.mode,
+            self.cfg.require_manage_guild,
+        )
+
         if not self.cfg.enabled or self.cfg.mode == "silent":
-            self.logger.info("Onboarding disabled or silent; skipping message.")
+            self.logger.info("onboarding: disabled or silent; skipping intro")
             return
 
         if self.cfg.mode == "dm":
             await self._try_dm_guild_owner(guild)
             # Also DM members without profiles in DM-only mode
-            await self._dm_missing_profiles(guild)
+            # await self._dm_missing_profiles(guild)
             return
 
         # Default: announce mode
@@ -141,24 +165,53 @@ class OnboardingManager:
             return
 
         await self._post_intro(channel, guild)
-        # After posting intro, DM members who lack profiles
-        await self._dm_missing_profiles(guild)
+        # After posting intro, do not DM members (temporarily disabled).
+        # Instead, run a non-intrusive scan via the helper and log the results.
+        try:
+            if self.profile_helper:
+                # type: ignore[union-attr]
+                result = await self.profile_helper.scan_profiles(guild)  # type: ignore[attr-defined]
+                self.logger.info(
+                    "onboarding: scan complete with_profiles=%d without_profiles=%d",
+                    len(result.with_profiles),
+                    len(result.without_profiles),
+                )
+                self.logger.debug(
+                    "onboarding: with_profiles=%s",
+                    ",".join(str(x) for x in result.with_profiles),
+                )
+                self.logger.debug(
+                    "onboarding: without_profiles=%s",
+                    ",".join(str(x) for x in result.without_profiles),
+                )
+        except Exception as e:
+            self.logger.error("onboarding: profile scan failed: %s", e)
 
     async def _find_postable_channel(self, guild: discord.Guild) -> discord.abc.MessageableChannel | None:
         # 1) Prefer system channel if sendable
         if guild.system_channel and self._can_send(guild.system_channel):
+            self.logger.debug(
+                "onboarding: using system channel %s for intro",
+                getattr(guild.system_channel, "id", None),
+            )
             return guild.system_channel
 
         # 2) If configured, try fallback channel id
         if self.cfg.fallback_channel_id:
             ch = guild.get_channel(self.cfg.fallback_channel_id)
             if isinstance(ch, discord.TextChannel) and self._can_send(ch):
+                self.logger.debug(
+                    "onboarding: using fallback channel %s for intro",
+                    ch.id,
+                )
                 return ch
 
         # 3) First text channel we can send to
         for ch in guild.text_channels:
             if self._can_send(ch):
+                self.logger.debug("onboarding: using first postable channel %s", ch.id)
                 return ch
+        self.logger.debug("onboarding: no postable channel found")
         return None
 
     def _can_send(self, channel: discord.TextChannel) -> bool:
@@ -176,6 +229,12 @@ class OnboardingManager:
                     missing_profiles += 1
         except Exception as e:
             self.logger.debug("Unable to compute missing profiles: %s", e)
+        else:
+            self.logger.info(
+                "onboarding: estimated members missing profiles=%s guild=%s",
+                missing_profiles,
+                getattr(guild, "id", None),
+            )
 
         embed = discord.Embed(
             title=f"👋 Thanks for inviting me to {guild.name}!",
@@ -189,7 +248,7 @@ class OnboardingManager:
                 name="Get Everyone Set Up",
                 value=(
                     f"It looks like about {missing_profiles} member(s) may still need a profile.\n"
-                    "I've sent DMs to members who need one so they can create it."
+                    "Use /profile to create or update your profile."
                 ),
                 inline=False,
             )
@@ -213,6 +272,12 @@ class OnboardingManager:
         # TODO: handle at scale case thousands of members
         create_view = self.CreateProfileView()
         count = 0
+        total_humans = sum(1 for m in guild.members if not m.bot)
+        self.logger.info(
+            "onboarding: DM pass starting humans=%s guild=%s",
+            total_humans,
+            getattr(guild, "id", None),
+        )
         for member in guild.members:
             try:
                 if member.bot:
@@ -238,7 +303,9 @@ class OnboardingManager:
                 self.logger.debug("Skipping DM to %s (%s): %s", member, member.id, e)
                 continue
         if count:
-            self.logger.info("DM'd %d member(s) missing profiles in %s (%s)", count, guild.name, guild.id)
+            self.logger.info("onboarding: DM'd %d member(s) missing profiles in %s (%s)", count, guild.name, guild.id)
+        else:
+            self.logger.info("onboarding: no members needed profile DMs in %s (%s)", guild.name, guild.id)
 
     async def _try_dm_guild_owner(self, guild: discord.Guild) -> None:
         owner = guild.owner
