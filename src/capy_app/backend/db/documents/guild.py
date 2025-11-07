@@ -15,9 +15,9 @@ class GuildChannels(RestrictedEmbeddedDocument):
         moderator: Channel ID for moderator communications
     """
 
-    reports: int | None = mongoengine.IntField()
-    announcements: int | None = mongoengine.IntField()
-    moderator: int | None = mongoengine.IntField()
+    reports: int | None = mongoengine.LongField()
+    announcements: int | None = mongoengine.LongField()
+    moderator: int | None = mongoengine.LongField()
 
 
 class GuildRoles(RestrictedEmbeddedDocument):
@@ -65,9 +65,9 @@ class Guild(RestrictedDocument):
         office_hours: List of office hours schedules for members
     """
 
-    _id: int = mongoengine.IntField(primary_key=True)
-    users: list[int] = mongoengine.ListField(mongoengine.IntField())
-    events: list[int] = mongoengine.ListField(mongoengine.IntField())
+    _id: int = mongoengine.LongField(primary_key=True)
+    users: list[int] = mongoengine.ListField(mongoengine.LongField())
+    events: list[int] = mongoengine.ListField(mongoengine.LongField())
     channels: GuildChannels = mongoengine.EmbeddedDocumentField(GuildChannels, default=GuildChannels)
     roles: GuildRoles = mongoengine.EmbeddedDocumentField(GuildRoles, default=GuildRoles)
     office_hours: list[OfficeHours] = mongoengine.EmbeddedDocumentListField(OfficeHours, default=list)
@@ -75,7 +75,7 @@ class Guild(RestrictedDocument):
     updated_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
 
     meta: ClassVar[dict[str, Any]] = {
-        "collection": "events",
+        "collection": "guilds",
         "indexes": ["created_at", "updated_at"],
     }
 
