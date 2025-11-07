@@ -37,18 +37,24 @@ class ProfileBatchHelper:
     async def scan_profiles(self, guild: discord.Guild) -> ProfileScanResult:
         """Scan all human members and split into with/without profile lists.
 
+        Uses batched ID lookups instead of one DB call per user.
+
         Returns lists of member IDs for downstream batching or messaging.
         """
         human_members: list[discord.Member] = [m for m in guild.members if not m.bot]
+        member_ids: list[int] = [m.id for m in human_members]
+
+        # Single fetch of existing user IDs via Database helper (min payload).
+        id_list = Database.list_document_attr(User, "id", {"pk__in": member_ids})
+        existing_ids: set[int] = {int(x) for x in id_list}
+
         with_profiles: list[int] = []
         without_profiles: list[int] = []
-
-        for member in self._iter_chunks(human_members, self.chunk_size):
-            for m in member:
-                if Database.get_document(User, m.id):
-                    with_profiles.append(m.id)
-                else:
-                    without_profiles.append(m.id)
+        for mid in member_ids:
+            if mid in existing_ids:
+                with_profiles.append(mid)
+            else:
+                without_profiles.append(mid)
 
         return ProfileScanResult(with_profiles=with_profiles, without_profiles=without_profiles)
 

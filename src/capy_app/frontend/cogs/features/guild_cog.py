@@ -278,7 +278,7 @@ class GuildCog(commands.Cog):
             "Channels:\n"
             "• Reports — where users submit issues\n"
             "• Announcements — your official broadcast channel\n"
-            "• Moderator — private staff coordination\n\n"
+            "• Moderator — private coordination\n\n"
             "Roles:\n"
             "• Visitor — default for newcomers/guests\n"
             "• Member — verified community members\n"
