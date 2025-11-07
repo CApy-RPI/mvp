@@ -58,10 +58,7 @@ class PrivacyPolicyCog(commands.Cog):
 
         embed.add_field(
             name="🔒 Data Storage",
-            value=(
-                "• Data is stored in a secure MongoDB database\n"
-                "• Regular backups are maintained\n"
-            ),
+            value=("• Data is stored in a secure MongoDB database\n• Regular backups are maintained\n"),
             inline=False,
         )
 

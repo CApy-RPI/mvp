@@ -30,7 +30,7 @@ def user():
             name=UserName(first="John", last="Doe"),
             school_email="john.doe@example.com",
             student_id=123456,
-            major=["Computer Science"],
+            major="Computer Science",
             graduation_year=2024,
             phone=1234567890,
         ),
@@ -45,7 +45,7 @@ def user2():
             name=UserName(first="Jane", last="Smith"),
             school_email="jane.smith@example.com",
             student_id=654321,
-            major=["Mathematics"],
+            major="Mathematics",
             graduation_year=2023,
             phone=9876543210,
         ),
@@ -98,7 +98,8 @@ def test_list_users(db, user, user2):
     db.add_document(user)
     db.add_document(user2)
     users = db.list_documents(User)
-    assert len(users) == 2
+    expected_user_count = 2
+    assert len(users) == expected_user_count
 
 
 def test_get_and_set_attributes(db, user):

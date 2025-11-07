@@ -1,6 +1,3 @@
-# mypy: ignore-errors
-# TODO Remove on rewrite ^
-
 """Guild-specific view classes for Discord interactions."""
 
 from collections.abc import Callable, Coroutine
@@ -19,7 +16,7 @@ class ChannelSelectView(BaseDropdownView):
         super().__init__()
         self.selected_channels: dict[str, int] = {}
 
-        for name, desc in channels.items():
+        for name, _desc in channels.items():
             select = ui.ChannelSelect(
                 placeholder=f"Select {name.title()} channel",
                 channel_types=[discord.ChannelType.text],
@@ -50,10 +47,8 @@ class RoleSelectView(BaseDropdownView):
         super().__init__()
         self.selected_roles: dict[str, int] = {}
 
-        for name, desc in roles.items():
-            select = ui.RoleSelect(
-                placeholder=f"Select {name.title()} role", custom_id=f"role_{name}"
-            )
+        for name, _desc in roles.items():
+            select = ui.RoleSelect(placeholder=f"Select {name.title()} role", custom_id=f"role_{name}")
             select.callback = self._create_callback(name)
             self.add_item(select)
 
@@ -87,9 +82,7 @@ class SettingsSelectView(discord.ui.View):
                     value="channels",
                     description="Edit channel settings",
                 ),
-                discord.SelectOption(
-                    label="Roles", value="roles", description="Edit role settings"
-                ),
+                discord.SelectOption(label="Roles", value="roles", description="Edit role settings"),
                 discord.SelectOption(label="All", value="all", description="Edit all settings"),
             ],
             custom_id="settings_select",
@@ -129,17 +122,13 @@ class ClearSettingsView(BaseDropdownView):
                     value="channels",
                     description="Clear all channel settings",
                 ),
-                discord.SelectOption(
-                    label="Roles", value="roles", description="Clear all role settings"
-                ),
-                discord.SelectOption(
-                    label="All", value="all", description="Clear all server settings"
-                ),
+                discord.SelectOption(label="Roles", value="roles", description="Clear all role settings"),
+                discord.SelectOption(label="All", value="all", description="Clear all server settings"),
             ],
             custom_id="clear_select",
         )
 
-        async def clear_callback(interaction: Interaction) -> None:
+        async def clear_callback(_interaction: Interaction) -> None:
             self.selected_setting = select.values[0]
 
         select.callback = clear_callback

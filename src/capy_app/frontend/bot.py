@@ -9,7 +9,7 @@ import typing
 import discord
 
 # Local imports
-from backend.db.database import Database as db
+from backend.db.database import Database
 from discord.ext import commands
 from discord.ext.commands import Context
 
@@ -29,27 +29,25 @@ class Bot(commands.AutoShardedBot):
         self.logger = logging.getLogger("discord.main")
         self.logger.setLevel(settings.LOG_LEVEL)
 
+        self.tree.error(coro=self._dispatch_slash_command_error)
+
     async def on_member_join(self, member: discord.Member) -> None:
         """Handle event when a new member joins a guild.
 
         Args:
             member: Discord member object representing the joined user
         """
-        guild_data = db.Database.get_document(db.Guild, member.guild.id)
+        guild_data = Database.get_document(Database.Guild, member.guild.id)
         if not guild_data:
-            guild_data = db.Guild(_id=member.guild.id)
+            guild_data = Database.Guild(_id=member.guild.id)
             guild_data.save()
-            self.logger.info(
-                f"Created new guild entry for {member.guild.name}" f" (ID: {member.guild.id})"
-            )
+            self.logger.info(f"Created new guild entry for {member.guild.name} (ID: {member.guild.id})")
         else:
-            db.sync_document_with_template(guild_data, db.Guild)
+            Database.sync_document_with_template(guild_data, Database.Guild)
 
         guild_data.users.append(member.id)
         guild_data.save()
-        self.logger.info(
-            f"User {member.id} joined guild {member.guild.name}" f" (ID: {member.guild.id})"
-        )
+        self.logger.info(f"User {member.id} joined guild {member.guild.name} (ID: {member.guild.id})")
 
     async def _load_cogs_recursive(self, path: pathlib.Path, base_package: str) -> None:
         """Recursively load cogs from a directory and its subdirectories.
@@ -65,9 +63,7 @@ class Bot(commands.AutoShardedBot):
             if item.is_file() and item.name.endswith("cog.py") and not item.name.startswith("_"):
                 # Convert path to module path and load extension
                 module_path = (
-                    str(item.relative_to(pathlib.Path(settings.COG_PATH)))
-                    .replace("\\", ".")
-                    .replace("/", ".")[:-3]
+                    str(item.relative_to(pathlib.Path(settings.COG_PATH))).replace("\\", ".").replace("/", ".")[:-3]
                 )
                 full_module_path = f"{base_package}.{module_path}"
                 try:
@@ -97,9 +93,7 @@ class Bot(commands.AutoShardedBot):
             self.logger.info(f"Synced {len(synced)} application commands")
 
         self.logger.info(f"Logged in as {self.user.name} - {self.user.id}")
-        self.logger.info(
-            f"Connected to {len(self.guilds)} guilds " f"across {self.shard_count} shards"
-        )
+        self.logger.info(f"Connected to {len(self.guilds)} guilds across {self.shard_count} shards")
 
     async def on_message(self, message: discord.Message) -> None:
         """Process incoming messages and commands.
@@ -119,9 +113,7 @@ class Bot(commands.AutoShardedBot):
             ctx: Command context object
         """
         if settings.WHO_DUNNIT:
-            await ctx.send(
-                f"This bot hosted by {settings.WHO_DUNNIT} is currently in development mode."
-            )
+            await ctx.send(f"This bot hosted by {settings.WHO_DUNNIT} is currently in development mode.")
 
         if not settings.DEV_LOCKED_CHANNEL_ID:
             self.logger.info(f"Command executed: {ctx.command} by {ctx.author}")
@@ -132,13 +124,16 @@ class Bot(commands.AutoShardedBot):
             return
 
         dev_channel = self.get_channel(settings.DEV_LOCKED_CHANNEL_ID)
-        if not isinstance(dev_channel, (discord.TextChannel, discord.Thread)):
+        if not isinstance(dev_channel, discord.TextChannel | discord.Thread):
             await ctx.send("Developer channel not found. Ensure it is set correctly.")
             self.logger.error(f"Developer channel {settings.DEV_LOCKED_CHANNEL_ID} not found")
             return
 
         await ctx.send(f"Please use {dev_channel.mention} instead which this session is locked to.")
         self.logger.info(f"Command from {ctx.author} in disallowed channel {ctx.channel}")
+
+    async def _dispatch_slash_command_error(self, interaction, error):
+        self.dispatch("slash_command_error", interaction, error)
 
     def run_bot(self) -> None:
         """Run the bot instance."""

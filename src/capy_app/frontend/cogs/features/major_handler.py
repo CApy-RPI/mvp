@@ -1,10 +1,8 @@
-# mypy: ignore-errors
-# TODO Remove on rewrite ^
-
 """Handles major-related operations and grouping logic."""
 
 import logging
 from math import ceil
+from typing import Any
 
 from config import settings
 
@@ -33,7 +31,7 @@ class MajorHandler:
             return {}
 
         # Get unique first letters and sort them
-        first_letters = sorted(set(major[0].upper() for major in self.major_list))
+        first_letters = sorted({major[0].upper() for major in self.major_list})
 
         # Calculate approximately how many letters per group
         letters_per_group = ceil(len(first_letters) / self.num_groups)
@@ -51,14 +49,14 @@ class MajorHandler:
             end_idx = min((i + 1) * letters_per_group, len(first_letters))
             end = first_letters[end_idx] if end_idx < len(first_letters) else "["
 
-            group_id = f"major_{start}_{chr(ord(end)-1)}"
+            group_id = f"major_{start}_{chr(ord(end) - 1)}"
             ranges[group_id] = (start, end)
 
         return ranges
 
     def _group_majors(self) -> dict[str, list[str]]:
         """Group majors according to calculated ranges."""
-        groups = {group_id: [] for group_id in self._ranges}
+        groups: dict[str, list[str]] = {group_id: [] for group_id in self._ranges}
 
         for major in self.major_list:
             first_letter = major[0].upper()
@@ -69,7 +67,7 @@ class MajorHandler:
 
         return groups
 
-    def get_dropdown_config(self, base_config: dict) -> dict:
+    def get_dropdown_config(self, base_config: dict[str, Any]) -> dict[str, Any]:
         """Generate dropdown configuration with current groups.
 
         Args:
@@ -104,7 +102,7 @@ class MajorHandler:
         }
 
         text = "Select your major(s) from any group (max 2 total):\n"
-        for group_id, (start, end) in self._ranges.items():
+        for _group_id, (start, end) in self._ranges.items():
             end_letter = chr(ord(end) - 1)
             example_letter = start
             if example_letter in examples:

@@ -67,11 +67,7 @@ class DynamicModal(Modal):
             interaction: Discord interaction from the submission
         """
         self._interaction = interaction
-        self.values = {
-            field.custom_id: field.value
-            for field in self.children
-            if isinstance(field, DynamicField)
-        }
+        self.values = {field.custom_id: field.value for field in self.children if isinstance(field, DynamicField)}
         self.success = True
         await interaction.response.defer()
         self.stop()
@@ -196,9 +192,7 @@ class DynamicModalView(View):
         self.stop()
 
         return_values: tuple[dict[str, str] | None, Message | None] = (
-            (self._modal.values, self._message)
-            if self._modal and self._modal.success
-            else (None, self._message)
+            (self._modal.values, self._message) if self._modal and self._modal.success else (None, self._message)
         )
         return return_values
 
@@ -258,9 +252,7 @@ class ButtonDynamicModalView(DynamicModalView):
             )
         )
 
-        content = (
-            prompt or self._message_prompt or f"Click the button to open '{self._modal.title}'"
-        )
+        content = prompt or self._message_prompt or f"Click the button to open '{self._modal.title}'"
         await interaction.response.send_message(
             content=content,
             view=self,
@@ -286,9 +278,7 @@ class ButtonDynamicModalView(DynamicModalView):
             )
         )
 
-        content = (
-            prompt or self._message_prompt or f"Click the button to open '{self._modal.title}'"
-        )
+        content = prompt or self._message_prompt or f"Click the button to open '{self._modal.title}'"
         await message.edit(
             content=content,
             view=self,

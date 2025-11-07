@@ -35,6 +35,14 @@ if !errorlevel! neq 0 (
     exit /b 1
 )
 
+REM Install the package in development mode
+echo Installing package in development mode...
+pip install -e .
+if !errorlevel! neq 0 (
+    echo Failed to install package in development mode
+    exit /b 1
+)
+
 REM Install pre-commit hooks
 echo Installing pre-commit hooks...
 pre-commit install

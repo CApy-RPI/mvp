@@ -1,5 +1,6 @@
 import datetime
 import typing
+from typing import Any, ClassVar
 
 import mongoengine
 from backend.db.documents.restrict import RestrictedDocument, RestrictedEmbeddedDocument
@@ -13,6 +14,18 @@ class EventReactions(RestrictedEmbeddedDocument):
         maybe: Count of uncertain responses
         no: Count of negative responses
     """
+
+    def modify(
+        self, field: str, quantity: int
+    ):  # Yes, this is kinda stupid, but it prevents having to sort lists on every reaction add and remove
+        """Increments or Decrements a reaction count based on the passed in emoji"""
+        match field:
+            case "✅":
+                self.yes = max(0, self.yes + quantity)
+            case "❌":
+                self.no = max(0, self.no + quantity)
+            case "❔":
+                self.maybe = max(0, self.maybe + quantity)
 
     yes: int = mongoengine.IntField(default=0)
     maybe: int = mongoengine.IntField(default=0)
@@ -34,9 +47,7 @@ class EventDetails(RestrictedEmbeddedDocument):
     time: datetime.datetime = mongoengine.DateTimeField(required=True)
     location: str | None = mongoengine.StringField()
     description: str | None = mongoengine.StringField()
-    reactions: EventReactions = mongoengine.EmbeddedDocumentField(
-        EventReactions, default=EventReactions
-    )
+    reactions: EventReactions = mongoengine.EmbeddedDocumentField(EventReactions, default=EventReactions)
 
 
 class Event(RestrictedDocument):
@@ -64,7 +75,10 @@ class Event(RestrictedDocument):
     created_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
     updated_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
 
-    meta = {"collection": "events", "indexes": ["created_at", "updated_at"]}
+    meta: ClassVar[dict[str, Any]] = {
+        "collection": "events",
+        "indexes": ["created_at", "updated_at"],
+    }
 
     def save(self, *args: typing.Any, **kwargs: typing.Any) -> "Event":
         """Override save to update the updated_at timestamp."""

@@ -22,6 +22,45 @@ class HelpCog(commands.HelpCommand):
         )
         await self.get_destination().send(embed=embed)
 
+    def _format_command(self, command: commands.Command) -> str | None:
+        """Return a formatted description string for a command or None if hidden."""
+        if getattr(command, "hidden", False):
+            return None
+
+        if isinstance(command, commands.Group):
+            sub_list = [f"**{sub.name}** - {sub.help or 'No description'}" for sub in command.commands]
+            sub_text = "\n".join(sub_list) if sub_list else ""
+            base = command.help or "No description"
+            description = f"{base}\n{sub_text}" if sub_text else base
+            return f"**{command.name}**\n{description}"
+
+        return f"**{command.name}** - {command.help or 'No description'}"
+
+    def _build_cog_embed(self, cog: commands.Cog) -> discord.Embed:
+        """Construct an embed for a cog's commands."""
+        embed = discord.Embed(
+            title=f"{cog.qualified_name} Commands",
+            description="Available commands",
+            color=colors.HELP,
+        )
+
+        descriptions = [d for d in (self._format_command(cmd) for cmd in cog.get_commands()) if d]
+        embed.description = "\n\n".join(descriptions)
+        return embed
+
+    async def _handle_help_exception(self, e: Exception, subject: str, not_found_msg: str, perms_msg: str) -> None:
+        """Centralized exception handling for help commands."""
+        if isinstance(e, commands.CommandNotFound):
+            self.logger.error(f"{subject} is not found!")
+            await self.send_error_message(not_found_msg)
+            return
+        if isinstance(e, commands.MissingPermissions):
+            self.logger.error("Missing Permissions!")
+            await self.send_error_message(perms_msg)
+            return
+        self.logger.error(f"Error displaying help for {subject}: {e}")
+        await self.send_error_message("There was an error sending the help message.")
+
     async def send_bot_help(self, mapping):
         """Handles the default help command output."""
         try:
@@ -41,9 +80,7 @@ class HelpCog(commands.HelpCommand):
                         continue
 
                     aliases = f" (aliases: {', '.join(cmd.aliases)})" if cmd.aliases else ""
-                    command_list.append(
-                        f"**{cmd.name}**{aliases} - {cmd.help or 'No description provided'}"
-                    )
+                    command_list.append(f"**{cmd.name}**{aliases} - {cmd.help or 'No description provided'}")
 
                 if command_list:
                     cog_name = cog.qualified_name if cog else "No Category"
@@ -57,46 +94,16 @@ class HelpCog(commands.HelpCommand):
     async def send_cog_help(self, cog):
         """Handles help for a specific cog."""
         try:
-            ctx = self.context
-            embed = discord.Embed(
-                title=f"{cog.qualified_name} Commands",
-                description="Available commands",
-                color=colors.HELP,
-            )
-
-            # Combine all commands into a single string
-            command_descriptions = []
-            for command in cog.get_commands():
-                if not command.hidden:
-                    if isinstance(command, commands.Group):
-                        # For group commands, add each subcommand
-                        subcommands = [
-                            f"**{sub.name}** - {sub.help or 'No description'}"
-                            for sub in command.commands
-                        ]
-                        description = f"{command.help or 'No description'}\n" + "\n".join(
-                            subcommands
-                        )
-                        command_descriptions.append(f"**{command.name}**\n{description}")
-                    else:
-                        # Add standalone command
-                        command_descriptions.append(
-                            f"**{command.name}** - {command.help or 'No description'}"
-                        )
-
-            # Join all command descriptions with newlines and set it in the embed description
-            embed.description = "\n\n".join(command_descriptions)
-
-            await ctx.send(embed=embed)
-        except commands.CommandNotFound:
-            self.logger.error("Cog is not found!")
-            await self.send_error_message("Cog is not found.")
-        except commands.MissingPermissions:
-            self.logger.error("Missing Permissions!")
-            await self.send_error_message("You do not have permission to view this category.")
+            embed = self._build_cog_embed(cog)
+            await self.context.send(embed=embed)
         except Exception as e:
-            self.logger.error(f"Error displaying help for command '{cog}': {e}")
-            await self.send_error_message("There was an error sending the help message.")
+            subject = f"cog '{getattr(cog, 'qualified_name', cog)}'"
+            await self._handle_help_exception(
+                e,
+                subject,
+                not_found_msg="Cog is not found.",
+                perms_msg="You do not have permission to view this category.",
+            )
 
     async def send_command_help(self, command):
         """Handles help for a specific command."""
@@ -132,9 +139,7 @@ class Help(commands.Cog):
         self.bot.help_command = HelpCog()  # Assign to bot's help command
 
     def cog_unload(self):
-        self.bot.help_command = (
-            commands.DefaultHelpCommand()
-        )  # Reset the help command when the cog is unloaded
+        self.bot.help_command = commands.DefaultHelpCommand()  # Reset the help command when the cog is unloaded
 
 
 async def setup(bot: commands.Bot):

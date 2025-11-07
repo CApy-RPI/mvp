@@ -7,7 +7,7 @@ from capy_app.backend.db.documents.user import User, UserName, UserProfile
 
 
 @pytest.fixture(scope="module")
-def db():
+def _db():
     """
     Create a temporary in-memory test database using mongoengine and mongomock.
     """
@@ -22,7 +22,7 @@ def db():
     mongoengine.disconnect(alias="default")  # Ensure proper cleanup
 
 
-def test_create_user_success(db):
+def test_create_user_success(_db):
     """
     Test creating a user with all required fields.
     """
@@ -31,7 +31,7 @@ def test_create_user_success(db):
         name=name,
         school_email="john.doe@school.edu",
         student_id=12345,
-        major=["Computer Science", "Mathematics"],
+        major="Computer Science,Mathematics",
         graduation_year=2025,
     )
 
@@ -47,7 +47,7 @@ def test_create_user_success(db):
         invalid_profile = UserProfile(
             school_email="not.an.email",
             student_id=12345,
-            major=["Computer Science"],
+            major="Computer Science",
             graduation_year=2025,
         )
         User(_id=2, profile=invalid_profile).save()
@@ -57,7 +57,7 @@ def test_create_user_success(db):
         invalid_profile = UserProfile(
             school_email="valid@school.edu",
             student_id="abc123",  # Should be numeric
-            major=["Computer Science"],
+            major="Computer Science",
             graduation_year=2025,
         )
         User(_id=3, profile=invalid_profile).save()
@@ -67,7 +67,7 @@ def test_create_user_success(db):
         invalid_profile = UserProfile(
             school_email="valid@school.edu",
             student_id=12345,
-            major=[],  # Empty major list
+            major="",  # Empty string
             graduation_year=2025,
         )
         User(_id=4, profile=invalid_profile).save()
@@ -77,7 +77,7 @@ def test_create_user_success(db):
         invalid_profile = UserProfile(
             school_email="valid@school.edu",
             student_id=12345,
-            major=["Computer Science"],
+            major="Computer Science",
             graduation_year=2000,  # Past year
         )
         User(_id=5, profile=invalid_profile).save()
@@ -87,14 +87,14 @@ def test_create_user_success(db):
         invalid_profile = UserProfile(
             school_email="valid@school.edu",
             student_id=12345,
-            major=["Computer Science"],
+            major="Computer Science",
             graduation_year=2025,
             phone="not-a-phone",  # Invalid phone format
         )
         User(_id=6, profile=invalid_profile).save()
 
 
-def test_missing_required_fields(db):
+def test_missing_required_fields(_db):
     """
     Test that creating a user without required fields raises ValidationError.
     We'll omit various required fields in both UserProfile and UserName.
@@ -120,7 +120,7 @@ def test_missing_required_fields(db):
     assert "major" in error_msg, "Should complain about missing 'major'"
 
 
-def test_unique_school_email(db):
+def test_unique_school_email(_db):
     """
     Test that creating two users with the same school_email raises NotUniqueError.
     """
@@ -129,7 +129,7 @@ def test_unique_school_email(db):
         name=name_a,
         school_email="unique@school.edu",
         student_id=99999,
-        major=["Biology"],
+        major="Biology",
         graduation_year=2023,
     )
     user_a = User(_id=3, profile=profile_a)
@@ -140,7 +140,7 @@ def test_unique_school_email(db):
         name=name_b,
         school_email="unique@school.edu",  # Same email
         student_id=88888,
-        major=["Chemistry"],
+        major="Chemistry",
         graduation_year=2023,
     )
     user_b = User(_id=4, profile=profile_b)
@@ -152,7 +152,7 @@ def test_unique_school_email(db):
     assert "E11000" in str(excinfo.value), "Expected a duplicate key error for school_email"
 
 
-def test_unique_student_id(db):
+def test_unique_student_id(_db):
     """
     Test that creating two users with the same student_id raises NotUniqueError.
     """
@@ -161,7 +161,7 @@ def test_unique_student_id(db):
         name=name_c,
         school_email="charlie@school.edu",
         student_id=77777,
-        major=["Physics"],
+        major="Physics",
         graduation_year=2022,
     )
     user_c = User(_id=5, profile=profile_c)
@@ -172,7 +172,7 @@ def test_unique_student_id(db):
         name=name_d,
         school_email="diana@school.edu",
         student_id=77777,  # Same student ID
-        major=["Engineering"],
+        major="Engineering",
         graduation_year=2022,
     )
     user_d = User(_id=6, profile=profile_d)
@@ -184,7 +184,7 @@ def test_unique_student_id(db):
     assert "E11000" in str(excinfo.value), "Expected a duplicate key error for student_id"
 
 
-def test_optional_phone(db):
+def test_optional_phone(_db):
     """
     Test that the phone field can be set or left as None without error.
     """
@@ -193,14 +193,15 @@ def test_optional_phone(db):
         name=name,
         school_email="emily.black@school.edu",
         student_id=22222,
-        major=["Art History"],
+        major="Art History",
         graduation_year=2026,
         phone=1234567890,
     )
     User(_id=7, profile=profile).save()
 
     saved_user = User.objects(_id=7).first()
-    assert saved_user.profile.phone == 1234567890
+    saved_user_phone = 1234567890
+    assert saved_user.profile.phone == saved_user_phone
 
     # Update phone to None
     saved_user.profile.phone = None
@@ -210,7 +211,7 @@ def test_optional_phone(db):
     assert updated_user.profile.phone is None
 
 
-def test_add_guilds_and_events(db):
+def test_add_guilds_and_events(_db):
     """
     Test adding guild and event references to an existing user.
     """
@@ -219,7 +220,7 @@ def test_add_guilds_and_events(db):
         name=name,
         school_email="frank.wright@school.edu",
         student_id=33333,
-        major=["Economics"],
+        major="Economics",
         graduation_year=2025,
     )
     user = User(_id=8, profile=profile).save()

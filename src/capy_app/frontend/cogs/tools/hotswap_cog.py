@@ -66,13 +66,13 @@ class HotswapView(discord.ui.View):
         self.add_item(HotswapSelect(cogs, operation, bot))
 
 
-class HotswapCog(commands.Cog, name="hotswap"):
+class HotswapCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.logger = logging.getLogger(f"discord.cog.{self.__class__.__name__.lower()}")
         self.cogs_path = Path(__file__).parent / ".."
 
-    def get_cog_from_path(self, path: str) -> str | None:
+    def get_cog_from_path(self, path: os.PathLike[str] | str) -> str | None:
         """Convert a file path to a cog import path."""
         rel_path = os.path.relpath(path, self.cogs_path)
         if rel_path.endswith("_cog.py"):
@@ -118,15 +118,11 @@ class HotswapCog(commands.Cog, name="hotswap"):
         }[operation]
 
         if not cogs:
-            await interaction.response.send_message(
-                f"No cogs available to {operation}!", ephemeral=True
-            )
+            await interaction.response.send_message(f"No cogs available to {operation}!", ephemeral=True)
             return
 
         view = HotswapView(cogs, operation, self.bot)
-        await interaction.response.send_message(
-            f"Select a cog to {operation}:", view=view, ephemeral=True
-        )
+        await interaction.response.send_message(f"Select a cog to {operation}:", view=view, ephemeral=True)
 
 
 async def setup(bot: commands.Bot):
