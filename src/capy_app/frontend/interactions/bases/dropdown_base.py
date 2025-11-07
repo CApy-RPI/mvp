@@ -39,10 +39,6 @@ class RightButton(Button["DynamicDropdownView"]):
         """Handle accept button click."""
         assert self.view is not None
         logger.debug("Right button clicked")
-        if self.view.page_number + 1 >= len(self.view._dropdowns_data):
-            logger.debug("Already on last page")
-            await interaction.response.defer()
-            return
 
         await self.view.turn_page(1)
         await interaction.response.edit_message(view=self.view)
@@ -60,11 +56,6 @@ class LeftButton(Button["DynamicDropdownView"]):
     async def callback(self, interaction: Interaction) -> None:
         assert self.view is not None
         logger.debug("Left button clicked")
-
-        if self.view.page_number - 1 < 0:
-            logger.debug("Already on first page")
-            await interaction.response.defer()
-            return
 
         await self.view.turn_page(-1)
         await interaction.response.edit_message(view=self.view)
@@ -356,13 +347,6 @@ class DynamicDropdownView(View):
         # Pass existing selections as default values
         dropdown = DynamicDropdown(selections, default_values=existing_selections, **options)
 
-        # Code to update the max value according to the running total: doesn't work because
-        # dropdowns cannot have a max value of 0, which breaks the command.
-        # runningtotal=0
-        # for dropdown1 in self._collection.keys():
-        #        for major in self._collection[dropdown1]:
-        #            runningtotal+=1
-        # dropdown.max_values=dropdown.maxvalues-runningtotal
         self._dropdowns.append(dropdown)
         self.add_item(dropdown)
         return dropdown
@@ -385,10 +369,10 @@ class DynamicDropdownView(View):
 
         if self.page_number > 0:
             self.add_item(LeftButton())
-        self.add_item(AcceptButton())
-        self.add_item(CancelButton())
         if self.page_number < len(self._dropdowns_data) - 1:
             self.add_item(RightButton())
+        self.add_item(AcceptButton())
+        self.add_item(CancelButton())
 
         self._has_buttons = True
 
