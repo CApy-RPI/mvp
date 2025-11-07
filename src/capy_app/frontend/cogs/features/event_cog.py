@@ -211,9 +211,6 @@ async def send_event_selection_error(interaction, error_msg, message=None):
             pass
 
 
-# TODO view.wait() does not terminate if accept/cancel is pressed on a non-first page.
-# I don't know if there's an intended way to deal with this, so I'm leaving it to the developers of
-# dropdown_base to fix.
 async def get_dropdown_selection(interaction, view: DynamicDropdownView, action: Action):
     """
     Shows a dropdown and returns the user selection
@@ -240,7 +237,7 @@ async def get_dropdown_selection(interaction, view: DynamicDropdownView, action:
         values = selections if getattr(view, "accepted", False) else None
 
         # If user cancelled selection, update message and return None
-        if hasattr(view, "cancelled") and getattr(view, "cancelled", False):
+        if hasattr(view, "accepted") and not getattr(view, "accepted", False):
             await message.edit(
                 content=f"Event selection for {action.value} was cancelled.",
                 view=None,
@@ -762,10 +759,10 @@ class EventCog(commands.Cog):
 
                 # Show dropdown
                 values, message = await get_dropdown_selection(interaction, view, action)
-                if all_false(values, message):
-                    # If no selection made, set error message
-                    error_msg = "No event selected."
-                else:
+
+                # get_dropdown selection already handles editing the message on a cancellation or timeout,
+                # so no need to set error msg
+                if values is not None:
                     # Get selected event ID
                     selected_id_str = None
                     for key in ("event_selection_upcoming", "event_selection_old", "event_selection"):
