@@ -13,7 +13,11 @@ from backend.db.documents.guild import Guild
 from backend.db.documents.user import User
 from discord import app_commands
 from discord.ext import commands
-from frontend.interactions.bases.button_base import ConfirmDeleteView, ConfirmView, EditView
+from frontend.interactions.bases.button_base import (
+    ConfirmDeleteView,
+    ConfirmView,
+    EditView,
+)
 from frontend.interactions.bases.dropdown_base import DynamicDropdownView
 from frontend.interactions.bases.modal_base import DynamicModalView
 
@@ -94,7 +98,9 @@ def now() -> datetime:
     return datetime.now(UTC)
 
 
-def _event_time(ev: Event):  # This is marked private so not to conflict with any variables event_time
+def _event_time(
+    ev: Event,
+):  # This is marked private so not to conflict with any variables event_time
     """
     Return the time of an event, using UTC if it's timezone-naive
     """
@@ -211,9 +217,6 @@ async def send_event_selection_error(interaction, error_msg, message=None):
             pass
 
 
-# TODO view.wait() does not terminate if accept/cancel is pressed on a non-first page.
-# I don't know if there's an intended way to deal with this, so I'm leaving it to the developers of
-# dropdown_base to fix.
 async def get_dropdown_selection(interaction, view: DynamicDropdownView, action: Action):
     """
     Shows a dropdown and returns the user selection
@@ -240,7 +243,7 @@ async def get_dropdown_selection(interaction, view: DynamicDropdownView, action:
         values = selections if getattr(view, "accepted", False) else None
 
         # If user cancelled selection, update message and return None
-        if hasattr(view, "cancelled") and getattr(view, "cancelled", False):
+        if hasattr(view, "accepted") and not getattr(view, "accepted", False):
             await message.edit(
                 content=f"Event selection for {action.value} was cancelled.",
                 view=None,
@@ -621,7 +624,10 @@ class EventCog(commands.Cog):
         return new_event, event_id
 
     async def _show_event_embed(
-        self, event: Event, message: discord.Message | None = None, interaction: discord.Interaction | None = None
+        self,
+        event: Event,
+        message: discord.Message | None = None,
+        interaction: discord.Interaction | None = None,
     ) -> None:
         """
         Display event details in an embed
@@ -728,7 +734,10 @@ class EventCog(commands.Cog):
             delete_error = await self._delete_event_and_cleanup(event, interaction.guild_id)
             if delete_error:
                 # If error occurs during deletion, notify user
-                await edit_message_safe(message, f"Error deleting event '{event.details.name}': {delete_error}")
+                await edit_message_safe(
+                    message,
+                    f"Error deleting event '{event.details.name}': {delete_error}",
+                )
             else:
                 # Notify user of successful deletion
                 await edit_message_safe(message, f"Event '{event.details.name}' has been deleted.")
@@ -762,13 +771,17 @@ class EventCog(commands.Cog):
 
                 # Show dropdown
                 values, message = await get_dropdown_selection(interaction, view, action)
-                if all_false(values, message):
-                    # If no selection made, set error message
-                    error_msg = "No event selected."
-                else:
+
+                # get_dropdown selection already handles editing the message on a cancellation or timeout,
+                # so no need to set error msg
+                if values is not None:
                     # Get selected event ID
                     selected_id_str = None
-                    for key in ("event_selection_upcoming", "event_selection_old", "event_selection"):
+                    for key in (
+                        "event_selection_upcoming",
+                        "event_selection_old",
+                        "event_selection",
+                    ):
                         selected_list = values.get(key, [])
                         if selected_list:
                             selected_id_str = selected_list[0]

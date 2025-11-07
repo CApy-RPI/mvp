@@ -12,6 +12,7 @@ repos:
         verbose: true
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.12.8
+    rev: v0.12.8
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
@@ -42,7 +43,7 @@ repos:
         args:
           [
             "-c",
-            'output=$(radon mi --min C --show -e multiplayerchess_cog.py src); if [ -n "$output" ]; then echo "$output"; exit 1; fi',
+            'output=$(radon mi --min C --show -i games src); if [ -n "$output" ]; then echo "$output"; exit 1; fi',
           ]
         files: \.py$
       - id: pytest

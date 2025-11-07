@@ -10,7 +10,7 @@ FAIL = "\033[91m"
 
 def init_logger():
     # Use pathlib.Path instead of os.path / os.mkdir
-    logs_dir = Path("logs")
+    logs_dir = Path(__file__).parents[2].joinpath("logs")
     if not logs_dir.exists():
         logs_dir.mkdir(parents=True)
     logfile = logs_dir / f"{strftime('%Y-%m-%d_%H-%M-%S', gmtime())}@{socket.gethostname()}.log"

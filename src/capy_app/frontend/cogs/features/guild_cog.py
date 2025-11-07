@@ -72,45 +72,85 @@ class GuildCog(commands.Cog):
         if message:
             await message.edit(content=content, embed=embed, view=None)
             return
+        # If we haven't responded yet, use interaction.response; otherwise use followup
+        if not interaction.response.is_done():
+            if embed is not None:
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+            else:
+                await interaction.response.send_message(content or "", ephemeral=True)
+            return
+        # Already responded (e.g., deferred or previous message) -> followup
         if embed is not None:
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
         else:
-            await interaction.response.send_message(content or "", ephemeral=True)
+            await interaction.followup.send(content or "", ephemeral=True)
 
-    async def _verify_guild_access(
-        self, interaction: discord.Interaction, require_manage: bool = False
-    ) -> tuple[bool, str]:
-        """Verify guild access and permissions."""
+    async def _verify_guild_access(self, interaction: discord.Interaction) -> tuple[bool, str]:
+        """Verify the user is allowed to run server commands.
+
+        Allowed if the invoker either:
+        - Has the Discord Administrator permission, or
+        - Holds the configured Admin role in guild settings.
+        """
         self.logger.debug(
-            "verify_access: user=%s guild=%s require_manage=%s",
+            "verify_access: user=%s guild=%s",
             getattr(interaction.user, "id", None),
             getattr(interaction.guild, "id", None),
-            require_manage,
         )
         if not isinstance(interaction.guild, discord.Guild):
             self.logger.info("verify_access: failed (not in guild)")
             return False, "This command can only be used in a server."
-
-        if require_manage and not interaction.user.guild_permissions.manage_guild:
-            self.logger.info("verify_access: failed (missing Manage Server)")
-            return False, "You need 'Manage Server' permission to modify settings."
 
         guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
         if not guild_data:
             self.logger.warning("verify_access: failed (no guild_data)")
             return False, "Failed to access guild settings."
 
-        self.logger.debug("verify_access: ok")
-        return True, ""
+        # Allow Discord administrators
+        try:
+            if getattr(interaction.user.guild_permissions, "administrator", False):
+                self.logger.debug("verify_access: ok (administrator)")
+                return True, ""
+        except Exception:
+            pass
+
+        # Allow members with the configured Admin role
+        admin_role_id_str: str | None = getattr(getattr(guild_data, "roles", None), "admin", None)
+        if admin_role_id_str and isinstance(interaction.user, discord.Member):
+            try:
+                admin_role_id = int(admin_role_id_str)
+                if any(r.id == admin_role_id for r in interaction.user.roles):
+                    self.logger.debug("verify_access: ok (admin role)")
+                    return True, ""
+            except Exception:
+                # If role id is not an integer or any other issue, treat as not present
+                self.logger.debug("verify_access: admin role not valid/assigned")
+
+        self.logger.info(
+            "verify_access: failed (no admin permission or role) user=%s guild=%s",
+            getattr(interaction.user, "id", None),
+            getattr(interaction.guild, "id", None),
+        )
+        return (
+            False,
+            "Only administrators or members with the configured Admin role may run server commands.",
+        )
 
     async def _process_settings_selection(
-        self, interaction: discord.Interaction
+        self,
+        interaction: discord.Interaction,
+        prompt_text: str = "Select what you'd like to edit:",
+        *,
+        ephemeral: bool = False,
+        message: discord.Message | None = None,
     ) -> tuple[str | None, discord.Message | None]:
         """Process settings type selection."""
         settings_view = DynamicDropdownView(**self.config.get_settings_type_dropdown())
-        selections, message = await settings_view.initiate_from_interaction(
-            interaction, "Select what you'd like to edit:"
-        )
+        settings_view._ephemeral = ephemeral
+        if message is None:
+            selections, message = await settings_view.initiate_from_interaction(interaction, prompt_text)
+        else:
+            selections, message = await settings_view.initiate_from_message(message, prompt_text)
 
         if not selections or "settings_type" not in selections:
             self.logger.info(
@@ -131,17 +171,25 @@ class GuildCog(commands.Cog):
         return chosen, message
 
     async def _process_configuration(
-        self, setting_type: str, message: discord.Message, guild: discord.Guild
-    ) -> dict[str, int | None] | None:
+        self,
+        setting_type: str,
+        message: discord.Message,
+        guild: discord.Guild,
+        *,
+        ephemeral: bool = False,
+        header_text: str | None = None,
+    ) -> dict[str, int | str | None] | None:
         """Process configuration selection."""
         self.logger.debug("config_start: type=%s guild=%s", setting_type, getattr(guild, "id", None))
         dropdowns = await self._create_dropdowns(setting_type, guild)
 
         config_view = DynamicDropdownView(dropdowns=dropdowns, **self.config.get_config_view_settings())
+        config_view._ephemeral = ephemeral
 
-        selections, message = await config_view.initiate_from_message(
-            message, f"Select {setting_type} for each category:"
-        )
+        prompt = f"Select {setting_type} for each category:"
+        if header_text:
+            prompt = f"{header_text}\n\n{prompt}"
+        selections, message = await config_view.initiate_from_message(message, prompt)
 
         if not selections:
             await message.edit(content="Configuration cancelled.", view=None)
@@ -153,7 +201,7 @@ class GuildCog(commands.Cog):
             self.logger.debug("config_end")
             return None
 
-        updates = {
+        updates: dict[str, int | str | None] = {
             f"{category}s__{name}": int(values[0]) if values else None
             for key, values in selections.items()
             for category, name in [key.split("_")]
@@ -170,7 +218,7 @@ class GuildCog(commands.Cog):
     @app_commands.command(name="server", description="Manage server settings")
     @app_commands.guilds(discord.Object(id=settings.DEBUG_GUILD_ID))
     @app_commands.describe(action="The action to perform with server settings")
-    @app_commands.choices(action=[app_commands.Choice(name=n, value=n) for n in ["show", "edit", "clear"]])
+    @app_commands.choices(action=[app_commands.Choice(name=n, value=n) for n in ["setup", "show", "edit", "clear"]])
     async def server(self, interaction: discord.Interaction, action: str) -> None:
         """Handle server setting actions."""
         self.logger.info(
@@ -179,16 +227,19 @@ class GuildCog(commands.Cog):
             getattr(interaction.user, "id", None),
             getattr(interaction.guild, "id", None),
         )
-        access_ok, error_msg = await self._verify_guild_access(
-            interaction, require_manage=(action in ["edit", "clear"])
-        )
-        # if not access_ok:
-        #     await interaction.edit_original_response(content=error_msg)
-        #     return
+        access_ok, error_msg = await self._verify_guild_access(interaction)
+        if not access_ok:
+            if interaction.response.is_done():
+                await interaction.edit_original_response(content=error_msg)
+            else:
+                await interaction.response.send_message(error_msg, ephemeral=True)
+            return
 
         try:
             guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
-            if action == "show":
+            if action == "setup":
+                await self.setup_flow(interaction)
+            elif action == "show":
                 await self.show_settings(interaction)
             elif action == "edit":
                 await self.edit_settings(interaction)
@@ -214,6 +265,184 @@ class GuildCog(commands.Cog):
         except Exception as e:
             self.logger.error(f"Failed to handle server action {action}: {e}")
             await interaction.edit_original_response(content=f"An error occurred while performing {action}.")
+
+    async def setup_flow(self, interaction: discord.Interaction) -> None:
+        """Guided onboarding with ephemeral dropdowns for channels and roles."""
+        access_ok, error_msg = await self._verify_guild_access(interaction)
+        if not access_ok:
+            if interaction.response.is_done():
+                await interaction.edit_original_response(content=error_msg)
+            else:
+                await interaction.response.send_message(error_msg, ephemeral=True)
+            return
+        intro = (
+            "Welcome to Capy — let's get onboarded!\n\n"
+            "You'll configure the required channels and roles Capy uses.\n\n"
+            "Channels:\n"
+            "• Reports — where users submit issues\n"
+            "• Announcements — your official broadcast channel\n"
+            "• Moderator — private coordination\n\n"
+            "Roles:\n"
+            "• Visitor — default for newcomers/guests\n"
+            "• Member — verified community members\n"
+            "• E-Board — leadership/officers\n"
+            "• Admin — administrators with Manage Server\n"
+            "• Advisor — mentors/advisors\n"
+            "• Office Hours — mentors hosting sessions\n\n"
+            "Commands:\n"
+            "```\n"
+            "/server setup  # start guided setup\n"
+            "/server edit   # reconfigure settings\n"
+            "/server show   # show current settings\n"
+            "/server clear  # reset settings (confirmation)\n"
+            "```"
+        )
+        # Present intro with Auto Create / Manual Select buttons
+        start_view = SetupStartView(self)
+        await interaction.response.send_message(intro, ephemeral=True, view=start_view)
+        start_message = await interaction.original_response()
+        await start_view.wait()
+
+        if start_view._completed == "auto":
+            # Auto path handled in callback
+            return
+
+        # Manual path
+        setting_type, message = await self._process_settings_selection(
+            interaction, intro, ephemeral=True, message=start_message
+        )
+        if not setting_type or not message:
+            return
+        updates = await self._process_configuration(
+            setting_type, message, interaction.guild, ephemeral=True, header_text=intro
+        )
+        if not updates:
+            return
+        guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
+        if not guild_data:
+            await message.edit(content="Failed to access guild data.", view=None)
+            return
+        Database.update_document(guild_data, updates)
+        # Apply role colors to selected roles in manual flow too
+        await self._apply_role_colors(interaction.guild, updates)
+        await self.show_settings(interaction, message)
+
+    async def _handle_auto_create(
+        self, guild: discord.Guild
+    ) -> tuple[dict[str, int | str | None], list[str], list[str]]:
+        """Create required channels and roles automatically and return updates and summaries.
+
+        Returns (updates, created_channels, created_roles).
+        """
+        channel_updates, created_channels = await self._auto_create_channels(guild)
+        role_updates, created_roles = await self._auto_create_roles(guild)
+
+        updates: dict[str, int | str | None] = {}
+        updates.update(channel_updates)
+        updates.update(role_updates)
+
+        return updates, created_channels, created_roles
+
+    async def _auto_create_channels(self, guild: discord.Guild) -> tuple[dict[str, int | None], list[str]]:
+        channel_targets = {
+            "reports": "reports",
+            "announcements": "announcements",
+            "moderator": "moderator",
+        }
+        updates: dict[str, int | None] = {}
+        created: list[str] = []
+        for key, name in channel_targets.items():
+            existing = discord.utils.get(guild.text_channels, name=name)
+            if existing is None:
+                try:
+                    ch = await guild.create_text_channel(name)
+                    created.append(f"#{name}")
+                    updates[f"channels__{key}"] = ch.id
+                except Exception:
+                    updates[f"channels__{key}"] = None
+            else:
+                updates[f"channels__{key}"] = existing.id
+        return updates, created
+
+    async def _auto_create_roles(self, guild: discord.Guild) -> tuple[dict[str, str | None], list[str]]:
+        role_targets = {
+            "visitor": "Visitor",
+            "member": "Member",
+            "eboard": "E-Board",
+            "admin": "Admin",
+            "advisor": "Advisor",
+            "office_hours": "Office Hours",
+        }
+        role_colors: dict[str, discord.Color] = {
+            "visitor": discord.Color.light_grey(),
+            "member": discord.Color.blue(),
+            "eboard": discord.Color.gold(),
+            "admin": discord.Color.red(),
+            "advisor": discord.Color.teal(),
+            "office_hours": discord.Color.purple(),
+        }
+        updates: dict[str, str | None] = {}
+        created: list[str] = []
+        for key, name in role_targets.items():
+            existing = discord.utils.get(guild.roles, name=name)
+            if existing is None:
+                try:
+                    color = role_colors.get(key, discord.Color.default())
+                    role = await guild.create_role(name=name, color=color)
+                    created.append(f"@{name}")
+                    updates[f"roles__{key}"] = str(role.id)
+                except Exception:
+                    updates[f"roles__{key}"] = None
+            else:
+                try:
+                    desired = role_colors.get(key)
+                    if desired and existing.color != desired:
+                        await existing.edit(color=desired, reason="Capy setup: apply role color")
+                except Exception:
+                    pass
+                updates[f"roles__{key}"] = str(existing.id)
+        return updates, created
+
+    def _build_auto_summary(self, created_channels: list[str], created_roles: list[str]) -> str:
+        lines = [
+            "Auto creation completed.",
+            f"Channels created: {', '.join(created_channels) if created_channels else 'none'}",
+            f"Roles created: {', '.join(created_roles) if created_roles else 'none'}",
+        ]
+        return "\n".join(lines)
+
+    async def _apply_role_colors(self, guild: discord.Guild, updates: dict[str, int | str | None]) -> None:
+        """Apply standard colors to selected roles based on role key names.
+
+        Expects updates keys like roles__admin -> role_id (string).
+        """
+        role_colors: dict[str, discord.Color] = {
+            "visitor": discord.Color.light_grey(),
+            "member": discord.Color.blue(),
+            "eboard": discord.Color.gold(),
+            "admin": discord.Color.red(),
+            "advisor": discord.Color.teal(),
+            "office_hours": discord.Color.purple(),
+        }
+        for key, value in updates.items():
+            if not key.startswith("roles__") or not value:
+                continue
+            role_key = key.split("__", 1)[1]
+            role_id_str = str(value)
+            if not role_id_str.isdigit():
+                continue
+            role = guild.get_role(int(role_id_str))
+            if not role:
+                continue
+            desired = role_colors.get(role_key)
+            if not desired:
+                continue
+            try:
+                if role.color != desired:
+                    await role.edit(color=desired, reason="Capy setup: apply role color")
+            except Exception:
+                # Ignore if lacking permissions
+                pass
 
     async def show_settings(self, interaction: discord.Interaction, message: discord.Message = None) -> None:
         """Display current server settings."""
@@ -316,6 +545,36 @@ class GuildCog(commands.Cog):
             self.logger.info("clear_settings: cleared")
         else:
             self.logger.info("clear_settings: cancelled")
+
+
+class SetupStartView(discord.ui.View):
+    def __init__(self, cog: GuildCog) -> None:
+        super().__init__(timeout=120)
+        self.cog = cog
+        self._completed: str | None = None  # "auto" | "manual"
+
+    @discord.ui.button(label="Auto Create", style=discord.ButtonStyle.green)
+    async def auto_create(self, interaction: discord.Interaction, _button: discord.ui.Button) -> None:  # type: ignore[override]
+        self._completed = "auto"
+        await interaction.response.defer(ephemeral=True)
+        self.stop()
+        if not isinstance(interaction.guild, discord.Guild):
+            await interaction.followup.send("This must be used in a server.", ephemeral=True)
+            return
+        updates, created_channels, created_roles = await self.cog._handle_auto_create(interaction.guild)
+        guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
+        Database.update_document(guild_data, updates)
+        await interaction.followup.send(
+            self.cog._build_auto_summary(created_channels, created_roles),
+            ephemeral=True,
+        )
+        await self.cog.show_settings(interaction)
+
+    @discord.ui.button(label="Manual Select", style=discord.ButtonStyle.blurple)
+    async def manual_select(self, interaction: discord.Interaction, _button: discord.ui.Button) -> None:  # type: ignore[override]
+        self._completed = "manual"
+        await interaction.response.edit_message(view=None)
+        self.stop()
 
 
 async def setup(bot: commands.Bot) -> None:
