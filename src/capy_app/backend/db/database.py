@@ -139,6 +139,46 @@ class Database:
 
         return [getattr(doc, attribute) for doc in qs]
 
+    @staticmethod
+    def bulk_update_attr(
+        document_class: type[T],
+        ids: list[int],
+        attribute: str,
+        value: typing.Any,
+    ) -> int:
+        """Bulk update an attribute for all documents with given IDs.
+
+        If the attribute is a ListField, appends the value; otherwise sets it.
+
+        Args:
+            document_class: MongoEngine Document subclass to update
+            ids: List of primary key IDs to target
+            attribute: Top-level field name to update
+            value: Value to set or append
+
+        Returns:
+            Number of documents updated
+        """
+        if not ids:
+            return 0
+
+        # Determine field type (top-level only)
+        field = document_class._fields.get(attribute)  # type: ignore[attr-defined]
+        qs = document_class.objects(pk__in=ids)
+
+        # If it's a ListField, append uniquely (server-side), otherwise set the value.
+        try:
+            if isinstance(field, mongoengine.fields.ListField):  # type: ignore[attr-defined]
+                # Use add_to_set to avoid duplicates without fetching documents
+                updated = qs.update(**{f"add_to_set__{attribute}": value})
+            else:
+                updated = qs.update(**{f"set__{attribute}": value})
+        except Exception:
+            # Fallback to set if field introspection fails
+            updated = qs.update(**{f"set__{attribute}": value})
+
+        return int(updated)
+
     # @staticmethod
     # def sync_document_with_template(document: T, template: typing.Type[T]) -> None:
     #     """Synchronizes document fields with template structure.

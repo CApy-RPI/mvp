@@ -25,10 +25,16 @@ T = TypeVar("T")
 
 
 class ProfileBatchHelper:
-    """Helper to scan guild members for profile presence (batched in future).
+    """Helper to scan guild members for profile presence, optimized for scale.
 
-    Today: synchronous iteration over members with DB lookups.
-    Future: chunking, concurrency limits, caching, and background tasks.
+    Current behavior:
+    - Single bulk read of user IDs to determine which members have profiles
+      (no per-member DB lookups).
+    - Server-side bulk write using add_to_set to record the current guild on
+      users who already have profiles (no reads, no duplicates).
+
+    Future enhancements: chunked background processing for very large guilds,
+    bounded concurrency for messaging, and caching.
     """
 
     def __init__(self, chunk_size: int = 100) -> None:
@@ -37,15 +43,17 @@ class ProfileBatchHelper:
     async def scan_profiles(self, guild: discord.Guild) -> ProfileScanResult:
         """Scan all human members and split into with/without profile lists.
 
-        Uses batched ID lookups instead of one DB call per user.
+        Uses a single bulk ID lookup via Database to avoid N queries, then
+        performs a server-side bulk add_to_set to ensure the current guild is
+        present in user.guilds for all users with profiles.
 
         Returns lists of member IDs for downstream batching or messaging.
         """
         human_members: list[discord.Member] = [m for m in guild.members if not m.bot]
         member_ids: list[int] = [m.id for m in human_members]
 
-        # Single fetch of existing user IDs via Database helper (min payload).
-        id_list = Database.list_document_attr(User, "id", {"pk__in": member_ids})
+        # Single fetch of existing user IDs via Database helper (minimal payload).
+        id_list = Database.list_document_attr(User, "_id", {"pk__in": member_ids})
         existing_ids: set[int] = {int(x) for x in id_list}
 
         with_profiles: list[int] = []
@@ -55,6 +63,10 @@ class ProfileBatchHelper:
                 with_profiles.append(mid)
             else:
                 without_profiles.append(mid)
+
+        # Server-side bulk add_to_set: no duplicates, no reads, all server-side.
+        if with_profiles:
+            Database.bulk_update_attr(User, with_profiles, "guilds", int(guild.id))
 
         return ProfileScanResult(with_profiles=with_profiles, without_profiles=without_profiles)
 
