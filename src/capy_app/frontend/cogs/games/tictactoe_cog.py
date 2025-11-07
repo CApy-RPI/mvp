@@ -69,6 +69,7 @@ class TicTacToeCog(commands.Cog):
                 and board[int(msg.content) - 1] == " "
             )
 
+        # main code loop
         for _ in range(9):
             try:
                 move_msg = await self.bot.wait_for("message", check=check, timeout=60.0)

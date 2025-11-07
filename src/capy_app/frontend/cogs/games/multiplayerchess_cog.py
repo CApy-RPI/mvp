@@ -114,7 +114,6 @@ def letter_to_piece(letter, color):
 # assumes the move given is valid
 # returns NONE
 def make_move(board, color, turn, piece, start, end):
-    # TODO: check a1 rook moved in is_move_valid
     # check for promotion
     if promotion_type != "X":
         promotion_piece = letter_to_piece(promotion_type, color)
@@ -650,7 +649,6 @@ def pawn_parser(board, msg, turn, color, start, end):
     return ("♙" if color == "black" else "♟", [start[1], start[0]], [end[1], end[0]])
 
 
-# TODO:
 # parse the chess notation to obtain piece, start location, end location
 # returns (False, False, False) if given string is NOT in valid notation form,
 # otherwise returns piece, start location, end location
@@ -826,13 +824,9 @@ def is_move_legal(board, turn, piece, color, start, end):
         else:
             return False
 
-    # check if square is unoccupied
-
     # check you aren't moving thru another piece
 
-    # check for being in check after move
-    # should cover pins too
-
+    # TODO: check for castling
     # castling rules
     # castling out of check
     # castling thru check
@@ -914,6 +908,12 @@ class MultiChess(commands.Cog):
         while True:
             try:
                 move_msg = await self.bot.wait_for("message", check=check, timeout=100.0)
+
+                # print out rules
+                if turn == 0:
+                    await interaction.followup.send(
+                        f'Welcome to CAPY Chess! To make a move, type your move in chess notation. Do not include symbols for check or checkmate.\n\nTo propose a draw, send "draw?". To resign, send "resign".\n\nHave fun!'
+                    )
 
                 # check for draw offer
                 if move_msg.content == "draw?":

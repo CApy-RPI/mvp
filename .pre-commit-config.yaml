@@ -35,10 +35,10 @@ repos:
         files: \.py$
         exclude: games/
       - id: radon-mi
-        name: radon maintainability index
+        name: radon maintainability index 
         entry: bash
         language: system
-        exclude: multiplayerchess_cog.py
+        exclude: games
         args:
           [
             "-c",
