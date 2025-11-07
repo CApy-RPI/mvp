@@ -50,6 +50,14 @@ class Settings(BaseSettings):
     # Debug guild setting
     DEBUG_GUILD_ID: int | None = None
 
+    # Onboarding settings
+    ONBOARDING_ENABLED: bool | None = True
+    ONBOARDING_MODE: str | None = "announce"  # announce | dm | silent
+    ONBOARDING_REQUIRE_MANAGE_GUILD: bool | None = True
+    ONBOARDING_FALLBACK_CHANNEL_ID: int | None = None
+    ONBOARDING_DOCS_URL: str | None = None
+    ONBOARDING_MESSAGE: str | None = "Thanks for adding me! Admins can configure channels/roles and features."
+
     model_config = {
         "env_file": ".env",
         "case_sensitive": True,
