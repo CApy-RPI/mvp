@@ -741,20 +741,20 @@ def print_board(board):
 def is_move_legal(board, turn, piece, color, start, end):
     # check to be sure piece, start, end are not false
     if not piece:
-        return False
+        return False, False, False
 
     # check bounds
     if on_board(end):
         pass
     else:
-        return False
+        return False, False, False
 
     """
     # check if this move will result in us being in check
     board_post_move = board
     make_move(board_post_move, color, turn, piece, start, end)
     if is_in_check(board_post_move, color):
-        return False
+        return False, False, False
     """
 
     # declaring variables
@@ -765,6 +765,10 @@ def is_move_legal(board, turn, piece, color, start, end):
     dx = endx - startx
     dy = endy - starty
     target_piece = board[endx][endy]
+
+    # can never take your own piece
+    if same_color(target_piece, color):
+        return False, False, False
 
     # check if piece can move this way
     if piece in ["♙", "♟"]:
@@ -781,7 +785,7 @@ def is_move_legal(board, turn, piece, color, start, end):
             last_dx = abs(last_endx - last_startx)
         # pawns move forward only
         pawn_double_step = 2
-        if ((dy > 0 and color == "white") or (dy < 0 and color == "black")) and (
+        if ((dy < 0 and color == "white") or (dy > 0 and color == "black")) and (
             (dx == 0 and abs(dy) == 1 and target_piece == "")
             or (
                 dx == 0
@@ -824,13 +828,28 @@ def is_move_legal(board, turn, piece, color, start, end):
         else:
             return False
 
+    # the check for how pieces move covered in parse_notation()
+
+    # just check that piece is indeed at start location
+
+    # bishop, rook, queen
     # check you aren't moving thru another piece
+
+    # king
+    if piece in ["♔", "♚"]:
+        # if the king is indeed found at start
+        if get_piece_at(board, start) == piece:
+            return True
+        else:
+            return False
+
+    # knight
 
     # TODO: check for castling
     # castling rules
     # castling out of check
     # castling thru check
-    # has king or rook moved?
+    # has king or rook moved? check globals
 
     return
 
