@@ -7,16 +7,14 @@ from discord.ext import commands
 
 from config import settings
 
-# TODO:
-"""
 # tracking if pieces moved (for castling)
+in_check = False
 a1_rook_moved = False
 h1_rook_moved = False
 a8_rook_moved = False
 h8_rook_moved = False
 black_king_moved = False
 white_king_moved = False
-"""
 promotion_type = "X"
 q_castling = False
 k_castling = False
@@ -741,20 +739,20 @@ def print_board(board):
 def is_move_legal(board, turn, piece, color, start, end):
     # check to be sure piece, start, end are not false
     if not piece:
-        return False, False, False
+        return False
 
     # check bounds
     if on_board(end):
         pass
     else:
-        return False, False, False
+        return False
 
     """
     # check if this move will result in us being in check
     board_post_move = board
     make_move(board_post_move, color, turn, piece, start, end)
     if is_in_check(board_post_move, color):
-        return False, False, False
+        return False
     """
 
     # declaring variables
@@ -768,7 +766,7 @@ def is_move_legal(board, turn, piece, color, start, end):
 
     # can never take your own piece
     if same_color(target_piece, color):
-        return False, False, False
+        return False
 
     # check if piece can move this way
     if piece in ["♙", "♟"]:
@@ -840,17 +838,51 @@ def is_move_legal(board, turn, piece, color, start, end):
         # if the king is indeed found at start
         if get_piece_at(board, start) == piece:
             return True
+        elif k_castling:
+            if color == "white":
+                if (
+                    not in_check
+                    and not h1_rook_moved
+                    and not white_king_moved
+                    and not is_square_attacked(board, [column6, rank1], color)
+                ):
+                    return True
+            elif color == "black":
+                if (
+                    not in_check
+                    and not h8_rook_moved
+                    and not black_king_moved
+                    and not is_square_attacked(board, [column6, rank8], color)
+                ):
+                    return True
+        elif q_castling:
+            if color == "white":
+                if (
+                    not in_check
+                    and not a1_rook_moved
+                    and not white_king_moved
+                    and not is_square_attacked(board, [column4, rank1], color)
+                ):
+                    return True
+            elif color == "black":
+                if (
+                    not in_check
+                    and not a8_rook_moved
+                    and not black_king_moved
+                    and not is_square_attacked(board, [column4, rank8], color)
+                ):
+                    return True
         else:
             return False
 
     # knight
 
-    # TODO: check for castling
-    # castling rules
-    # castling out of check
-    # castling thru check
-    # has king or rook moved? check globals
+    return False
 
+
+# TODO:
+# returns true if square is being attacked by an opponent's piece, else false
+def is_square_attacked(board, square, color):
     return
 
 
