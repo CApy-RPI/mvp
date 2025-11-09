@@ -501,7 +501,7 @@ class ProfileCog(commands.Cog):
         return True, ""
 
     def _validate_majors_field(self, profile_data: dict[str, str]) -> tuple[bool, str]:
-        """Validate majors field."""
+        """Validate majors field has content (actual validation happens later with fuzzy matching)."""
         majors_text = profile_data.get("major(s)", "").strip()
         if not majors_text:
             return False, "At least one major must be specified.\n"
@@ -510,13 +510,11 @@ class ProfileCog(commands.Cog):
         if not processed_majors:
             return False, "Please enter valid major(s) separated by commas.\n"
 
-        all_valid, valid_majors, invalid_majors = self.major_handler.validate_majors(processed_majors)
-        if not all_valid:
-            return False, self.major_handler.get_validation_error_message(invalid_majors)
-
-        if len(valid_majors) > MAX_MAJORS_ALLOWED:
+        if len(processed_majors) > MAX_MAJORS_ALLOWED:
             return False, f"You can only specify up to {MAX_MAJORS_ALLOWED} majors.\n"
 
+        # Don't validate actual major names here - that happens in _process_and_validate_majors
+        # with fuzzy matching and abbreviation support
         return True, ""
 
     def _prepare_retry_data(self, profile_data: dict[str, str]) -> dict[str, str]:

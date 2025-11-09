@@ -1,0 +1,60 @@
+# Major Abbreviations Mapping
+# Format: ABBREVIATION|Full Major Name
+# One mapping per line, case-insensitive
+
+# Engineering
+AE|Aeronautical Engineering
+AERO|Aeronautical Engineering
+AEROE|Aerospace Engineering
+BE|Biomedical Engineering
+BME|Biomedical Engineering
+BMED|Biomedical Engineering
+CE|Civil Engineering
+CHEME|Chemical Engineering
+CSE|Computer and Systems Engineering
+EE|Electrical Engineering
+ECSE|Electrical Engineering
+ENVE|Environmental Engineering
+IE|Industrial and Management Engineering
+IME|Industrial and Management Engineering
+ISYE|Industrial and Management Engineering
+MANE|Mechanical Engineering
+ME|Mechanical Engineering
+MATE|Materials Engineering
+MATSE|Materials Engineering
+NE|Nuclear Engineering
+NUCLE|Nuclear Engineering
+
+# Science and Math
+BCBP|Biological Neuroscience
+BIO|Biology
+BIOL|Biology
+CHEM|Chemistry
+COGS|Cognitive Science
+CSCI|Cognitive Science
+ECON|Economics
+GEOL|Geology
+HYDRO|Hydrogeology
+ISCI|Interdisciplinary Science
+MATH|Mathematics
+PHYS|Physics
+PSYC|Psychology
+PSYCH|Psychology
+
+# Computing
+CS|Computer Science
+CSCI|Computer Science
+ITWS|Information Technology and Web Science
+
+# Other
+ARCH|Architecture
+BA|Business Analytics
+BM|Business and Management
+BUSM|Business and Management
+CMD|Communication, Media, and Design
+DIS|Design, Innovation, and Society
+EA|Electronic Arts
+ERTH|Geology
+GSAS|Games and Simulation Arts and Sciences
+STS|Science Technology and Society
+SUST|Sustainability Studies

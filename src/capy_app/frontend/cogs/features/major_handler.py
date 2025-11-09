@@ -2,6 +2,7 @@
 
 import logging
 from math import ceil
+from pathlib import Path
 from typing import Any
 
 from rapidfuzz import fuzz, process
@@ -30,6 +31,7 @@ class MajorHandler:
         self.num_groups = min(num_groups, 4)  # Discord limits total components
         self._ranges = self._calculate_ranges()
         self._grouped_majors = self._group_majors()
+        self._abbreviations = self._load_abbreviations()
 
     def _calculate_ranges(self) -> dict[str, tuple[str, str]]:
         """Dynamically calculate letter ranges based on major distribution."""
@@ -72,6 +74,39 @@ class MajorHandler:
                     break
 
         return groups
+
+    def _load_abbreviations(self) -> dict[str, str]:
+        """Load abbreviation mappings from file.
+
+        Returns:
+            Dictionary mapping lowercase abbreviations to full major names
+        """
+        abbreviations = {}
+        try:
+            # Construct path to abbreviations file (in frontend/resources)
+            resources_dir = Path(__file__).parent.parent.parent / "resources"
+            abbrev_file = resources_dir / "major_abbreviations.txt"
+
+            with abbrev_file.open(encoding="utf-8") as f:
+                for raw_line in f:
+                    line = raw_line.strip()
+                    # Skip empty lines and comments
+                    if not line or line.startswith("#"):
+                        continue
+
+                    # Parse abbreviation|Major Name format
+                    if "|" in line:
+                        abbrev, full_name = line.split("|", 1)
+                        # Store in lowercase for case-insensitive lookup
+                        abbreviations[abbrev.strip().lower()] = full_name.strip()
+
+            logger.info(f"Loaded {len(abbreviations)} major abbreviations")
+        except FileNotFoundError:
+            logger.warning(f"major_abbreviations.txt not found at {abbrev_file}, abbreviations disabled")
+        except Exception as e:
+            logger.error(f"Error loading abbreviations: {e}", exc_info=True)
+
+        return abbreviations
 
     def get_dropdown_config(self, base_config: dict[str, Any]) -> dict[str, Any]:
         """Generate dropdown configuration with current groups.
@@ -173,8 +208,9 @@ class MajorHandler:
             if not major_stripped:
                 continue
 
-            # Check if major exists (case-insensitive)
             major_lower = major_stripped.lower()
+
+            # Check if major exists (case-insensitive)
             if major_lower in major_lookup:
                 # Normalize to smart title case
                 title_cased = self._smart_title_case(major_stripped)
@@ -253,8 +289,16 @@ class MajorHandler:
             if not major_stripped:
                 continue
 
-            # Check if major exists (case-insensitive)
             major_lower = major_stripped.lower()
+
+            # Check if it's an abbreviation first (treat as suggestion)
+            if major_lower in self._abbreviations:
+                full_major = self._abbreviations[major_lower]
+                suggestions[major_stripped] = full_major
+                logger.info(f"Found abbreviation '{major_stripped}' -> '{full_major}'")
+                continue
+
+            # Check if major exists (case-insensitive)
             if major_lower in major_lookup:
                 # Exact match - normalize to smart title case
                 title_cased = self._smart_title_case(major_stripped)
