@@ -61,8 +61,10 @@ class SuggestionView(discord.ui.View):
         self.accepted = False
 
     @discord.ui.button(label="Accept Suggestions", style=discord.ButtonStyle.success)
-    async def accept_button(self, _interaction: discord.Interaction, _button: discord.ui.Button[Any]):
+    async def accept_button(self, interaction: discord.Interaction, _button: discord.ui.Button[Any]):
         """Accept the suggested corrections and continue with profile."""
+        # Acknowledge the interaction immediately to prevent timeout
+        await interaction.response.defer()
         self.accepted = True
         # Apply the suggestions to validated_majors
         for _original, suggested in self.suggestions.items():
@@ -244,9 +246,15 @@ class ProfileCog(commands.Cog):
         """Prompt user for verification code and validate it with retries."""
         max_attempts = 5
         attempt = 0
+        error_message = ""  # Track error message to display above verification prompt
+
         while attempt < max_attempts:
+            # Build the prompt with error message if there is one
+            base_prompt = "A verification code has been sent to your email.\nClick below when ready to verify:"
+            prompt = f"{error_message}\n\n{base_prompt}" if error_message else base_prompt
+
             verify_view = ButtonDynamicModalView(**self.config["verify_modal"])
-            values, _ = await verify_view.initiate_from_message(message)
+            values, _ = await verify_view.initiate_from_message(message, prompt=prompt)
 
             # If user closes/cancels the modal, abort verification entirely
             if not values:
@@ -256,7 +264,7 @@ class ProfileCog(commands.Cog):
             raw_code = values.get("verification_code", "")
             normalized = raw_code.strip().replace(" ", "")
             if not (len(normalized) == VERIFICATION_CODE_LENGTH and normalized.isdigit()):
-                await message.edit(content="Please enter a valid 6-digit numeric code.")
+                error_message = "❌ Please enter a valid 6-digit numeric code."
                 # Do not count this as an attempt; let user re-enter
                 continue
 
@@ -266,9 +274,13 @@ class ProfileCog(commands.Cog):
             attempt += 1
             attempts_left = max_attempts - attempt
             if attempts_left > 0:
-                await message.edit(content=f"Incorrect code. Try again. Attempts left: {attempts_left}")
+                error_message = f"❌ Incorrect code. **Attempts remaining: {attempts_left}**"
             else:
-                await message.edit(content="Verification failed after 5 attempts. Please start over.")
+                await message.edit(
+                    content="❌ Verification failed after 5 attempts. Please start over.",
+                    view=None,
+                )
+                return False
         return False
 
     async def handle_profile(
@@ -299,11 +311,19 @@ class ProfileCog(commands.Cog):
         if not await self._process_email_verification(message, user, profile_data):
             return
 
+        # First, clear the message to show success
+        await message.edit(content="✅ Form submitted successfully!", embed=None, view=None)
+
         await self._save_profile(
             interaction,
             action,
             profile_data,
-            {"majors_string": majors_string, "user": user, "message": message},
+            {
+                "majors_string": majors_string,
+                "user": user,
+                "message": message,
+                "interaction": interaction,
+            },
         )
 
     async def _process_and_validate_majors(
@@ -608,6 +628,8 @@ class ProfileCog(commands.Cog):
         self.logger.info(f"Starting to save profile for {action}")
         majors_string = context["majors_string"]
         user = context["user"]
+        message = context["message"]
+        interaction_ctx = context["interaction"]  # Get the interaction from context
 
         # Split preferred name into first and last name
         name_parts = profile_data["preferred_name"].strip().split()
@@ -638,8 +660,9 @@ class ProfileCog(commands.Cog):
                 user = Database.get_document(User, interaction.user.id)
                 self.logger.info(f"Successfully updated profile for {interaction.user}")
 
-            # Show the profile using the original interaction to get user's avatar
-            await self.show_profile_embed(interaction, user)
+            # Show the profile using the message to display after "Form submitted successfully"
+            # Pass interaction to get the correct user avatar
+            await self.show_profile_embed(message, user, interaction_ctx)
         except Exception as e:
             self.logger.error(f"Failed to save profile: {e}")
             await interaction.followup.send(
@@ -651,8 +674,15 @@ class ProfileCog(commands.Cog):
         self,
         message_or_interaction: discord.Message | discord.Interaction,
         user: User,
+        user_interaction: discord.Interaction | None = None,
     ) -> None:
-        """Display a user's profile in an embed."""
+        """Display a user's profile in an embed.
+
+        Args:
+            message_or_interaction: The message or interaction to use for displaying
+            user: The user whose profile to display
+            user_interaction: Optional interaction to get the user's avatar from
+        """
         is_interaction = isinstance(message_or_interaction, discord.Interaction)
 
         embed = discord.Embed(
@@ -661,7 +691,10 @@ class ProfileCog(commands.Cog):
         )
 
         avatar_url: str
-        if is_interaction:
+        # If we have a user_interaction, use that for the avatar (handles message case)
+        if user_interaction:
+            avatar_url = user_interaction.user.display_avatar.url
+        elif is_interaction:
             interaction = cast(discord.Interaction, message_or_interaction)
             avatar_url = interaction.user.display_avatar.url
         else:
