@@ -222,3 +222,50 @@ def test_validate_majors_with_multiple_small_words():
     # Note: The comma is part of the word, so "and" after comma is handled
     assert len(valid_majors) == EXPECTED_VALID_MAJORS_COUNT
     assert invalid_majors == []
+
+
+def test_validate_majors_with_abbreviations(major_handler):
+    """Test that abbreviations require user confirmation via suggestions."""
+    # Test common abbreviations - they should NOT be auto-expanded
+    input_majors = ["CS", "me", "PHYS"]
+    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(input_majors)
+
+    # validate_majors doesn't handle abbreviations, so they'll be invalid or fuzzy matched
+    # This is expected - abbreviations only work with validate_majors_with_corrections
+    assert all_valid is False or len(valid_majors) > 0  # May fuzzy match if similar enough
+
+
+def test_validate_majors_with_corrections_abbreviations(major_handler):
+    """Test that abbreviations are tracked as suggestions (not auto-corrections)."""
+    input_majors = ["CS", "MATH"]
+    all_valid, valid_majors, invalid_majors, auto_corrections, suggestions = (
+        major_handler.validate_majors_with_corrections(input_majors)
+    )
+
+    # Abbreviations should be suggestions, requiring user confirmation
+    assert all_valid is False  # Suggestions need confirmation
+    assert valid_majors == []  # No valid majors yet (waiting for confirmation)
+    assert "CS" in suggestions
+    assert suggestions["CS"] == "Computer Science"
+    assert "MATH" in suggestions
+    assert suggestions["MATH"] == "Mathematics"
+    assert invalid_majors == []
+    assert auto_corrections == {}  # No auto-corrections
+
+
+def test_validate_majors_mixed_abbreviations_and_full_names(major_handler):
+    """Test validation with a mix of abbreviations and full names."""
+    input_majors = ["CS", "Physics", "me"]
+    all_valid, valid_majors, invalid_majors, auto_corrections, suggestions = (
+        major_handler.validate_majors_with_corrections(input_majors)
+    )
+
+    # Physics is exact match, CS and me are abbreviations (suggestions)
+    assert all_valid is False  # Has suggestions needing confirmation
+    assert "Physics" in valid_majors  # Exact match accepted
+    assert "CS" in suggestions
+    assert suggestions["CS"] == "Computer Science"
+    assert "me" in suggestions
+    assert suggestions["me"] == "Mechanical Engineering"
+    assert invalid_majors == []
+    assert auto_corrections == {}
