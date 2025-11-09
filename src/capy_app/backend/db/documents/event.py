@@ -65,12 +65,12 @@ class Event(RestrictedDocument):
         updated_at: Timestamp of last update
     """
 
-    _id: int = mongoengine.IntField(primary_key=True)
-    yes_users: list[int] = mongoengine.ListField(mongoengine.IntField(), default=list)
-    maybe_users: list[int] = mongoengine.ListField(mongoengine.IntField(), default=list)
-    no_users: list[int] = mongoengine.ListField(mongoengine.IntField(), default=list)
-    guild_id: int = mongoengine.IntField()
-    message_id: int = mongoengine.IntField()
+    _id: int = mongoengine.LongField(primary_key=True)
+    yes_users: list[int] = mongoengine.ListField(mongoengine.LongField(), default=list)
+    maybe_users: list[int] = mongoengine.ListField(mongoengine.LongField(), default=list)
+    no_users: list[int] = mongoengine.ListField(mongoengine.LongField(), default=list)
+    guild_id: int = mongoengine.LongField()
+    message_id: int = mongoengine.LongField()
     details: EventDetails = mongoengine.EmbeddedDocumentField(EventDetails, required=True)
     created_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)
     updated_at: datetime.datetime = mongoengine.DateTimeField(default=datetime.datetime.now)

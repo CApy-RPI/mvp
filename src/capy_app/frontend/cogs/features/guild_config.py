@@ -22,18 +22,25 @@ class ConfigConstructor:
         return {
             "reports": {
                 "label": "Reports Channel",
-                "description": "Channel for report submissions",
+                "description": (
+                    "The text channel where users submit reports or issues. "
+                    "Staff will monitor this channel for new submissions."
+                ),
                 "required": True,
             },
             "announcements": {
                 "label": "Announcements Channel",
-                "description": "Channel for announcements",
+                "description": (
+                    "Official broadcast channel for important updates. Only staff should be able to post here."
+                ),
                 "required": True,
             },
             "moderator": {
                 "label": "Moderator Channel",
-                "description": "Channel for moderator communications",
-                "required": False,
+                "description": (
+                    "Private coordination channel for moderators and admins. Used for internal discussion and alerts."
+                ),
+                "required": True,
             },
         }
 
@@ -43,33 +50,40 @@ class ConfigConstructor:
         return {
             "visitor": {
                 "label": "Visitor Role",
-                "description": "Role for visitors",
-                "required": False,
+                "description": ("Default lightweight role for newcomers/guests. Often has minimal permissions."),
+                "required": True,
             },
             "member": {
                 "label": "Member Role",
-                "description": "Role for verified members",
-                "required": False,
+                "description": (
+                    "Primary role for verified members of the community. Grants access to standard channels."
+                ),
+                "required": True,
             },
             "eboard": {
                 "label": "E-Board Role",
-                "description": "Role for executive board members",
-                "required": False,
+                "description": (
+                    "Role for executive/leadership members (officers, leads). May receive additional admin tools."
+                ),
+                "required": True,
             },
             "admin": {
                 "label": "Admin Role",
-                "description": "Role for administrators",
+                "description": (
+                    "Top-level administrative role with Manage Server-level capabilities. "
+                    "Required for controlling bot configuration."
+                ),
                 "required": True,
             },
             "advisor": {
                 "label": "Advisor Role",
-                "description": "Role for advisors",
-                "required": False,
+                "description": ("Advisor/mentor role for guidance and oversight."),
+                "required": True,
             },
             "office_hours": {
                 "label": "Office Hours Role",
-                "description": "Role for office hours mentors",
-                "required": False,
+                "description": ("Role for members who host office hours or mentoring sessions."),
+                "required": True,
             },
         }
 

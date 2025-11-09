@@ -29,6 +29,8 @@ class Bot(commands.AutoShardedBot):
         self.logger = logging.getLogger("discord.main")
         self.logger.setLevel(settings.LOG_LEVEL)
 
+        self.tree.error(coro=self._dispatch_slash_command_error)
+
     async def on_member_join(self, member: discord.Member) -> None:
         """Handle event when a new member joins a guild.
 
@@ -85,10 +87,11 @@ class Bot(commands.AutoShardedBot):
         if self.user is None:
             return
 
-        if settings.DEBUG_GUILD_ID:
-            self.logger.info(f"Connected to debug guild {settings.DEBUG_GUILD_ID}")
-            synced = await self.tree.sync(guild=self.get_guild(settings.DEBUG_GUILD_ID))
-            self.logger.info(f"Synced {len(synced)} application commands")
+        # Moved to guild_handler_cog.py
+        # if settings.DEBUG_GUILD_ID:
+        #     self.logger.info(f"Connected to debug guild {settings.DEBUG_GUILD_ID}")
+        #     synced = await self.tree.sync(guild=self.get_guild(settings.DEBUG_GUILD_ID))
+        #     self.logger.info(f"Synced {len(synced)} application commands")
 
         self.logger.info(f"Logged in as {self.user.name} - {self.user.id}")
         self.logger.info(f"Connected to {len(self.guilds)} guilds across {self.shard_count} shards")
@@ -129,6 +132,9 @@ class Bot(commands.AutoShardedBot):
 
         await ctx.send(f"Please use {dev_channel.mention} instead which this session is locked to.")
         self.logger.info(f"Command from {ctx.author} in disallowed channel {ctx.channel}")
+
+    async def _dispatch_slash_command_error(self, interaction, error):
+        self.dispatch("slash_command_error", interaction, error)
 
     def run_bot(self) -> None:
         """Run the bot instance."""

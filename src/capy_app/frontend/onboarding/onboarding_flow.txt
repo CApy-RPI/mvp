@@ -1,0 +1,14 @@
+### Bot Onboarding Flow
+
+Access: first available channel (admin only command /setup)
+
+- remove reports
+
+Bot: 
+1. announcement channel
+2. admin role -> certain actions
+3. link to docs
+4. run /help for help! 
+
+Profiles:
+1. on bot join send users without a profile an ephemeral to create a profile

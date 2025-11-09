@@ -39,24 +39,9 @@ class RightButton(Button["DynamicDropdownView"]):
         """Handle accept button click."""
         assert self.view is not None
         logger.debug("Right button clicked")
-        old_view: DynamicDropdownView = self.view
-        next_page = old_view.page_number + 1
 
-        if next_page >= len(old_view._dropdowns_data):
-            logger.debug("Already on last page")
-            await interaction.response.defer()
-            return
-
-        new_view = DynamicDropdownView(
-            dropdowns=old_view._dropdowns_data,
-            page_number=next_page,
-            ephemeral=old_view._ephemeral,
-            buttons=(old_view._auto_buttons, old_view._add_buttons),
-            collection=old_view._collection,
-        )
-        new_view._message = old_view._message  # Maintain message reference
-        new_view.data_future = old_view.data_future
-        await interaction.response.edit_message(view=new_view)
+        await self.view.turn_page(1)
+        await interaction.response.edit_message(view=self.view)
 
 
 class LeftButton(Button["DynamicDropdownView"]):
@@ -71,24 +56,9 @@ class LeftButton(Button["DynamicDropdownView"]):
     async def callback(self, interaction: Interaction) -> None:
         assert self.view is not None
         logger.debug("Left button clicked")
-        old_view: DynamicDropdownView = self.view
-        prev_page = old_view.page_number - 1
 
-        if prev_page < 0:
-            logger.debug("Already on first page")
-            await interaction.response.defer()
-            return
-
-        new_view = DynamicDropdownView(
-            dropdowns=old_view._dropdowns_data,
-            page_number=prev_page,
-            ephemeral=old_view._ephemeral,
-            buttons=(old_view._auto_buttons, old_view._add_buttons),
-            collection=old_view._collection,
-        )
-        new_view._message = old_view._message  # Maintain message reference
-        new_view.data_future = old_view.data_future
-        await interaction.response.edit_message(view=new_view)
+        await self.view.turn_page(-1)
+        await interaction.response.edit_message(view=self.view)
 
 
 class AcceptButton(Button["DynamicDropdownView"]):
@@ -377,13 +347,6 @@ class DynamicDropdownView(View):
         # Pass existing selections as default values
         dropdown = DynamicDropdown(selections, default_values=existing_selections, **options)
 
-        # Code to update the max value according to the running total: doesn't work because
-        # dropdowns cannot have a max value of 0, which breaks the command.
-        # runningtotal=0
-        # for dropdown1 in self._collection.keys():
-        #        for major in self._collection[dropdown1]:
-        #            runningtotal+=1
-        # dropdown.max_values=dropdown.maxvalues-runningtotal
         self._dropdowns.append(dropdown)
         self.add_item(dropdown)
         return dropdown
@@ -406,10 +369,10 @@ class DynamicDropdownView(View):
 
         if self.page_number > 0:
             self.add_item(LeftButton())
-        self.add_item(AcceptButton())
-        self.add_item(CancelButton())
         if self.page_number < len(self._dropdowns_data) - 1:
             self.add_item(RightButton())
+        self.add_item(AcceptButton())
+        self.add_item(CancelButton())
 
         self._has_buttons = True
 
@@ -458,3 +421,10 @@ class DynamicDropdownView(View):
     async def get_data(self) -> tuple[dict[str, list[str]] | None, Message | None]:
         # Wait for data to be set (e.g. via button interaction)
         return await self.data_future
+
+    async def turn_page(self, number):
+        self.page_number += number
+        self.clear_items()
+        self._has_buttons = False
+        self._add_dropdown(**self._dropdowns_data[self.page_number])
+        self._add_accept_cancel_buttons_if_needed()
