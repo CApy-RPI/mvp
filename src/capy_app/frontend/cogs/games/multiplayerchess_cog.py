@@ -57,8 +57,8 @@ moves[-1] = ("", (0, 0), (0, 0))
 
 # for sliding pieces: return True if all squares between start and end are empty
 def path_clear(board, start, end):
-    sr, sc = start
-    er, ec = end
+    sc, sr = start
+    ec, er = end
     dr = er - sr
     dc = ec - sc
     step_r = 0 if dr == 0 else (1 if dr > 0 else -1)
@@ -747,13 +747,13 @@ def is_move_legal(board, turn, piece, color, start, end):
     else:
         return False
 
-    """
     # check if this move will result in us being in check
     board_post_move = board
     make_move(board_post_move, color, turn, piece, start, end)
-    if is_in_check(board_post_move, color):
+    # find king's location
+    king_location = find_king(board_post_move, color)
+    if is_square_attacked(board_post_move, king_location, color):
         return False
-    """
 
     # declaring variables
     endx = end[1]
@@ -827,18 +827,27 @@ def is_move_legal(board, turn, piece, color, start, end):
             return False
 
     # the check for how pieces move covered in parse_notation()
+    # just check that piece is indeed at start location here
 
-    # just check that piece is indeed at start location
-
-    # bishop, rook, queen
+    # sliding pieces: bishop, rook, queen
     # check you aren't moving thru another piece
+    if piece in ["♝", "♗", "♖", "♜", "♕", "♛"]:
+        if path_clear(board, start, end) and get_piece_at(board, start) == piece:
+            return True
+        else:
+            return False
+
+    # knight
+    if piece in ["♘", "♞"]:
+        if get_piece_at(board, start) == piece:
+            return True
+        else:
+            return False
 
     # king
     if piece in ["♔", "♚"]:
-        # if the king is indeed found at start
-        if get_piece_at(board, start) == piece:
-            return True
-        elif k_castling:
+        # if castling
+        if k_castling:
             if color == "white":
                 if (
                     not in_check
@@ -872,35 +881,50 @@ def is_move_legal(board, turn, piece, color, start, end):
                     and not is_square_attacked(board, [column4, rank8], color)
                 ):
                     return True
+        # if the king is indeed found at start
+        elif get_piece_at(board, start) == piece:
+            return True
         else:
             return False
-
-    # knight
 
     return False
 
 
 # TODO:
 # returns true if square is being attacked by an opponent's piece, else false
+# takes in square as x, y
 def is_square_attacked(board, square, color):
     return
 
 
 # TODO:
+# returns the location of the king of color in x,y format
+def find_king(board, color):
+    king = "NULL"
+    if color == "black":
+        king = "♔"
+    else:
+        king = "♚"
+    for i in range(8):
+        for j in range(8):
+            if board[i][j] == king:
+                return [j, i]
+    # shouldn't ever get here
+    return [-1, -1]
+
+
+# TODO:
 # check for checkmate
 # returns true if checkmate has been played, false otherwise
-"""
 def check_win(board):
     return
-"""
+
 
 # TODO:
 # check for stalemate or repetition
 # returns true if stalemate or repetition found, false otherwise
-"""
 def check_draw(board):
     return
-"""
 
 
 class MultiChess(commands.Cog):
