@@ -6,6 +6,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from config import settings
+from typing import List, Tuple
 
 # tracking if pieces moved (for castling)
 in_check = False
@@ -752,7 +753,7 @@ def is_move_legal(board, turn, piece, color, start, end):
     make_move(board_post_move, color, turn, piece, start, end)
     # find king's location
     king_location = find_king(board_post_move, color)
-    if is_square_attacked(board_post_move, king_location, color):
+    if is_square_attacked(board_post_move, king_location, opponent_color(color))[0]:
         return False
 
     # declaring variables
@@ -853,7 +854,7 @@ def is_move_legal(board, turn, piece, color, start, end):
                     not in_check
                     and not h1_rook_moved
                     and not white_king_moved
-                    and not is_square_attacked(board, [column6, rank1], color)
+                    and not is_square_attacked(board, [column6, rank1], "black")[0]
                 ):
                     return True
             elif color == "black":
@@ -861,7 +862,7 @@ def is_move_legal(board, turn, piece, color, start, end):
                     not in_check
                     and not h8_rook_moved
                     and not black_king_moved
-                    and not is_square_attacked(board, [column6, rank8], color)
+                    and not is_square_attacked(board, [column6, rank8], "white")[0]
                 ):
                     return True
         elif q_castling:
@@ -870,7 +871,7 @@ def is_move_legal(board, turn, piece, color, start, end):
                     not in_check
                     and not a1_rook_moved
                     and not white_king_moved
-                    and not is_square_attacked(board, [column4, rank1], color)
+                    and not is_square_attacked(board, [column4, rank1], "black")[0]
                 ):
                     return True
             elif color == "black":
@@ -878,7 +879,7 @@ def is_move_legal(board, turn, piece, color, start, end):
                     not in_check
                     and not a8_rook_moved
                     and not black_king_moved
-                    and not is_square_attacked(board, [column4, rank8], color)
+                    and not is_square_attacked(board, [column4, rank8], "white")[0]
                 ):
                     return True
         # if the king is indeed found at start
@@ -890,14 +891,110 @@ def is_move_legal(board, turn, piece, color, start, end):
     return False
 
 
-# TODO:
-# returns true if square is being attacked by an opponent's piece, else false
-# takes in square as x, y
-def is_square_attacked(board, square, color):
-    return
+# returns a list of tuples that represent all locations on board attacked by piece
+def get_attacked_squares(board, piece, piece_location):
+    col, row = piece_location
+    attacked = []
+
+    rook_dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+    bishop_dirs = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
+    king_moves = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]
+    knight_moves = [(2, 1), (2, -1), (-2, 1), (-2, -1), (1, 2), (1, -2), (-1, 2), (-1, -2)]
+
+    def in_bounds(c, r):
+        return 0 <= c < 8 and 0 <= r < 8
+
+    white = {"♔", "♕", "♖", "♗", "♘", "♙"}
+    black = {"♚", "♛", "♜", "♝", "♞", "♟"}
+
+    # identify color + base piece type
+    if piece in white:
+        color = "white"
+    else:
+        color = "black"
+
+    # queen
+    if piece in ["♕", "♛"]:
+        directions = rook_dirs + bishop_dirs
+        for dx, dy in directions:
+            c, r = col + dx, row + dy
+            while in_bounds(c, r):
+                attacked.append((c, r))
+                c += dx
+                r += dy
+
+    # rook
+    elif piece in ["♖", "♜"]:
+        for dx, dy in rook_dirs:
+            c, r = col + dx, row + dy
+            while in_bounds(c, r):
+                attacked.append((c, r))
+                c += dx
+                r += dy
+
+    # bishop
+    elif piece in ["♗", "♝"]:
+        for dx, dy in bishop_dirs:
+            c, r = col + dx, row + dy
+            while in_bounds(c, r):
+                attacked.append((c, r))
+                c += dx
+                r += dy
+
+    # knight
+    elif piece in ["♘", "♞"]:
+        for dx, dy in knight_moves:
+            c, r = col + dx, row + dy
+            if in_bounds(c, r):
+                attacked.append((c, r))
+
+    # king
+    elif piece in ["♔", "♚"]:
+        for dx, dy in king_moves:
+            c, r = col + dx, row + dy
+            if in_bounds(c, r):
+                attacked.append((c, r))
+
+    # pawn
+    elif piece in ["♙", "♟"]:
+        if piece == "♟":  # white
+            for c, r in [(col + 1, row - 1), (col - 1, row - 1)]:
+                if in_bounds(c, r):
+                    attacked.append((c, r))
+        else:  # black
+            for c, r in [(col + 1, row + 1), (col - 1, row + 1)]:
+                if in_bounds(c, r):
+                    attacked.append((c, r))
+    return attacked
 
 
-# TODO:
+# [0] returns true if square is being attacked by an opponent's piece, else false
+# [1] returns locations in x, y of pieces on the board delivering the attack on square
+# EX: [[x1, y1], [x2, y2]]
+# takes in square as x, y and color of atkr
+def is_square_attacked(board, target_square: list[int], color_of_attacker: str) -> Tuple[bool, List[List[int]]]:
+    return_val: Tuple[bool, List[List[int]]] = (False, [])
+    attacked = False
+    attackers: List[List[int]] = []
+
+    for row in range(8):
+        for col in range(8):
+            piece = board[row][col]
+            piece_location = [col, row]
+            if piece != "" and same_color(piece, color_of_attacker):
+                atked_squares = get_attacked_squares(board, piece, piece_location)
+                for sq in atked_squares:
+                    if target_square == sq:
+                        if piece in ["♖", "♜", "♗", "♝", "♕", "♛"]:
+                            if path_clear(board, target_square, sq):
+                                attacked = True
+                                attackers.append(piece_location)
+                        elif piece in ["♘", "♞", "♔", "♚", "♙", "♟"]:
+                            attacked = True
+                            attackers.append(piece_location)
+    return attacked, attackers
+
+
 # returns the location of the king of color in x,y format
 def find_king(board, color):
     king = "NULL"
@@ -913,11 +1010,121 @@ def find_king(board, color):
     return [-1, -1]
 
 
-# TODO:
+# returns the (non-inclusive) squares between start and end if there is a perfect path
+# else returns False
+def get_squares_between(board, start, end):
+    start_col, start_row = start
+    end_col, end_row = end
+    squares_between = []
+
+    d_col = end_col - start_col
+    d_row = end_row - start_row
+
+    # Determine direction of movement
+    step_col = 0 if d_col == 0 else (1 if d_col > 0 else -1)
+    step_row = 0 if d_row == 0 else (1 if d_row > 0 else -1)
+
+    # Check if the path is straight or diagonal
+    if not (d_col == 0 or d_row == 0 or abs(d_col) == abs(d_row)):
+        return False  # Not aligned along a valid path
+
+    # Start moving one step from start toward end
+    c, r = start_col + step_col, start_row + step_row
+
+    while (c, r) != (end_col, end_row):
+        # Ensure still within board bounds
+        if not (0 <= c < 8 and 0 <= r < 8):
+            break
+        squares_between.append([c, r])
+        c += step_col
+        r += step_row
+
+    return squares_between
+
+
+# returns list of all pieces associated with given color
+def pieces_of_color(color):
+    if color == "black":
+        return ["♖", "♘", "♗", "♕", "♔", "♙"]
+    else:
+        return ["♛", "♚", "♝", "♞", "♜", "♟"]
+
+
 # check for checkmate
-# returns true if checkmate has been played, false otherwise
-def check_win(board):
-    return
+# takes in board post move
+# returns true if checkmate in on the board after a move by color, false otherwise
+def check_win(board, color):
+    # find opponent king of color
+    king_color = opponent_color(color)
+    king_attacker_color = opponent_color(king_color)
+    king_location = find_king(board, king_color)
+    # check for square that king is on is under attack
+    if is_square_attacked(board, king_location, king_attacker_color)[0]:
+        # all adjacent squares must be attacked or occupied by same color piece
+        symbols = pieces_of_color(color)
+        symbols.append("")
+        king_is_trapped = True
+        for i in [1, 0, -1]:
+            for j in [1, 0, -1]:
+                if (
+                    get_piece_at(board, [king_location[0] + i, king_location[1] + j]) in symbols
+                    and not is_square_attacked(board, [j, i], king_color)[0]
+                ):
+                    king_is_trapped = False
+        # identify piece(s) giving check
+        attacker_squares = is_square_attacked(board, king_location, king_attacker_color)[1]
+        # if double check, blocking and taking impossible
+        if len(attacker_squares) > 1:
+            piece_giving_check_is_takeable = False
+            check_is_blockable = False
+        # if attacker can be attacked and taking attacker doesn't leave us in check (pins)
+        atkr_is_atkd, atkr_atkd_by = is_square_attacked(board, attacker_squares[0], king_color)
+        if len(attacker_squares) == 1:
+            if atkr_is_atkd:
+                for atkr_loc in atkr_atkd_by:
+                    board_post_takes = board
+                    make_move(
+                        board_post_takes,
+                        color,
+                        -2,
+                        board_post_takes[atkr_loc[1]][atkr_loc[0]],
+                        atkr_loc,
+                        attacker_squares[0],
+                    )
+                    # then check-giving piece is takeable
+                    if not is_square_attacked(board_post_takes, king_location, king_attacker_color)[0]:
+                        piece_giving_check_is_takeable = True
+
+            # for rook, bishop, queen: can we block?
+            if get_piece_at(board, attacker_squares[0]) in ["♖", "♜", "♗", "♝", "♕", "♛"]:
+                # find all squares where you can potentially block
+                blocking_squares = get_squares_between(board, king_location, attacker_squares[0])
+                if blocking_squares is not False:
+                    for block_square in blocking_squares:
+                        exists_blockers, blocker_locs = is_square_attacked(board, block_square, king_color)
+                        # if blocking on this square is possible
+                        if exists_blockers:
+                            # loop through potential blockers, try to find a valid one
+                            for blocker_loc in blocker_locs:
+                                board_post_block = board
+                                make_move(
+                                    board_post_block,
+                                    color,
+                                    -2,
+                                    board_post_block[blocker_loc[1]][blocker_loc[0]],
+                                    blocker_loc,
+                                    attacker_squares[0],
+                                )
+                                # then blocking is possible
+                                if not is_square_attacked(board_post_block, king_location, king_attacker_color)[0]:
+                                    check_is_blockable = True
+
+        if king_is_trapped and not check_is_blockable and not piece_giving_check_is_takeable:
+            return True
+        else:
+            return False
+    else:
+        return False
 
 
 # TODO:
