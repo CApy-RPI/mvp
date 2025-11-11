@@ -252,13 +252,13 @@ class MajorHandler:
             score_cutoff=SUGGESTION_THRESHOLD,
         )
 
-        if result:
+        if result is not None:
             matched_major: str = result[0]  # Extract the matched string explicitly
             score: float = result[1]
             logger.debug(f"Fuzzy match for '{input_major}': '{matched_major}' (score: {score})")
             return matched_major, score
 
-        return None
+        return None  # type: ignore[unreachable]
 
     def validate_majors_with_corrections(
         self, input_majors: list[str]
