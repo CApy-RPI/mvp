@@ -1,8 +1,8 @@
 """Profile management cog for handling user profiles."""
 
+import asyncio
 import logging
 import re
-import time
 from pathlib import Path
 from typing import Any, cast
 
@@ -44,6 +44,8 @@ class TryAgainView(discord.ui.View):
 
     @discord.ui.button(label="Try Again", style=discord.ButtonStyle.primary)
     async def retry_button(self, interaction: discord.Interaction, _: discord.ui.Button[Any]):
+        # Acknowledge the interaction to avoid timeouts/jitter
+        await interaction.response.defer(ephemeral=True)
         await self.parent_cog.handle_profile(interaction, self.action, retry_data=self.invalid_data)
         self.stop()
 
@@ -64,7 +66,7 @@ class SuggestionView(discord.ui.View):
     async def accept_button(self, interaction: discord.Interaction, _button: discord.ui.Button[Any]):
         """Accept the suggested corrections and continue with profile."""
         # Acknowledge the interaction immediately to prevent timeout
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         self.accepted = True
         # Apply the suggestions to validated_majors
         for _original, suggested in self.suggestions.items():
@@ -74,6 +76,8 @@ class SuggestionView(discord.ui.View):
     @discord.ui.button(label="Try Again", style=discord.ButtonStyle.primary)
     async def retry_button(self, interaction: discord.Interaction, _button: discord.ui.Button[Any]):
         """Reject suggestions and return to form with all data except majors."""
+        # Acknowledge the interaction to avoid timeouts/jitter
+        await interaction.response.defer(ephemeral=True)
         self.accepted = False
         # Keep all profile data EXCEPT the major field - user needs to re-enter majors
         retry_data = {k: v for k, v in self.profile_data.items() if k != "major(s)"}
@@ -229,7 +233,13 @@ class ProfileCog(commands.Cog):
             return False
         return self.email_verifier.verify_code(message.author.id, normalized)
 
-    async def send_verification_code(self, message: discord.Message, new_email: str, user: User | None) -> bool:
+    async def send_verification_code(
+        self,
+        message: discord.Message,
+        new_email: str,
+        user: User | None,
+        _interaction: discord.Interaction | None = None,
+    ) -> bool:
         """Send verification code without prompting for input yet."""
         if user and new_email == user.profile.school_email:
             return True
@@ -238,8 +248,8 @@ class ProfileCog(commands.Cog):
             await message.edit(content="Failed to send verification email.")
             return False
 
-        # Inform user that verification code has been sent
-        await message.edit(content=("Verification code sent to your email. Please check your inbox."))
+        # Do not send a separate notice here; the next prompt already states
+        # that a verification code has been sent. Keeping this silent avoids duplication.
         return True
 
     async def prompt_and_verify_code(self, message: discord.Message) -> bool:
@@ -302,7 +312,7 @@ class ProfileCog(commands.Cog):
         profile_data, message = prepared
 
         # Process and validate majors
-        majors_result = await self._process_and_validate_majors(profile_data, message, action)
+        majors_result = await self._process_and_validate_majors(profile_data, message, action, interaction)
         if majors_result is None:
             return  # Validation failed or user needs to retry
         majors_string = majors_result
@@ -313,6 +323,8 @@ class ProfileCog(commands.Cog):
 
         # First, clear the message to show success
         await message.edit(content="✅ Form submitted successfully!", embed=None, view=None)
+        # Give a brief moment before replacing with the profile embed
+        await asyncio.sleep(1)
 
         await self._save_profile(
             interaction,
@@ -327,7 +339,11 @@ class ProfileCog(commands.Cog):
         )
 
     async def _process_and_validate_majors(
-        self, profile_data: dict[str, str], message: discord.Message, action: str
+        self,
+        profile_data: dict[str, str],
+        message: discord.Message,
+        action: str,
+        interaction: discord.Interaction,
     ) -> str | None:
         """Process and validate majors, handling auto-corrections and suggestions.
 
@@ -352,7 +368,7 @@ class ProfileCog(commands.Cog):
 
         # Show auto-corrections to user if any typos were auto-corrected (score >= 90%)
         if auto_corrections:
-            await self._show_auto_corrections(message, auto_corrections)
+            await self._show_auto_corrections(message, auto_corrections, interaction)
 
         # Handle suggestions (60-90% confidence) - need user confirmation
         if suggestions:
@@ -372,13 +388,21 @@ class ProfileCog(commands.Cog):
 
         return majors_string
 
-    async def _show_auto_corrections(self, message: discord.Message, auto_corrections: dict[str, str]) -> None:
+    async def _show_auto_corrections(
+        self,
+        message: discord.Message,
+        auto_corrections: dict[str, str],
+        interaction: discord.Interaction,
+    ) -> None:
         """Display auto-corrected typos to the user."""
         correction_msg = "✅ **Auto-corrected typos:**\n"
         for original, corrected in auto_corrections.items():
             correction_msg += f"  • '{original}' → '{corrected}'\n"
         await message.edit(content=correction_msg)
-        await message.channel.send("Continuing with profile...", delete_after=2)
+        # Keep the informational message visible and ephemeral
+        await interaction.followup.send("Continuing with profile...", ephemeral=True)
+        # Small pause so users can read the info before the next UI step
+        await asyncio.sleep(1)
 
     async def _handle_suggestions(
         self,
@@ -414,6 +438,8 @@ class ProfileCog(commands.Cog):
                 content="✅ Suggestions accepted. Continuing with profile...",
                 view=None,
             )
+            # Brief pause so the message is readable before the next step replaces it
+            await asyncio.sleep(1)
             return majors_string
 
         # User clicked Try Again - already handled by the button callback
@@ -442,7 +468,11 @@ class ProfileCog(commands.Cog):
         needs_verification = not (user and profile_data["school_email"] == user.profile.school_email)
 
         if needs_verification:
-            if not await self.send_verification_code(message, profile_data["school_email"], user):
+            if not await self.send_verification_code(
+                message,
+                profile_data["school_email"],
+                user,
+            ):
                 return False
 
             if not await self.prompt_and_verify_code(message):
@@ -601,11 +631,11 @@ class ProfileCog(commands.Cog):
                     return selected_majors
 
                 await message.edit(content="⚠️ Please select 1 or 2 majors.")
-                time.sleep(1)
+                await asyncio.sleep(1)
 
             except Exception as e:
                 await message.edit(content=str(e))
-                time.sleep(5)
+                await asyncio.sleep(5)
 
     def get_majors_from_profile_data(self, profile_data: dict[str, str]) -> list[str]:
         """Extract and validate majors from profile data text input"""
