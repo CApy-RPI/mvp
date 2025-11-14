@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings
 
@@ -6,6 +7,10 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     # Logging settings
     LOG_LEVEL: str | None = "DEBUG"
+    STAT_DUMP_FREQUENCY: float | None = 10  # Minutes
+
+    # The computed path to the statistics log file. Only mutated at definition.
+    STAT_LOG_FILE: Path | None = None
 
     # Bot settings
     BOT_TOKEN: str | None = None
