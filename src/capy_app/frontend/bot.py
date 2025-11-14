@@ -12,6 +12,7 @@ import discord
 from backend.db.database import Database
 from discord.ext import commands
 from discord.ext.commands import Context
+from stats import Statistics
 
 from config import settings
 
@@ -30,6 +31,7 @@ class Bot(commands.AutoShardedBot):
         self.logger.setLevel(settings.LOG_LEVEL)
 
         self.tree.error(coro=self._dispatch_slash_command_error)
+        self.stats = Statistics()
 
     async def on_member_join(self, member: discord.Member) -> None:
         """Handle event when a new member joins a guild.
@@ -135,6 +137,14 @@ class Bot(commands.AutoShardedBot):
 
     async def _dispatch_slash_command_error(self, interaction, error):
         self.dispatch("slash_command_error", interaction, error)
+
+    async def on_app_command_completion(self, interaction, command) -> None:
+        usages = self.stats.command_usages[command.name]
+        if interaction.user.guild_permissions.administrator:
+            usages.admin_uses += 1
+        # if is_dev(interaction.user.id): TODO implement devcheck
+        #     usages.dev_uses += 1
+        usages.uses += 1
 
     def run_bot(self) -> None:
         """Run the bot instance."""
