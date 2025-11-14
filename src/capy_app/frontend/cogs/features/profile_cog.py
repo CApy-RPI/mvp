@@ -8,6 +8,8 @@ from typing import Any, cast
 
 import discord
 from backend.db.database import Database
+from backend.db.documents.event import Event
+from backend.db.documents.guild import Guild
 from backend.db.documents.user import User, UserName, UserProfile
 from discord import app_commands
 from discord.ext import commands
@@ -83,6 +85,35 @@ class SuggestionView(discord.ui.View):
         retry_data = {k: v for k, v in self.profile_data.items() if k != "major(s)"}
         await self.parent_cog.handle_profile(interaction, self.action, retry_data=retry_data)
         self.stop()
+
+
+async def delete_profile_from_events(user):
+    user = Database.get_document(User, user.id)
+
+    for event_id in user.events:
+        event = Database.get_document(Event, event_id)
+        # TODO remove the frontend RSVP reactions of the deleted user
+        if event:
+            # Remove from RSVPs
+            if user.id in event.yes_users:
+                event.yes_users.remove(user.id)
+                event.details.reactions.modify("yes", -1)
+            if user.id in event.no_users:
+                event.no_users.remove(user.id)
+                event.details.reactions.modify("no", -1)
+            if user.id in event.maybe_users:
+                event.maybe_users.remove(user.id)
+                event.details.reactions.modify("maybe", -1)
+        event.save()
+
+
+async def delete_profile_from_guilds(user):
+    user = Database.get_document(User, user.id)
+
+    for guild_id in user.guilds:
+        guild = Database.get_document(Guild, guild_id)
+        if guild and user.id in guild.users:
+            guild.users.remove(user.id)
 
 
 class ProfileCog(commands.Cog):
@@ -790,6 +821,9 @@ class ProfileCog(commands.Cog):
         await view.wait()
         if view.value:
             Database.delete_document(user)
+            await delete_profile_from_events(user)
+            await delete_profile_from_guilds(user)
+
             await interaction.edit_original_response(content="Your profile has been deleted.", view=None)
         else:
             await interaction.edit_original_response(content="Profile deletion cancelled.", view=None)
