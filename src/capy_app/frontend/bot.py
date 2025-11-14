@@ -151,8 +151,8 @@ class Bot(commands.AutoShardedBot):
         usages = self.stats.command_usages[command.name]
         if interaction.user.guild_permissions.administrator:
             usages.admin_uses += 1
-        # if is_dev(interaction.user.id): TODO implement devcheck
-        #     usages.dev_uses += 1
+        if interaction.guild.id == settings.DEBUG_GUILD_ID:
+            usages.dev_uses += 1
         usages.uses += 1
 
     @tasks.loop(minutes=settings.STAT_DUMP_FREQUENCY)

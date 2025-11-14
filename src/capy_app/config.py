@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str | None = "DEBUG"
     STAT_DUMP_FREQUENCY: float | None = 10  # Minutes
 
-    # This does not need to be in a .env, this was just the cleanest way to store state (plus it only mutates once)
+    # The computed path to the statistics log file. Only mutated at definition.
     STAT_LOG_FILE: Path | None = None
 
     # Bot settings
