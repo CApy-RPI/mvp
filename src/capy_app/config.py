@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings
 
@@ -6,6 +7,10 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     # Logging settings
     LOG_LEVEL: str | None = "DEBUG"
+    STAT_DUMP_FREQUENCY: float | None = 10  # Minutes
+
+    # This does not need to be in a .env, this was just the cleanest way to store state (plus it only mutates once)
+    STAT_LOG_FILE: Path | None = None
 
     # Bot settings
     BOT_TOKEN: str | None = None

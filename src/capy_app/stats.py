@@ -1,3 +1,4 @@
+import datetime
 from collections import defaultdict
 from dataclasses import dataclass, field
 
@@ -21,6 +22,9 @@ class Statistics:
     """
     A class representing the collected statistics of the bot
     """
+
+    # The last time the statistics were written to a file
+    last_dump: str = field(default_factory=datetime.datetime.now().isoformat)
 
     # The usage statistics for all commands
     command_usages: defaultdict[str, CommandUsage] = field(default_factory=lambda: defaultdict(CommandUsage))

@@ -1,19 +1,24 @@
 """Discord bot module for handling discord-related functionality."""
 
+import json
+
 # Standard library imports
 import logging
 import pathlib
 import typing
+from dataclasses import asdict
+from datetime import datetime
+from pathlib import Path
 
 # Third-party imports
 import discord
 
 # Local imports
 from backend.db.database import Database
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord.ext.commands import Context
-from stats import Statistics
 
+from capy_app.stats import Statistics
 from config import settings
 
 
@@ -32,6 +37,7 @@ class Bot(commands.AutoShardedBot):
 
         self.tree.error(coro=self._dispatch_slash_command_error)
         self.stats = Statistics()
+        self.stat_file = settings.STAT_LOG_FILE
 
     async def on_member_join(self, member: discord.Member) -> None:
         """Handle event when a new member joins a guild.
@@ -98,6 +104,9 @@ class Bot(commands.AutoShardedBot):
         self.logger.info(f"Logged in as {self.user.name} - {self.user.id}")
         self.logger.info(f"Connected to {len(self.guilds)} guilds across {self.shard_count} shards")
 
+        # Start tasks
+        self.output_stats.start()
+
     async def on_message(self, message: discord.Message) -> None:
         """Process incoming messages and commands.
 
@@ -145,6 +154,28 @@ class Bot(commands.AutoShardedBot):
         # if is_dev(interaction.user.id): TODO implement devcheck
         #     usages.dev_uses += 1
         usages.uses += 1
+
+    @tasks.loop(minutes=settings.STAT_DUMP_FREQUENCY)
+    async def output_stats(self):
+        """
+        Dumps the collected statistics for this runtime to a statistics file
+        """
+        try:
+            # Update last write time
+            self.stats.last_dump = datetime.now().isoformat()
+
+            # Marshal data to dict
+            data = asdict(self.stats)
+
+            # Write to file
+            with Path.open(self.stat_file, "w") as file:
+                json.dump(data, file, indent=4)
+                file.close()
+        except Exception as e:
+            self.logger.error(f"Error writing statistics to file: {e}")
+            return
+
+        self.logger.info("Statistics dumped to file")
 
     def run_bot(self) -> None:
         """Run the bot instance."""
