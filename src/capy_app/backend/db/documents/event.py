@@ -20,11 +20,11 @@ class EventReactions(RestrictedEmbeddedDocument):
     ):  # Yes, this is kinda stupid, but it prevents having to sort lists on every reaction add and remove
         """Increments or Decrements a reaction count based on the passed in emoji"""
         match field:
-            case "✅":
+            case "✅" | "yes":
                 self.yes = max(0, self.yes + quantity)
-            case "❌":
+            case "❌" | "no":
                 self.no = max(0, self.no + quantity)
-            case "❔":
+            case "❔" | "maybe":
                 self.maybe = max(0, self.maybe + quantity)
 
     yes: int = mongoengine.IntField(default=0)
