@@ -713,6 +713,7 @@ class ProfileCog(commands.Cog):
                 Database.add_document(new_user)
                 user = new_user
                 self.logger.info(f"Successfully created new profile for {interaction.user}")
+                await self._link_user_to_guilds(interaction)
             else:
                 updates = {f"profile__{k}": v for k, v in profile_data_dict.items()}
                 Database.update_document(user, updates)
@@ -728,6 +729,109 @@ class ProfileCog(commands.Cog):
                 "An error occurred while saving your profile. Please try again.",
                 ephemeral=True,
             )
+
+    def _get_target_guild_ids(self, interaction: discord.Interaction) -> list[int]:
+        """Determine which guild IDs to assign to the user.
+
+        Args:
+            interaction: The Discord interaction
+
+        Returns:
+            List of guild IDs to assign to the user
+        """
+        user_id = interaction.user.id
+
+        # If interaction is in a guild, return that guild ID
+        if interaction.guild_id:
+            self.logger.info(f"Profile created in guild {interaction.guild_id}")
+            return [int(interaction.guild_id)]
+
+        # If in DMs, find all mutual guilds where the bot sees the user as a member
+        mutual_guild_ids = []
+        for guild in self.bot.guilds:
+            member = guild.get_member(user_id)
+            if member and not member.bot:
+                mutual_guild_ids.append(int(guild.id))
+                self.logger.debug(f"Found user {user_id} in guild {guild.id} ({guild.name})")
+
+        self.logger.info(f"Profile created in DMs, found {len(mutual_guild_ids)} mutual guilds")
+        return mutual_guild_ids
+
+    def _ensure_guild_exists(self, guild_id: int) -> Guild:
+        """Ensure a Guild document exists in the database.
+
+        Args:
+            guild_id: The guild ID to ensure exists
+
+        Returns:
+            The Guild document
+        """
+        guild_doc = Database.get_document(Guild, guild_id)
+        if not guild_doc:
+            guild_doc = Guild(_id=guild_id)
+            Database.add_document(guild_doc)
+            self.logger.info(f"Created Guild document for {guild_id}")
+        return guild_doc
+
+    def _add_user_to_guild(self, guild_id: int, user_id: int) -> None:
+        """Add a user to a guild's user list.
+
+        Args:
+            guild_id: The guild ID
+            user_id: The user ID to add
+        """
+        try:
+            guild_doc = self._ensure_guild_exists(guild_id)
+
+            existing_users = getattr(guild_doc, "users", []) or []
+            if user_id not in existing_users:
+                existing_users.append(user_id)
+                Database.update_document(guild_doc, {"users": sorted(existing_users)})
+                self.logger.info(f"Added user {user_id} to Guild.users for {guild_id}")
+            else:
+                self.logger.debug(f"User {user_id} already in Guild.users for {guild_id}")
+        except Exception as e:
+            # Non-fatal: log and continue
+            self.logger.error(f"Failed to add user {user_id} to Guild.users for {guild_id}: {e}")
+
+    async def _link_user_to_guilds(self, interaction: discord.Interaction) -> None:
+        """Link a user to their guilds after profile creation.
+
+        This handles both server and DM initiation paths:
+        - In servers: links to the current guild
+        - In DMs: links to all mutual guilds where the bot sees the user
+
+        Args:
+            interaction: The Discord interaction
+        """
+        user_id = interaction.user.id
+
+        try:
+            # Determine which guilds to link
+            target_guild_ids = self._get_target_guild_ids(interaction)
+
+            if not target_guild_ids:
+                self.logger.warning(f"No guilds found for user {user_id}")
+                return
+
+            # Update User.guilds with add-to-set semantics (no duplicates)
+            for guild_id in target_guild_ids:
+                try:
+                    Database.bulk_update_attr(User, [user_id], "guilds", guild_id)
+                    self.logger.info(f"Added guild {guild_id} to User.guilds for {user_id}")
+                except Exception as e:
+                    # Non-fatal: log and continue with other guilds
+                    self.logger.error(f"Failed to add guild {guild_id} to User.guilds for {user_id}: {e}")
+
+            # Ensure Guild documents exist and add user to Guild.users
+            for guild_id in target_guild_ids:
+                self._add_user_to_guild(guild_id, user_id)
+
+            self.logger.info(f"Successfully linked user {user_id} to {len(target_guild_ids)} guild(s)")
+
+        except Exception as e:
+            # Non-fatal: profile is more important than guild links
+            self.logger.error(f"Error linking user {user_id} to guilds: {e}", exc_info=True)
 
     async def show_profile_embed(
         self,
