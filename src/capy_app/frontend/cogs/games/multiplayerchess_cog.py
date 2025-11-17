@@ -112,7 +112,7 @@ def letter_to_piece(letter, color):
 # make the move specified by the user
 # assumes the move given is valid
 # returns NONE
-def make_move(board, color, turn, piece, start, end):
+def make_move(board, color, turn, piece, start, end, change_globals):
     # check for promotion
     if promotion_type != "X":
         promotion_piece = letter_to_piece(promotion_type, color)
@@ -125,19 +125,25 @@ def make_move(board, color, turn, piece, start, end):
         # a8 rook moves
         board[rank8][column1] = ""
         board[rank8][column4] = "♖"
+
         # king moves
         board[rank8][column5] = ""
         board[rank8][column3] = "♔"
         moves[turn] = ("q_castling", tuple(start), tuple(end))
+        if change_globals:
+            black_king_moved = True
     elif q_castling and color == "white":
         # a1 rook moves
         board[rank1][column1] = ""
         board[rank1][column4] = "♜"
+
         # king moves
         board[rank1][column5] = ""
         board[rank1][column3] = "♚"
         moves[turn] = ("q_castling", tuple(start), tuple(end))
-    elif k_castling and color == "black":
+        if change_globals:
+            white_king_moved = True
+    elif k_castling and color == "white":
         # h8 rook moves
         board[rank8][column8] = ""
         board[rank8][column6] = "♖"
@@ -145,6 +151,8 @@ def make_move(board, color, turn, piece, start, end):
         board[rank8][column5] = ""
         board[rank8][column7] = "♔"
         moves[turn] = ("k_castling", tuple(start), tuple(end))
+        if change_globals:
+            white_king_moved = True
     elif k_castling and color == "black":
         # h1 rook moves
         board[rank1][column8] = ""
@@ -153,7 +161,8 @@ def make_move(board, color, turn, piece, start, end):
         board[rank1][column5] = ""
         board[rank1][column7] = "♚"
         moves[turn] = ("k_castling", tuple(start), tuple(end))
-
+        if change_globals:
+            black_king_moved = True
     # check for en passant
     elif en_passant:
         board[start[0]][start[1]] = ""
@@ -166,6 +175,20 @@ def make_move(board, color, turn, piece, start, end):
         moves[turn] = ("en passant", tuple(start), tuple(end))
 
     else:
+        # alter globals if specified
+        if change_globals:
+            if piece == "♚":
+                white_king_moved = True
+            if piece == "♔":
+                black_king_moved = True
+            if piece == "♜" and start[0] == column1 and start[1] == rank1:
+                a1_rook_moved = True
+            if piece == "♜" and start[0] == column8 and start[1] == rank1:
+                h1_rook_moved = True
+            if piece == "♖" and start[0] == column1 and start[1] == rank8:
+                a8_rook_moved = True
+            if piece == "♖" and start[0] == column8 and start[1] == rank8:
+                h8_rook_moved = True
         board[start[0]][start[1]] = ""
         board[end[0]][end[1]] = piece
         moves[turn] = (piece, tuple(start), tuple(end))
@@ -703,15 +726,6 @@ def parse_notation(board, msg, turn):
     return piece, start, end
 
 
-# TODO:
-# returns true if given king color is in check, false otherwise
-"""
-def is_in_check(board, color):
-    # loop thru board looking for opponent's pieces, see what squares they attack
-    return
-"""
-
-
 # returns true if color given is same color as piece p
 def same_color(p, color):
     if p == "" or p is False or p is None:
@@ -735,7 +749,6 @@ def print_board(board):
     return strbldr
 
 
-# TODO: finish function
 # returns true if move legal, else false
 def is_move_legal(board, turn, piece, color, start, end):
     # check to be sure piece, start, end are not false
@@ -750,7 +763,7 @@ def is_move_legal(board, turn, piece, color, start, end):
 
     # check if this move will result in us being in check
     board_post_move = board
-    make_move(board_post_move, color, turn, piece, start, end)
+    make_move(board_post_move, color, turn, piece, start, end, False)
     # find king's location
     king_location = find_king(board_post_move, color)
     if is_square_attacked(board_post_move, king_location, opponent_color(color))[0]:
@@ -899,7 +912,16 @@ def get_attacked_squares(board, piece, piece_location):
     rook_dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)]
     bishop_dirs = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
     king_moves = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]
-    knight_moves = [(2, 1), (2, -1), (-2, 1), (-2, -1), (1, 2), (1, -2), (-1, 2), (-1, -2)]
+    knight_moves = [
+        (2, 1),
+        (2, -1),
+        (-2, 1),
+        (-2, -1),
+        (1, 2),
+        (1, -2),
+        (-1, 2),
+        (-1, -2),
+    ]
 
     def in_bounds(c, r):
         return 0 <= c < 8 and 0 <= r < 8
@@ -1090,13 +1112,21 @@ def check_win(board, color):
                         board_post_takes[atkr_loc[1]][atkr_loc[0]],
                         atkr_loc,
                         attacker_squares[0],
+                        False,
                     )
                     # then check-giving piece is takeable
                     if not is_square_attacked(board_post_takes, king_location, king_attacker_color)[0]:
                         piece_giving_check_is_takeable = True
 
             # for rook, bishop, queen: can we block?
-            if get_piece_at(board, attacker_squares[0]) in ["♖", "♜", "♗", "♝", "♕", "♛"]:
+            if get_piece_at(board, attacker_squares[0]) in [
+                "♖",
+                "♜",
+                "♗",
+                "♝",
+                "♕",
+                "♛",
+            ]:
                 # find all squares where you can potentially block
                 blocking_squares = get_squares_between(board, king_location, attacker_squares[0])
                 if blocking_squares is not False:
@@ -1114,6 +1144,7 @@ def check_win(board, color):
                                     board_post_block[blocker_loc[1]][blocker_loc[0]],
                                     blocker_loc,
                                     attacker_squares[0],
+                                    False,
                                 )
                                 # then blocking is possible
                                 if not is_square_attacked(board_post_block, king_location, king_attacker_color)[0]:
@@ -1128,7 +1159,7 @@ def check_win(board, color):
 
 
 # TODO:
-# check for stalemate or repetition
+# check for stalemate, 50-move rule, repetition or not enough material left to possibly mate
 # returns true if stalemate or repetition found, false otherwise
 def check_draw(board):
     return
@@ -1168,6 +1199,14 @@ class MultiChess(commands.Cog):
         # turn tracker
         turn = 0
 
+        # tracking of whether pieces have moved (for castling)
+        a1_rook_moved = False
+        h1_rook_moved = False
+        a8_rook_moved = False
+        h8_rook_moved = False
+        black_king_moved = False
+        white_king_moved = False
+
         await interaction.response.send_message(
             f"🎮 Chess between {players[0].mention} (❌) and {players[1].mention} (⭕).\n"
             f"{players[turn % 2].mention}, it's your turn!\n{print_board(board)}"
@@ -1189,6 +1228,7 @@ class MultiChess(commands.Cog):
 
         while True:
             try:
+                color = "white" if turn % 2 == 0 else "black"
                 move_msg = await self.bot.wait_for("message", check=check, timeout=100.0)
 
                 # print out rules
@@ -1204,36 +1244,26 @@ class MultiChess(commands.Cog):
                     await interaction.followup.send(f"{print_board(board)}\n{players[turn % 2].mention} {draw_msg}.")
                     return
                 # check for draw decline
-                if move_msg.content == "decline" and draw_proposed:
+                elif move_msg.content == "decline" and draw_proposed:
                     draw_proposed = False
                     draw_msg = "declines to draw"
                     await interaction.followup.send(f"{print_board(board)}\n{players[turn % 2].mention} {draw_msg}.")
                     return
 
-                """
                 # check for checkmates or resignations
-                if check_win(board) or move_msg.content == "resign":
+                elif check_win(board, color) or move_msg.content == "resign":
                     await interaction.followup.send(f"{print_board(board)}\n✅ {players[turn % 2].mention} wins! 🎉")
                     return
 
                 # check for draw
-                if check_draw(board) or (draw_proposed and move_msg.content == "accept"):
+                elif check_draw(board) or (draw_proposed and move_msg.content == "accept"):
                     await interaction.followup.send(f"{print_board(board)}\nIt's a draw!")
                     return
-                """
 
-                # TODO: actually make the move specified by user
-                # uses piece, start, end from parsed
-                # check for globals like q_castling, k_castling, en_passant, promotion_type AND :
-                """
-                # update tracking of whether pieces have moved (for castling)
-                a1_rook_moved = False
-                h1_rook_moved = False
-                a8_rook_moved = False
-                h8_rook_moved = False
-                black_king_moved = False
-                white_king_moved = False
-                """
+                # actually makes the move specified by user
+                else:
+                    parsed_message = parse_notation(board, move_msg.content, turn)
+                    make_move(board, color, turn, parsed_message[0], parsed_message[1], parsed_message[2], True)
 
                 # reset necessary globals
                 q_castling = False
