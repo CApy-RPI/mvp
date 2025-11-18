@@ -8,6 +8,8 @@ from discord.ext import commands
 from config import settings
 from typing import List, Tuple
 
+# for 50 move rule
+num_moves_since_takes = 0
 # tracking if pieces moved (for castling)
 in_check = False
 a1_rook_moved = False
@@ -16,10 +18,12 @@ a8_rook_moved = False
 h8_rook_moved = False
 black_king_moved = False
 white_king_moved = False
+# globals for special case moves
 promotion_type = "X"
 q_castling = False
 k_castling = False
 en_passant = False
+# rank and column access values
 rank8 = 0
 rank7 = 1
 rank6 = 2
@@ -173,6 +177,8 @@ def make_move(board, color, turn, piece, start, end, change_globals):
         if color == "white":
             board[end[0] + 1][end[1]] = ""
         moves[turn] = ("en passant", tuple(start), tuple(end))
+        if change_globals:
+            num_moves_since_takes = 0
 
     else:
         # alter globals if specified
@@ -189,6 +195,8 @@ def make_move(board, color, turn, piece, start, end, change_globals):
                 a8_rook_moved = True
             if piece == "♖" and start[0] == column8 and start[1] == rank8:
                 h8_rook_moved = True
+            if board[end[0]][end[1]] is not "":
+                num_moves_since_takes = 0
         board[start[0]][start[1]] = ""
         board[end[0]][end[1]] = piece
         moves[turn] = (piece, tuple(start), tuple(end))
@@ -1082,6 +1090,7 @@ def check_win(board, color):
     king_location = find_king(board, king_color)
     # check for square that king is on is under attack
     if is_square_attacked(board, king_location, king_attacker_color)[0]:
+        in_check = True
         # all adjacent squares must be attacked or occupied by same color piece
         symbols = pieces_of_color(color)
         symbols.append("")
@@ -1158,11 +1167,168 @@ def check_win(board, color):
         return False
 
 
+# returns a list of all pieces on board other than kings
+def get_pieces_on_board(board):
+    pieces = []
+    for i in range(8):
+        for j in range(8):
+            if board[i][j] != "" and board[i][j] != "♔" and board[i][j] != "♚":
+                pieces.append(board[i][j])
+    return pieces
+
+
+# returns the true or false value representing whether there is a draw by insufficient material
+def check_draw_by_insufficient_material(board):
+    # draws by lack of material:
+    # King vs King
+    # King + Bishop vs King
+    # King + Knight vs King
+    # King + Bishop vs King + Bishop
+    # King + Knight vs King + Knight
+    # King + Bishop vs King + Knight
+    # King vs Bishops of same square complex
+    # overall to keep playing:
+    # must have one major piece or two minor pieces (if bishops, can't be same complex)
+    # I am making the preferential choice of no auto-draw in NNK vs K
+    pieces_on_board = get_pieces_on_board(board)
+    major_pieces = ["♖", "♜", "♕", "♛", "♙", "♟"]
+    minor_pieces = ["♗", "♝", "♘", "♞"]
+    for M in major_pieces:
+        if M in pieces_on_board:
+            return False
+    num_white_bishops = 0
+    num_white_knights = 0
+    num_black_bishops = 0
+    num_black_knights = 0
+    for piece in pieces_on_board:
+        if piece == "♝":
+            num_white_bishops += 1
+        elif piece == "♞":
+            num_white_knights += 1
+        elif piece == "♗":
+            num_black_bishops += 1
+        elif piece == "♘":
+            num_black_knights += 1
+    # if enough minor pieces to mate
+    if num_white_bishops + num_white_knights >= 2:
+        # if only bishops, check complexes
+        if num_white_knights == 0:
+            even_bishops = 0
+            odd_bishops = 0
+            for i in range(8):
+                for j in range(8):
+                    if board[i][j] == "♝":
+                        if i + j % 2 == 0:
+                            even_bishops += 1
+                        else:
+                            odd_bishops += 1
+            if even_bishops is not 0 and odd_bishops is not 0:
+                return False
+        # if at least one knight among 2 minor pieces, no draw
+        else:
+            return False
+    # if enough minor pieces to mate
+    if num_black_bishops + num_black_knights >= 2:
+        # if only bishops, check complexes
+        if num_black_knights == 0:
+            even_bishops = 0
+            odd_bishops = 0
+            for i in range(8):
+                for j in range(8):
+                    if board[i][j] == "♗":
+                        if i + j % 2 == 0:
+                            even_bishops += 1
+                        else:
+                            odd_bishops += 1
+            if even_bishops is not 0 and odd_bishops is not 0:
+                return False
+        # if at least one knight among 2 minor pieces, no draw
+        else:
+            return False
+
+    return True
+
+
+# returns true if given piece has any legal move, else false
+def piece_has_legal_move(piece, color):
+    if piece in ["♙", "♟"]:
+        if color is "black":
+            return
+        else:
+            return
+    if piece in ["♘", "♞"]:
+        return
+    if piece in ["♕", "♛"]:
+        return
+    if piece in ["♗", "♝"]:
+        return
+    if piece in ["♖", "♜"]:
+        return
+
+
+# returns true if king is in stalemate (no legal moves) but king not under attack
+def check_draw_by_stalemate(board, turn, color):
+    # find the king in question
+    king_loc = find_king(board, color)
+    kingx = king_loc[0]
+    kingy = king_loc[1]
+    # see if king is in check
+    if in_check:
+        return False
+
+    # check for all possible king moves
+    for i in [0, 1, -1]:
+        for j in [0, 1, -1]:
+            if not (i == 0 and j == 0):
+                if is_move_legal(board, turn, get_piece_at(board, king_loc), color, king_loc, [kingx + i, kingy + j]):
+                    return False
+
+    # if we get past this, king has no legal moves
+
+    # check for other pieces
+    for color_piece in pieces_of_color(color):
+        # if other pieces of same color to king exist
+        pieces_on_board = get_pieces_on_board(board)
+        if color_piece in pieces_on_board:
+            # then we have other pieces to check legal moves for
+            # get these pieces
+            pieces = []
+            for piece in pieces_on_board:
+                if same_color(piece, color):
+                    pieces.append(piece)
+
+            # now we have all pieces of color not including king
+            # loop through these pieces checking for legal moves
+            for p in pieces:
+                if piece_has_legal_move(p, color):
+                    return False
+
+        # otherwise king has no legal moves, and no other pieces exist
+        else:
+            return True
+
+        # if we reach here then no pieces of color have legal moves
+        return True
+
+
+def check_draw_by_50_move(board):
+    return False
+
+
 # TODO:
 # check for stalemate, 50-move rule, repetition or not enough material left to possibly mate
 # returns true if stalemate or repetition found, false otherwise
-def check_draw(board):
-    return
+def check_draw(board, turn, color):
+    # draw by insufficient material: not enough material left on the board for any possible checkmate
+    draw_by_insufficient_material = check_draw_by_insufficient_material(board)
+    # draw by repetition: same board position occurs 3 times
+    draw_by_repetition = False
+    # draw by 50-move rule: No pawn moves and no pieces taken for 50 consecutive moves
+    draw_by_50_move_rule = check_draw_by_50_move(board)
+    # draw by stalemate: color has no legal moves and king of color is not in check
+    draw_by_stalemate = check_draw_by_stalemate(board, turn, color)
+
+    return draw_by_insufficient_material or draw_by_repetition or draw_by_50_move_rule or draw_by_stalemate
 
 
 class MultiChess(commands.Cog):
@@ -1256,7 +1422,7 @@ class MultiChess(commands.Cog):
                     return
 
                 # check for draw
-                elif check_draw(board) or (draw_proposed and move_msg.content == "accept"):
+                elif check_draw(board, turn, color) or (draw_proposed and move_msg.content == "accept"):
                     await interaction.followup.send(f"{print_board(board)}\nIt's a draw!")
                     return
 
@@ -1271,7 +1437,13 @@ class MultiChess(commands.Cog):
                 en_passant = False
                 promotion_type = "X"
 
+                # no longer in check if was
+                in_check = False
+
+                # increment turn based vals
+                num_moves_since_takes += 1
                 turn += 1
+
                 await interaction.followup.send(f"{print_board(board)}\n{players[turn % 2].mention}, it's your turn!")
             except TimeoutError:
                 await interaction.followup.send("⌛ Game timed out!")
