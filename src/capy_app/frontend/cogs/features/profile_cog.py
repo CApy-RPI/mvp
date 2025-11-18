@@ -113,7 +113,7 @@ async def delete_profile_from_events(user):
 async def delete_profile_from_guilds(user):
     user = Database.get_document(User, user.id)
 
-    if not hasattr(user, "events"):
+    if not hasattr(user, "guilds"):
         return
 
     for guild_id in user.guilds:
