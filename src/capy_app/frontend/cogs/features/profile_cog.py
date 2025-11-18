@@ -90,6 +90,9 @@ class SuggestionView(discord.ui.View):
 async def delete_profile_from_events(user):
     user = Database.get_document(User, user.id)
 
+    if not hasattr(user, "events"):
+        return
+
     for event_id in user.events:
         event = Database.get_document(Event, event_id)
         # TODO remove the frontend RSVP reactions of the deleted user
@@ -109,6 +112,9 @@ async def delete_profile_from_events(user):
 
 async def delete_profile_from_guilds(user):
     user = Database.get_document(User, user.id)
+
+    if not hasattr(user, "events"):
+        return
 
     for guild_id in user.guilds:
         guild = Database.get_document(Guild, guild_id)
