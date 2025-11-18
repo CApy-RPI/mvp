@@ -376,10 +376,11 @@ class OnboardingManager:
     def _build_owner_dm(self, guild: discord.Guild) -> str:
         msg = [
             f"Hi! Thanks for adding me to {guild.name}.",
-            self.cfg.message,
+            "To start configuring the server, run `/server setup` inside a channel in that server where I can respond.",
+            "Setup cannot be launched from this DM.",
         ]
         if self.cfg.require_manage_guild:
             msg.append("Only members with 'Manage Server' should run setup.")
         if self.cfg.docs_url:
-            msg.append(f"Setup Guide: {self.cfg.docs_url}")
+            msg.append(f"If you need a walkthrough first, open the Setup Guide: {self.cfg.docs_url}")
         return "\n\n".join(msg)
