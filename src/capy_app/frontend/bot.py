@@ -17,6 +17,7 @@ import discord
 from backend.db.database import Database
 from discord.ext import commands, tasks
 from discord.ext.commands import Context
+from frontend.onboarding.onboarding_manager import OnboardingManager
 
 from capy_app.stats import Statistics
 from config import settings
@@ -94,6 +95,12 @@ class Bot(commands.AutoShardedBot):
         """Handle bot ready event and log connection details."""
         if self.user is None:
             return
+
+        # Register persistent views (e.g., onboarding DM buttons) after restart
+        try:
+            OnboardingManager.register_persistent_views(self)
+        except Exception as e:
+            self.logger.error(f"Failed registering persistent views: {e}")
 
         # Moved to guild_handler_cog.py
         # if settings.DEBUG_GUILD_ID:
