@@ -18,8 +18,8 @@ from backend.db.database import Database
 from discord.ext import commands, tasks
 from discord.ext.commands import Context
 
-from capy_app.stats import Statistics
 from config import settings
+from stats import Statistics  # type: ignore[attr-defined]
 
 
 class Bot(commands.AutoShardedBot):

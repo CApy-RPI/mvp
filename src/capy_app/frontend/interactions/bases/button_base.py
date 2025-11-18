@@ -24,6 +24,7 @@ class BaseButtonView(discord.ui.View):
         self._completed: bool = False
         self._timed_out: bool = False
         self.value: bool | None = None
+        self.interaction: Interaction | None = None
 
     async def _send_status_message(self, content: str) -> None:
         """Update status message."""
@@ -77,19 +78,20 @@ class AcceptCancelView(BaseButtonView):
     @discord.ui.button(label="Accept", style=ButtonStyle.success)
     async def accept(self, interaction: Interaction, _button: discord.ui.Button[Any]) -> None:
         """Handle accept button press."""
-        await interaction.response.defer()
+        # Store the interaction so the caller can respond to it
+        self.interaction = interaction
         self.value = True
         self._completed = True
-        await self._send_status_message("Operation accepted")
         self.stop()
 
     @discord.ui.button(label="Cancel", style=ButtonStyle.danger)
     async def cancel(self, interaction: Interaction, _button: discord.ui.Button[Any]) -> None:
         """Handle cancel button press."""
-        await interaction.response.defer()
+        # Store the interaction so the caller can respond to it
+        self.interaction = interaction
         self.value = False
         self._completed = True
-        await self._send_status_message("Operation cancelled")
+        self.stop()
         self.stop()
 
 

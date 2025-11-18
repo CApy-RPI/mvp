@@ -88,8 +88,11 @@ class SuggestionView(discord.ui.View):
 
 
 async def delete_profile_from_events(user):
-    user = Database.get_document(User, user.id)
+    """Remove user from all events they're registered for.
 
+    Args:
+        user: The User document to remove from events
+    """
     for event_id in user.events:
         event = Database.get_document(Event, event_id)
         # TODO remove the frontend RSVP reactions of the deleted user
@@ -104,16 +107,20 @@ async def delete_profile_from_events(user):
             if user.id in event.maybe_users:
                 event.maybe_users.remove(user.id)
                 event.details.reactions.modify("maybe", -1)
-        event.save()
+            event.save()
 
 
 async def delete_profile_from_guilds(user):
-    user = Database.get_document(User, user.id)
+    """Remove user from all guilds they're in.
 
+    Args:
+        user: The User document to remove from guilds
+    """
     for guild_id in user.guilds:
         guild = Database.get_document(Guild, guild_id)
         if guild and user.id in guild.users:
             guild.users.remove(user.id)
+            guild.save()
 
 
 class ProfileCog(commands.Cog):
@@ -916,21 +923,36 @@ class ProfileCog(commands.Cog):
             await interaction.edit_original_response(content="You don't have a profile to delete.")
             return
 
-        view = ConfirmDeleteView()
+        view = ConfirmDeleteView(timeout=60)
         await interaction.edit_original_response(
             content="⚠️ Are you sure you want to delete your profile? This action cannot be undone.",
             view=view,
         )
 
-        await view.wait()
-        if view.value:
-            Database.delete_document(user)
+        # Wait for button press
+        timed_out = await view.wait()
+
+        if view.value and view.interaction:
+            # Use the button interaction to update the message - this acknowledges it
+            await view.interaction.response.edit_message(content="⏳ Deleting your profile...", view=None)
+
+            # Remove user from events and guilds BEFORE deleting the user document
             await delete_profile_from_events(user)
             await delete_profile_from_guilds(user)
 
-            await interaction.edit_original_response(content="Your profile has been deleted.", view=None)
+            # Now delete the user document
+            Database.delete_document(user)
+
+            # Show success message
+            await interaction.edit_original_response(content="✅ Your profile has been deleted.", view=None)
+        elif timed_out:
+            await interaction.edit_original_response(content="❌ Profile deletion timed out.", view=None)
+        elif view.interaction:
+            # User cancelled - use button interaction to respond
+            await view.interaction.response.edit_message(content="❌ Profile deletion cancelled.", view=None)
         else:
-            await interaction.edit_original_response(content="Profile deletion cancelled.", view=None)
+            # Fallback if no interaction (shouldn't happen)
+            await interaction.edit_original_response(content="❌ Profile deletion cancelled.", view=None)
 
 
 async def setup(bot: commands.Bot) -> None:
