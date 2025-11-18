@@ -88,6 +88,7 @@ class SuggestionView(discord.ui.View):
 
 
 async def delete_profile_from_events(user):
+    # Delete user profile from events
     if not hasattr(user, "events"):
         return
 
