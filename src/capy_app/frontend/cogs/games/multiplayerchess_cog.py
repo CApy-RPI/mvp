@@ -10,6 +10,7 @@ from typing import List, Tuple
 
 # for 50 move rule
 num_moves_since_takes = 0
+num_moves_since_pawn_moved = 0
 # tracking if pieces moved (for castling)
 in_check = False
 a1_rook_moved = False
@@ -58,6 +59,28 @@ Move = tuple[str, tuple[int, int], tuple[int, int]]
 moves: dict[int, Move] = {}
 # example format
 moves[-1] = ("", (0, 0), (0, 0))
+
+# tracks repeated positions for draw by repetition
+positions: dict[str, int] = {}
+# hash string : number of occurrences of position
+positions["example_hash_string"] = 1
+
+
+# returns True if positions [string] > 2 AKA draw by repetition found else False
+# records the position in the hash table for the purpose of tracking draw by repetition
+def log_position(board):
+    string = ""
+    for i in range(8):
+        for j in range(8):
+            if board[i][j] != "":
+                string += board[i][j]
+            else:
+                string += "_"
+    positions[string] = positions.get(string, 0) + 1
+    if positions[string] > 2:
+        return True
+    else:
+        return False
 
 
 # for sliding pieces: return True if all squares between start and end are empty
@@ -197,6 +220,8 @@ def make_move(board, color, turn, piece, start, end, change_globals):
                 h8_rook_moved = True
             if board[end[0]][end[1]] is not "":
                 num_moves_since_takes = 0
+            if piece in ["♙", "♟"]:
+                num_moves_since_pawn_moved = 0
         board[start[0]][start[1]] = ""
         board[end[0]][end[1]] = piece
         moves[turn] = (piece, tuple(start), tuple(end))
@@ -1177,6 +1202,17 @@ def get_pieces_on_board(board):
     return pieces
 
 
+# returns a list of tuples containing (piece, piece_location) for all pieces of color on board
+# does not include king
+def get_pieces_of_color(board, color):
+    pieces = []
+    for i in range(8):
+        for j in range(8):
+            if board[i][j] != "" and board[i][j] != "♔" and board[i][j] != "♚" and same_color(board[i][j], color):
+                pieces.append((board[i][j], [j, i]))
+    return pieces
+
+
 # returns the true or false value representing whether there is a draw by insufficient material
 def check_draw_by_insufficient_material(board):
     # draws by lack of material:
@@ -1250,20 +1286,56 @@ def check_draw_by_insufficient_material(board):
 
 
 # returns true if given piece has any legal move, else false
-def piece_has_legal_move(piece, color):
+def piece_has_legal_move(board, piece, turn, color, location):
     if piece in ["♙", "♟"]:
         if color is "black":
-            return
+            # try possible moves for a black pawn
+            # single move
+            if is_move_legal(board, turn, piece, color, [location[1], location[0]], [location[1] + 1, location[0]]):
+                return True
+            # double move
+            if is_move_legal(board, turn, piece, color, [location[1], location[0]], [location[1] + 2, location[0]]):
+                return True
+            # takes left and right
+            if is_move_legal(board, turn, piece, color, [location[1], location[0]], [location[1] + 1, location[0] - 1]):
+                return True
+            if is_move_legal(board, turn, piece, color, [location[1], location[0]], [location[1] + 1, location[0] + 1]):
+                return True
+
+        elif color == "white":
+            # try possible moves for a white pawn
+            # single move
+            if is_move_legal(board, turn, piece, color, [location[1], location[0]], [location[1] - 1, location[0]]):
+                return True
+            # double move
+            if is_move_legal(board, turn, piece, color, [location[1], location[0]], [location[1] - 2, location[0]]):
+                return True
+            # takes left and right
+            if is_move_legal(board, turn, piece, color, [location[1], location[0]], [location[1] - 1, location[0] - 1]):
+                return True
+            if is_move_legal(board, turn, piece, color, [location[1], location[0]], [location[1] - 1, location[0] + 1]):
+                return True
         else:
-            return
+            return False
+
     if piece in ["♘", "♞"]:
-        return
-    if piece in ["♕", "♛"]:
-        return
-    if piece in ["♗", "♝"]:
-        return
-    if piece in ["♖", "♜"]:
-        return
+        for i in [1, 2, -1, -2]:
+            for j in [1, 2, -1, -2]:
+                if abs(i) != abs(j):
+                    if is_move_legal(board, turn, piece, color, [location[1], location[0]], [i, j]):
+                        return True
+
+    if piece in ["♕", "♛", "♗", "♝", "♖", "♜"]:
+        # get potential moves
+        atked_squares = get_attacked_squares(board, piece, location)
+        # see if any of these potential moves are valid
+        for square in atked_squares:
+            # check if move is legal for each possible move
+            if is_move_legal(board, turn, piece, color, [location[1], location[0]], [square[1], square[0]]):
+                return True
+
+    # if this point is reached, no legal move was found
+    return False
 
 
 # returns true if king is in stalemate (no legal moves) but king not under attack
@@ -1292,15 +1364,12 @@ def check_draw_by_stalemate(board, turn, color):
         if color_piece in pieces_on_board:
             # then we have other pieces to check legal moves for
             # get these pieces
-            pieces = []
-            for piece in pieces_on_board:
-                if same_color(piece, color):
-                    pieces.append(piece)
+            pieces_and_location = get_pieces_of_color(board, color)
 
             # now we have all pieces of color not including king
             # loop through these pieces checking for legal moves
-            for p in pieces:
-                if piece_has_legal_move(p, color):
+            for pl in pieces_and_location:
+                if piece_has_legal_move(board, pl[0], turn, color, pl[1]):
                     return False
 
         # otherwise king has no legal moves, and no other pieces exist
@@ -1311,18 +1380,21 @@ def check_draw_by_stalemate(board, turn, color):
         return True
 
 
+# returns true if no pawns moved and no pieces taken for 50 consecutive moves
 def check_draw_by_50_move(board):
-    return False
+    if num_moves_since_takes >= 50 and num_moves_since_pawn_moved >= 50:
+        return True
+    else:
+        return False
 
 
-# TODO:
 # check for stalemate, 50-move rule, repetition or not enough material left to possibly mate
 # returns true if stalemate or repetition found, false otherwise
 def check_draw(board, turn, color):
     # draw by insufficient material: not enough material left on the board for any possible checkmate
     draw_by_insufficient_material = check_draw_by_insufficient_material(board)
     # draw by repetition: same board position occurs 3 times
-    draw_by_repetition = False
+    draw_by_repetition = log_position(board)
     # draw by 50-move rule: No pawn moves and no pieces taken for 50 consecutive moves
     draw_by_50_move_rule = check_draw_by_50_move(board)
     # draw by stalemate: color has no legal moves and king of color is not in check
@@ -1442,6 +1514,7 @@ class MultiChess(commands.Cog):
 
                 # increment turn based vals
                 num_moves_since_takes += 1
+                num_moves_since_pawn_moved += 1
                 turn += 1
 
                 await interaction.followup.send(f"{print_board(board)}\n{players[turn % 2].mention}, it's your turn!")
