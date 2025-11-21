@@ -79,7 +79,7 @@ def test_fuzzy_match_rejects_too_different(major_handler):
     ]
 
     for invalid_input in test_cases:
-        all_valid, valid_majors, invalid_majors = major_handler.validate_majors([invalid_input])
+        all_valid, _valid_majors, invalid_majors = major_handler.validate_majors([invalid_input])
         assert all_valid is False
         assert invalid_input in invalid_majors
 
