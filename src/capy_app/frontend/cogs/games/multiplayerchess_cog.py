@@ -251,7 +251,7 @@ def col_to_num(letter):
 # else returns False, False, False
 def knight_parser(board, msg, turn, color, start, end):
     # most cases
-    if msg.size() == 3:
+    if len(msg) == 3:
         end = [col_to_num(msg[1]), ranks[int(msg[2])]]
         for i in [1, 2, -1, -2]:
             for j in [1, 2, -1, -2]:
@@ -263,7 +263,7 @@ def knight_parser(board, msg, turn, color, start, end):
                     start = [end[0] + i, end[1] + j]
     # case: knights on same rank or column reachable to end
     # Example: Nfd2 or N3d2
-    if msg.size() == 4 and "x" not in msg:
+    if len(msg) == 4 and "x" not in msg:
         end = [col_to_num(msg[2]), ranks[int(msg[3])]]
         if msg[1].isdigit():
             # there is a knight on same column that can reach end
@@ -301,13 +301,13 @@ def knight_parser(board, msg, turn, color, start, end):
                         start = [end[0] + i, end[1] + j]
     # rare case: knights on same rank AND same column reachable to end
     # Example: Nf3d2
-    if msg.size() == 5 and "x" not in msg:
+    if len(msg) == 5 and "x" not in msg:
         knight_row = ranks[msg[2]]
         knight_col = col_to_num(msg[1])
         start = [knight_row, knight_col]
     # case: knight takes
     # Example: Nxd2
-    if msg.size() == 4:
+    if len(msg) == 4:
         end = [col_to_num(msg[1]), ranks[int(msg[2])]]
         for i in [1, 2, -1, -2]:
             for j in [1, 2, -1, -2]:
@@ -320,7 +320,7 @@ def knight_parser(board, msg, turn, color, start, end):
         end = [col_to_num(msg[2]), ranks[int(msg[3])]]
     # case: knight takes and (knights on same rank or column reachable to end)
     # Example: Nfxd2 or N3xd2
-    if msg.size() == 5:
+    if len(msg) == 5:
         end = [col_to_num(msg[3]), ranks[int(msg[4])]]
         if msg[1].isdigit():
             # there is a knight on same column that can reach end
@@ -358,7 +358,7 @@ def knight_parser(board, msg, turn, color, start, end):
                         start = [end[0] + i, end[1] + j]
     # rare case: knight takes and (knights on same rank AND same column reachable to end)
     # Example: Nf3xd2
-    if msg.size() == 6:
+    if len(msg) == 6:
         end = [col_to_num(msg[4]), int(msg[5])]
         knight_row = ranks[msg[2]]
         knight_col = col_to_num(msg[1])
@@ -379,11 +379,11 @@ def knight_parser(board, msg, turn, color, start, end):
 def king_parser(board, msg, turn, color, start, end):
     # case: King move
     # Example: Ke2
-    if "x" not in msg and msg.size() == 3:
+    if "x" not in msg and len(msg) == 3:
         end = [col_to_num(msg[1]), ranks[int(msg[2])]]
     # case: King takes
     # Example: Kxe2
-    if "x" in msg and msg.size() == 4:
+    if "x" in msg and len(msg) == 4:
         end = [col_to_num(msg[2]), ranks[int(msg[3])]]
 
     # find start
@@ -424,10 +424,10 @@ def queen_parser(board, msg, turn, color, start, end):
     # Example: Qe2
     # case: Queen takes
     # Example: Qxe2
-    if ("x" in msg and msg.size() == 4) or ("x" not in msg and msg.size() == 3):
-        if "x" in msg and msg.size() == 4:
+    if ("x" in msg and len(msg) == 4) or ("x" not in msg and len(msg) == 3):
+        if "x" in msg and len(msg) == 4:
             end = [col_to_num(msg[2]), ranks[int(msg[3])]]
-        if "x" not in msg and msg.size() == 3:
+        if "x" not in msg and len(msg) == 3:
             end = [col_to_num(msg[1]), ranks[int(msg[2])]]
         # find all squares queen can reach from end
         reachable = []
@@ -447,10 +447,10 @@ def queen_parser(board, msg, turn, color, start, end):
     # Example: Qce4 or Q4e4
     # rare case: Queen takes (multiple queens can access end)
     # Example: Qcxe4 or Q4xe4
-    if ("x" in msg and msg.size() == 5) or ("x" not in msg and msg.size() == 4):
-        if "x" in msg and msg.size() == 5:
+    if ("x" in msg and len(msg) == 5) or ("x" not in msg and len(msg) == 4):
+        if "x" in msg and len(msg) == 5:
             end = [col_to_num(msg[3]), ranks[int(msg[4])]]
-        if "x" not in msg and msg.size() == 4:
+        if "x" not in msg and len(msg) == 4:
             end = [col_to_num(msg[2]), ranks[int(msg[3])]]
         # find all squares queen can reach from end
         reachable = []
@@ -480,11 +480,11 @@ def queen_parser(board, msg, turn, color, start, end):
     # Example: Qg4xe2
     # rare case: Queen moves (Queens on same rank and column reachable to end)
     # Example: Qg4e2
-    if ("x" in msg and msg.size() == 6) or ("x" not in msg and msg.size() == 5):
+    if ("x" in msg and len(msg) == 6) or ("x" not in msg and len(msg) == 5):
         start = [col_to_num(msg[1]), ranks[int(msg[2])]]
-        if "x" in msg and msg.size() == 6:
+        if "x" in msg and len(msg) == 6:
             end = [col_to_num(msg[4]), ranks[int(msg[5])]]
-        if "x" not in msg and msg.size() == 5:
+        if "x" not in msg and len(msg) == 5:
             end = [col_to_num(msg[3]), ranks[int(msg[4])]]
 
     # return
@@ -504,10 +504,10 @@ def bishop_parser(board, msg, turn, color, start, end):
     # Example: Be4
     # case: Bishop takes
     # Example: Bxe4
-    if ("x" in msg and msg.size() == 4) or ("x" not in msg and msg.size() == 3):
-        if "x" in msg and msg.size() == 4:
+    if ("x" in msg and len(msg) == 4) or ("x" not in msg and len(msg) == 3):
+        if "x" in msg and len(msg) == 4:
             end = [col_to_num(msg[2]), ranks[int(msg[3])]]
-        if "x" not in msg and msg.size() == 3:
+        if "x" not in msg and len(msg) == 3:
             end = [col_to_num(msg[1]), ranks[int(msg[2])]]
         # find all squares bishop can reach from end
         reachable = []
@@ -528,10 +528,10 @@ def bishop_parser(board, msg, turn, color, start, end):
     # Example: Bce4 or B6e4
     # rare case: Bishop takes (multiple bishops can access end)
     # Example: Bcxe4 or B6xe4
-    if ("x" in msg and msg.size() == 5) or ("x" not in msg and msg.size() == 4):
-        if "x" in msg and msg.size() == 5:
+    if ("x" in msg and len(msg) == 5) or ("x" not in msg and len(msg) == 4):
+        if "x" in msg and len(msg) == 5:
             end = [col_to_num(msg[3]), ranks[int(msg[4])]]
-        if "x" not in msg and msg.size() == 4:
+        if "x" not in msg and len(msg) == 4:
             end = [col_to_num(msg[2]), ranks[int(msg[3])]]
         # find all squares bishop can reach from end
         reachable = []
@@ -563,11 +563,11 @@ def bishop_parser(board, msg, turn, color, start, end):
     # Example: Bc6e4
     # rare case: Bishop takes (multiple bishops can access end)
     # Example: Bc6xe4
-    if ("x" in msg and msg.size() == 6) or ("x" not in msg and msg.size() == 5):
+    if ("x" in msg and len(msg) == 6) or ("x" not in msg and len(msg) == 5):
         start = [col_to_num(msg[1]), ranks[int(msg[2])]]
-        if "x" in msg and msg.size() == 6:
+        if "x" in msg and len(msg) == 6:
             end = [col_to_num(msg[4]), ranks[int(msg[5])]]
-        if "x" not in msg and msg.size() == 5:
+        if "x" not in msg and len(msg) == 5:
             end = [col_to_num(msg[3]), ranks[int(msg[4])]]
 
     # return
@@ -588,10 +588,10 @@ def rook_parser(board, msg, turn, color, start, end):
     # Example: Re4
     # case: Rook takes
     # Example: Rxe4
-    if ("x" in msg and msg.size() == 4) or ("x" not in msg and msg.size() == 3):
-        if "x" in msg and msg.size() == 4:
+    if ("x" in msg and len(msg) == 4) or ("x" not in msg and len(msg) == 3):
+        if "x" in msg and len(msg) == 4:
             end = [col_to_num(msg[2]), ranks[int(msg[3])]]
-        if "x" not in msg and msg.size() == 3:
+        if "x" not in msg and len(msg) == 3:
             end = [col_to_num(msg[1]), ranks[int(msg[2])]]
         # find all squares rook can reach from end
         reachable = []
@@ -611,10 +611,10 @@ def rook_parser(board, msg, turn, color, start, end):
     # Example: Rce4 or R2e4
     # case: Rook takes (multiple rooks can access end)
     # Example: Rcxe4 or R2xe4
-    if ("x" in msg and msg.size() == 5) or ("x" not in msg and msg.size() == 4):
-        if "x" in msg and msg.size() == 5:
+    if ("x" in msg and len(msg) == 5) or ("x" not in msg and len(msg) == 4):
+        if "x" in msg and len(msg) == 5:
             end = [col_to_num(msg[3]), ranks[int(msg[4])]]
-        if "x" not in msg and msg.size() == 4:
+        if "x" not in msg and len(msg) == 4:
             end = [col_to_num(msg[2]), ranks[int(msg[3])]]
         # find all squares rook can reach from end
         reachable = []
@@ -656,7 +656,7 @@ def pawn_parser(board, msg, turn, color, start, end):
     end = [-1, -1]
     # case: pawn move
     # Example: e4
-    if msg.size() == 2:
+    if len(msg) == 2:
         end = [col_to_num(msg[0]), ranks[int(msg[1])]]
         # black single move
         if color == "black" and get_piece_at(board, [end[0], end[1] - 1]) == "♙":
@@ -674,7 +674,7 @@ def pawn_parser(board, msg, turn, color, start, end):
 
     # case: pawn takes
     # Example: dxe4
-    if msg.size() == 4 and msg[1] == "x":
+    if len(msg) == 4 and msg[1] == "x":
         end = [col_to_num(msg[2]), ranks[int(msg[3])]]
         start = [col_to_num(msg[0]), -1]
 
@@ -687,7 +687,7 @@ def pawn_parser(board, msg, turn, color, start, end):
 
     # case: pawn promotes
     # Example: e8=Q
-    if msg.size() == 4 and msg[1] == "=":
+    if len(msg) == 4 and msg[1] == "=":
         end = [col_to_num(msg[0]), ranks[int(msg[1])]]
         # black promotes
         if color == "black" and get_piece_at(board, [end[0], end[1] - 1]) == "♙":
@@ -770,16 +770,21 @@ def same_color(p, color):
 
 # returns a string of the board
 def print_board(board):
-    strbldr = ""
+    strbldr = "```\n"
     strbldr += "+---+---+---+---+---+---+---+---+"
     for i in range(len(board)):
-        strbldr += "|"
+        strbldr += "\n|"
         for j in range(len(board[i])):
-            strbldr += board[i][j]
-            strbldr += "\t|"
+            strbldr += board[i][j] if board[i][j] != "" else " "
+            # fill the rest with dots instead of spaces
+            if board[i][j] == "":
+                strbldr += "  "
+            else:
+                strbldr += " "
+            strbldr += "|"
         strbldr += "\n"
         strbldr += "+---+---+---+---+---+---+---+---+"
-    return strbldr
+    return strbldr + "```"
 
 
 # returns true if move legal, else false
