@@ -14,7 +14,7 @@ repos:
     rev: v0.14.6 # latest as of 11/21/2025
     hooks:
       - id: ruff
-        args: [--fix, --unsafe-fixes]
+        args: []
       - id: ruff-format
   - repo: local
     hooks:
