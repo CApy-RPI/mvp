@@ -11,10 +11,10 @@ repos:
         require_serial: true
         verbose: true
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.8
+    rev: v0.14.6 # latest as of 11/21/2025
     hooks:
       - id: ruff
-        args: [--diff]
+        args: [--fix, --unsafe-fixes]
       - id: ruff-format
   - repo: local
     hooks:
