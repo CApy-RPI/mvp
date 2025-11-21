@@ -13,8 +13,8 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.12.8
     hooks:
-      - id: ruff-check
-        args: [--fix]
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
   - repo: local
     hooks:
@@ -46,7 +46,7 @@ repos:
         files: \.py$
       - id: pytest
         name: pytest
-        entry: pytest
+        entry: pytest .
         language: system
         pass_filenames: false
         always_run: true
