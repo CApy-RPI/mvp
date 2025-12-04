@@ -46,8 +46,8 @@ class TryAgainView(discord.ui.View):
 
     @discord.ui.button(label="Try Again", style=discord.ButtonStyle.primary)
     async def retry_button(self, interaction: discord.Interaction, _: discord.ui.Button[Any]):
-        # Acknowledge the interaction to avoid timeouts/jitter
-        await interaction.response.defer(ephemeral=True)
+        # Don't defer - we need to pass the interaction to handle_profile
+        # which will use it to show the modal
         await self.parent_cog.handle_profile(interaction, self.action, retry_data=self.invalid_data)
         self.stop()
 
@@ -78,8 +78,7 @@ class SuggestionView(discord.ui.View):
     @discord.ui.button(label="Try Again", style=discord.ButtonStyle.primary)
     async def retry_button(self, interaction: discord.Interaction, _button: discord.ui.Button[Any]):
         """Reject suggestions and return to form with all data except majors."""
-        # Acknowledge the interaction to avoid timeouts/jitter
-        await interaction.response.defer(ephemeral=True)
+        # Don't defer - we need to show a modal, which requires an unacknowledged interaction
         self.accepted = False
         # Keep all profile data EXCEPT the major field - user needs to re-enter majors
         retry_data = {k: v for k, v in self.profile_data.items() if k != "major(s)"}
@@ -418,7 +417,10 @@ class ProfileCog(commands.Cog):
         if invalid_majors:
             error_msg = self.major_handler.get_validation_error_message(invalid_majors)
             error_msg += "\nPlease check your spelling and try again."
-            await message.edit(content=error_msg)
+            # Keep all profile data EXCEPT the major field - user needs to re-enter majors
+            retry_data = {k: v for k, v in profile_data.items() if k != "major(s)"}
+            view = TryAgainView(self, action, retry_data)
+            await message.edit(content=error_msg, view=view)
             return None
 
         return majors_string
