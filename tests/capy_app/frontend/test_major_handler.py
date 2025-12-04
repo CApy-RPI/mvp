@@ -228,7 +228,7 @@ def test_validate_majors_with_abbreviations(major_handler):
     """Test that abbreviations require user confirmation via suggestions."""
     # Test common abbreviations - they should NOT be auto-expanded
     input_majors = ["CS", "me", "PHYS"]
-    all_valid, valid_majors, invalid_majors = major_handler.validate_majors(input_majors)
+    all_valid, valid_majors, _invalid_majors = major_handler.validate_majors(input_majors)
 
     # validate_majors doesn't handle abbreviations, so they'll be invalid or fuzzy matched
     # This is expected - abbreviations only work with validate_majors_with_corrections

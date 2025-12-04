@@ -48,7 +48,7 @@ def test_suggestion_medium_confidence(major_handler):
     # We'll need to find a string that scores between 60-90%
     # For now, let's create an artificially low-scoring match
     input_majors = ["comp sci"]  # Very short - likely won't match well
-    all_valid, valid_majors, invalid_majors, auto_corrections, suggestions = (
+    all_valid, _valid_majors, invalid_majors, auto_corrections, suggestions = (
         major_handler.validate_majors_with_corrections(input_majors)
     )
 
@@ -69,7 +69,7 @@ def test_mixed_auto_and_suggest(major_handler):
     # "Compter Science" should auto-correct (high score)
     # Let's try to find something that scores medium
     input_majors = ["Compter Science", "Physics"]
-    all_valid, valid_majors, invalid_majors, auto_corrections, suggestions = (
+    _all_valid, valid_majors, _invalid_majors, auto_corrections, suggestions = (
         major_handler.validate_majors_with_corrections(input_majors)
     )
 

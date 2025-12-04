@@ -1,8 +1,6 @@
 """Discord bot module for handling discord-related functionality."""
 
 import json
-
-# Standard library imports
 import logging
 import pathlib
 import typing
@@ -10,10 +8,7 @@ from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
-# Third-party imports
 import discord
-
-# Local imports
 from backend.db.database import Database
 from discord.ext import commands, tasks
 from discord.ext.commands import Context

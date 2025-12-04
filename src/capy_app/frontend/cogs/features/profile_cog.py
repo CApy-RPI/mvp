@@ -388,7 +388,7 @@ class ProfileCog(commands.Cog):
         processed_majors = self.process_majors_from_text(majors_text)
 
         # Validate and normalize majors with fuzzy matching for typos
-        all_valid, validated_majors, invalid_majors, auto_corrections, suggestions = (
+        _all_valid, validated_majors, invalid_majors, auto_corrections, suggestions = (
             self.major_handler.validate_majors_with_corrections(processed_majors)
         )
 

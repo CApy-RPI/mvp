@@ -1381,7 +1381,7 @@ class EventCog(commands.Cog):
         """
         Handle reaction removal from event announcements.
         """
-        valid, channel, message = await self.is_valid_reaction(payload)
+        valid, _channel, message = await self.is_valid_reaction(payload)
         if not valid:
             return
 
