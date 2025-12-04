@@ -47,7 +47,6 @@ class TryAgainView(discord.ui.View):
     @discord.ui.button(label="Try Again", style=discord.ButtonStyle.primary)
     async def retry_button(self, interaction: discord.Interaction, _: discord.ui.Button[Any]):
         # Don't defer - we need to pass the interaction to handle_profile
-        # which will use it to show the modal
         await self.parent_cog.handle_profile(interaction, self.action, retry_data=self.invalid_data)
         self.stop()
 
