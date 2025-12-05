@@ -29,7 +29,7 @@ class TicTacToeCog(commands.Cog):
         turn = 0
 
         def num_to_emoji(i):
-            board[i] if board[i] != " " else f"{i + 1}\N{COMBINING ENCLOSING KEYCAP}"
+            return board[i] if board[i] != " " else f"{i + 1}\N{COMBINING ENCLOSING KEYCAP}"
 
         def render_board():
             return (
