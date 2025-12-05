@@ -19,7 +19,10 @@ from config import settings
 
 class ErrorHandlerCog(commands.Cog):
     async def _delete_messages(
-        self, ctx: commands.Context[typing.Any], messages: list[discord.Message], status_str: str
+        self,
+        ctx: commands.Context[typing.Any],
+        messages: list[discord.Message],
+        status_str: str,
     ) -> int:
         """Delete the provided messages and return the count of deleted messages."""
         deleted = 0

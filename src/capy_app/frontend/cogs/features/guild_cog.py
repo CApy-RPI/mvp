@@ -131,7 +131,10 @@ class GuildCog(commands.Cog):
             getattr(interaction.user, "id", None),
             getattr(interaction.guild, "id", None),
         )
-        return False, "Only administrators or members with the configured Admin role may run server commands."
+        return (
+            False,
+            "Only administrators or members with the configured Admin role may run server commands.",
+        )
 
     async def _process_settings_selection(
         self,
@@ -561,7 +564,10 @@ class SetupStartView(discord.ui.View):
         updates, created_channels, created_roles = await self.cog._handle_auto_create(interaction.guild)
         guild_data = await GuildHandlerCog.ensure_guild_exists(interaction.guild.id)
         Database.update_document(guild_data, updates)
-        await interaction.followup.send(self.cog._build_auto_summary(created_channels, created_roles), ephemeral=True)
+        await interaction.followup.send(
+            self.cog._build_auto_summary(created_channels, created_roles),
+            ephemeral=True,
+        )
         await self.cog.show_settings(interaction)
 
     @discord.ui.button(label="Manual Select", style=discord.ButtonStyle.blurple)

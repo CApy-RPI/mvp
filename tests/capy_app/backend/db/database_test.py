@@ -152,7 +152,10 @@ def test_bulk_update_attr_append_list(db, user, user2):
 
     # Appending again should not duplicate due to add_to_set
     updated_again = Database.bulk_update_attr(User, [1, 2], "guilds", 100)
-    assert updated_again in (0, 2)  # depending on backend it may count matched vs modified
+    assert updated_again in (
+        0,
+        2,
+    )  # depending on backend it may count matched vs modified
     assert db.get_document(User, 1).guilds == [100]
     assert db.get_document(User, 2).guilds == [100]
 
