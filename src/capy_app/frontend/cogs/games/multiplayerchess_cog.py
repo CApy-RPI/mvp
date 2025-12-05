@@ -1,6 +1,7 @@
 # ruff: noqa
 import logging
-
+import asyncio
+import copy
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -12,37 +13,67 @@ from typing import List, Tuple
 num_moves_since_takes = 0
 num_moves_since_pawn_moved = 0
 # tracking if pieces moved (for castling)
+global in_check
 in_check = False
+global a1_rook_moved
 a1_rook_moved = False
+global h1_rook_moved
 h1_rook_moved = False
+global a8_rook_moved
 a8_rook_moved = False
+global h8_rook_moved
 h8_rook_moved = False
+global black_king_moved
 black_king_moved = False
+global white_king_moved
 white_king_moved = False
 # globals for special case moves
+global promotion_type
 promotion_type = "X"
+global q_castling
 q_castling = False
+global k_castling
 k_castling = False
+global en_passant
 en_passant = False
 # rank and column access values
+global rank8
 rank8 = 0
+global rank7
 rank7 = 1
+global rank6
 rank6 = 2
+global rank5
 rank5 = 3
+global rank4
 rank4 = 4
+global rank3
 rank3 = 5
+global rank2
 rank2 = 6
+global rank1
 rank1 = 7
+global column1
 column1 = 0
+global column2
 column2 = 1
+global column3
 column3 = 2
+global column4
 column4 = 3
+global column5
 column5 = 4
+global column6
 column6 = 5
+global column7
 column7 = 6
+global column8
 column8 = 7
+global num_ranks
 num_ranks = 8
+global ranks
 ranks = [-1, rank1, rank2, rank3, rank4, rank5, rank6, rank7, rank8]
+global columns
 columns = [
     -1,
     column1,
@@ -56,11 +87,13 @@ columns = [
 ]
 # dictionary to track move history
 Move = tuple[str, tuple[int, int], tuple[int, int]]
+global moves
 moves: dict[int, Move] = {}
 # example format
 moves[-1] = ("", (0, 0), (0, 0))
 
 # tracks repeated positions for draw by repetition
+global positions
 positions: dict[str, int] = {}
 # hash string : number of occurrences of position
 positions["example_hash_string"] = 1
@@ -307,8 +340,7 @@ def knight_parser(board, msg, turn, color, start, end):
         start = [knight_row, knight_col]
     # case: knight takes
     # Example: Nxd2
-    if len(msg) == 4:
-        end = [col_to_num(msg[1]), ranks[int(msg[2])]]
+    if len(msg) == 4 and "x" in msg:
         for i in [1, 2, -1, -2]:
             for j in [1, 2, -1, -2]:
                 if (
@@ -649,6 +681,9 @@ def rook_parser(board, msg, turn, color, start, end):
     return ("♖" if color == "black" else "♜", [start[1], start[0]], [end[1], end[0]])
 
 
+# --------------------------------------------------------------------------------------------------
+
+
 # returns piece, start, end if notation valid
 # else returns False, False, False
 def pawn_parser(board, msg, turn, color, start, end):
@@ -687,7 +722,7 @@ def pawn_parser(board, msg, turn, color, start, end):
 
     # case: pawn promotes
     # Example: e8=Q
-    if len(msg) == 4 and msg[1] == "=":
+    if len(msg) == 4 and msg[2] == "=":
         end = [col_to_num(msg[0]), ranks[int(msg[1])]]
         # black promotes
         if color == "black" and get_piece_at(board, [end[0], end[1] - 1]) == "♙":
@@ -698,7 +733,7 @@ def pawn_parser(board, msg, turn, color, start, end):
         promotion_type = msg[3]
 
     # return
-    if start[0] == -1 or end[0] == -1:
+    if start == [-1, -1] or end == [-1, -1]:
         return False, False, False
 
     return ("♙" if color == "black" else "♟", [start[1], start[0]], [end[1], end[0]])
@@ -713,22 +748,16 @@ def parse_notation(board, msg, turn):
     # castling
     if msg == "O-O":
         k_castling = True
-        return (
-            "♔",
-            [rank8, column5],
-            [rank8, column7] if color == "black" else "♚",
-            [rank1, column5],
-            [rank1, column7],
-        )
+        if color == "black":
+            return "♔", [rank8, column5], [rank8, column7]
+        else:
+            return "♚", [rank1, column5], [rank1, column7]
     elif msg == "O-O-O":
         q_castling = False
-        return (
-            "♔",
-            [rank8, column5],
-            [rank8, column3] if color == "black" else "♚",
-            [rank1, column5],
-            [rank1, column3],
-        )
+        if color == "black":
+            return "♔", [rank8, column5], [rank8, column3]
+        else:
+            return "♚", [rank1, column5], [rank1, column3]
     # Knight
     elif msg[0] == "N":
         piece, start, end = knight_parser(board, msg, turn, color, start, end)
@@ -800,7 +829,7 @@ def is_move_legal(board, turn, piece, color, start, end):
         return False
 
     # check if this move will result in us being in check
-    board_post_move = board
+    board_post_move = copy.deepcopy(board)
     make_move(board_post_move, color, turn, piece, start, end, False)
     # find king's location
     king_location = find_king(board_post_move, color)
@@ -824,7 +853,7 @@ def is_move_legal(board, turn, piece, color, start, end):
     if piece in ["♙", "♟"]:
         # info needed for en passant check
         last_move: Move | None = moves.get(turn - 1)
-        if last_move is None:
+        if last_move == None:
             last_piece = None
             last_startx = last_starty = last_endx = last_endy = None
             last_dy = last_dx = 0
@@ -942,7 +971,7 @@ def is_move_legal(board, turn, piece, color, start, end):
     return False
 
 
-# returns a list of tuples that represent all locations on board attacked by piece
+# returns a list of 2-element lists that represent all locations on board attacked by piece
 def get_attacked_squares(board, piece, piece_location):
     col, row = piece_location
     attacked = []
@@ -979,7 +1008,7 @@ def get_attacked_squares(board, piece, piece_location):
         for dx, dy in directions:
             c, r = col + dx, row + dy
             while in_bounds(c, r):
-                attacked.append((c, r))
+                attacked.append([c, r])
                 c += dx
                 r += dy
 
@@ -988,7 +1017,7 @@ def get_attacked_squares(board, piece, piece_location):
         for dx, dy in rook_dirs:
             c, r = col + dx, row + dy
             while in_bounds(c, r):
-                attacked.append((c, r))
+                attacked.append([c, r])
                 c += dx
                 r += dy
 
@@ -997,7 +1026,7 @@ def get_attacked_squares(board, piece, piece_location):
         for dx, dy in bishop_dirs:
             c, r = col + dx, row + dy
             while in_bounds(c, r):
-                attacked.append((c, r))
+                attacked.append([c, r])
                 c += dx
                 r += dy
 
@@ -1006,25 +1035,25 @@ def get_attacked_squares(board, piece, piece_location):
         for dx, dy in knight_moves:
             c, r = col + dx, row + dy
             if in_bounds(c, r):
-                attacked.append((c, r))
+                attacked.append([c, r])
 
     # king
     elif piece in ["♔", "♚"]:
         for dx, dy in king_moves:
             c, r = col + dx, row + dy
             if in_bounds(c, r):
-                attacked.append((c, r))
+                attacked.append([c, r])
 
     # pawn
     elif piece in ["♙", "♟"]:
         if piece == "♟":  # white
             for c, r in [(col + 1, row - 1), (col - 1, row - 1)]:
                 if in_bounds(c, r):
-                    attacked.append((c, r))
+                    attacked.append([c, r])
         else:  # black
             for c, r in [(col + 1, row + 1), (col - 1, row + 1)]:
                 if in_bounds(c, r):
-                    attacked.append((c, r))
+                    attacked.append([c, r])
     return attacked
 
 
@@ -1046,7 +1075,7 @@ def is_square_attacked(board, target_square: list[int], color_of_attacker: str) 
                 for sq in atked_squares:
                     if target_square == sq:
                         if piece in ["♖", "♜", "♗", "♝", "♕", "♛"]:
-                            if path_clear(board, target_square, sq):
+                            if path_clear(board, target_square, piece_location):
                                 attacked = True
                                 attackers.append(piece_location)
                         elif piece in ["♘", "♞", "♔", "♚", "♙", "♟"]:
@@ -1129,7 +1158,7 @@ def check_win(board, color):
             for j in [1, 0, -1]:
                 if (
                     get_piece_at(board, [king_location[0] + i, king_location[1] + j]) in symbols
-                    and not is_square_attacked(board, [j, i], king_color)[0]
+                    and not is_square_attacked(board, [king_location[0] + i, king_location[1] + j], king_color)[0]
                 ):
                     king_is_trapped = False
         # identify piece(s) giving check
@@ -1259,11 +1288,11 @@ def check_draw_by_insufficient_material(board):
             for i in range(8):
                 for j in range(8):
                     if board[i][j] == "♝":
-                        if i + j % 2 == 0:
+                        if (i + j) % 2 == 0:
                             even_bishops += 1
                         else:
                             odd_bishops += 1
-            if even_bishops is not 0 and odd_bishops is not 0:
+            if even_bishops != 0 and odd_bishops != 0:
                 return False
         # if at least one knight among 2 minor pieces, no draw
         else:
@@ -1277,11 +1306,11 @@ def check_draw_by_insufficient_material(board):
             for i in range(8):
                 for j in range(8):
                     if board[i][j] == "♗":
-                        if i + j % 2 == 0:
+                        if (i + j) % 2 == 0:
                             even_bishops += 1
                         else:
                             odd_bishops += 1
-            if even_bishops is not 0 and odd_bishops is not 0:
+            if even_bishops != 0 and odd_bishops != 0:
                 return False
         # if at least one knight among 2 minor pieces, no draw
         else:
@@ -1293,7 +1322,7 @@ def check_draw_by_insufficient_material(board):
 # returns true if given piece has any legal move, else false
 def piece_has_legal_move(board, piece, turn, color, location):
     if piece in ["♙", "♟"]:
-        if color is "black":
+        if color == "black":
             # try possible moves for a black pawn
             # single move
             if is_move_legal(board, turn, piece, color, [location[1], location[0]], [location[1] + 1, location[0]]):
@@ -1327,7 +1356,9 @@ def piece_has_legal_move(board, piece, turn, color, location):
         for i in [1, 2, -1, -2]:
             for j in [1, 2, -1, -2]:
                 if abs(i) != abs(j):
-                    if is_move_legal(board, turn, piece, color, [location[1], location[0]], [i, j]):
+                    if is_move_legal(
+                        board, turn, piece, color, [location[1], location[0]], [location[1] + i, location[0] + j]
+                    ):
                         return True
 
     if piece in ["♕", "♛", "♗", "♝", "♖", "♜"]:
@@ -1456,74 +1487,81 @@ class MultiChess(commands.Cog):
         )
 
         def check(msg: discord.Message):
-            parsed = parse_notation(board, msg.content, turn)
+            # quick cheap checks first to avoid expensive/unsafe parsing calls
+            if msg.author != players[turn % 2]:
+                return False
+            if msg.channel != interaction.channel:
+                return False
+
+            # message options allowed without parsing
             msg_options = ["draw?", "accept", "decline", "resign"]
+            if msg.content in msg_options:
+                return True
+
+            # now it's safe to parse + check legality (only for the player's messages)
+            parsed = parse_notation(board, msg.content, turn)
+            if parsed[0] is False:
+                return False
+
             color = "white" if turn % 2 == 0 else "black"
-            return (
-                # checking to make sure the message is valid
-                msg.author == players[turn % 2]  # correct player sent the msg
-                and msg.channel == interaction.channel  # channel is correct
-                and (  # if notation, check notation validity
-                    msg.content in msg_options or parsed[0] is not False
-                )
-                and is_move_legal(board, turn, parsed[0], color, parsed[1], parsed[2])  # move must be legal
-            )
+            # only call is_move_legal if parsed valid
+            return is_move_legal(board, turn, parsed[0], color, parsed[1], parsed[2])
 
         while True:
             try:
                 color = "white" if turn % 2 == 0 else "black"
                 move_msg = await self.bot.wait_for("message", check=check, timeout=100.0)
 
-                # print out rules
                 if turn == 0:
                     await interaction.followup.send(
-                        f'Welcome to CAPY Chess! To make a move, type your move in chess notation. Do not include symbols for check or checkmate.\n\nTo propose a draw, send "draw?". To resign, send "resign".\n\nHave fun!'
+                        "Welcome to CAPY Chess! To make a move, type your move in chess notation. "
+                        'Do not include symbols for check or checkmate.\n\nTo propose a draw, send "draw?". '
+                        'To resign, send "resign".\n\nHave fun!'
                     )
 
-                # check for draw offer
+                # handle draw/resign messages first
                 if move_msg.content == "draw?":
                     draw_proposed = True
                     draw_msg = 'proposes a draw! Type "accept" to accept the draw or "decline" to decline it'
                     await interaction.followup.send(f"{print_board(board)}\n{players[turn % 2].mention} {draw_msg}.")
                     return
-                # check for draw decline
-                elif move_msg.content == "decline" and draw_proposed:
+
+                if move_msg.content == "decline" and draw_proposed:
                     draw_proposed = False
                     draw_msg = "declines to draw"
                     await interaction.followup.send(f"{print_board(board)}\n{players[turn % 2].mention} {draw_msg}.")
                     return
 
-                # check for checkmates or resignations
-                elif check_win(board, color) or move_msg.content == "resign":
-                    await interaction.followup.send(f"{print_board(board)}\n✅ {players[turn % 2].mention} wins! 🎉")
-                    return
-
-                # check for draw
-                elif check_draw(board, turn, color) or (draw_proposed and move_msg.content == "accept"):
-                    await interaction.followup.send(f"{print_board(board)}\nIt's a draw!")
-                    return
-
-                # actually makes the move specified by user
-                else:
+                # parse and apply move inside try to catch unexpected exceptions
+                try:
                     parsed_message = parse_notation(board, move_msg.content, turn)
-                    make_move(board, color, turn, parsed_message[0], parsed_message[1], parsed_message[2], True)
+                    if parsed_message[0] is False:
+                        # shouldn't happen because check() filtered invalid, but be defensive
+                        await interaction.followup.send("Invalid move notation.")
+                        continue
 
-                # reset necessary globals
+                    # make_move may raise — catch it for debugging
+                    make_move(board, color, turn, parsed_message[0], parsed_message[1], parsed_message[2], True)
+                except Exception as e:
+                    # log full traceback to help debug
+                    self.logger.exception("Error while parsing or making move")
+                    await interaction.followup.send("An error occurred while processing that move.")
+                    return  # or continue depending on desired behavior
+
+                # reset / update flags
                 q_castling = False
                 k_castling = False
                 en_passant = False
                 promotion_type = "X"
-
-                # no longer in check if was
                 in_check = False
 
-                # increment turn based vals
+                # increment turn-based counters (these were initialized earlier)
                 num_moves_since_takes += 1
                 num_moves_since_pawn_moved += 1
                 turn += 1
 
                 await interaction.followup.send(f"{print_board(board)}\n{players[turn % 2].mention}, it's your turn!")
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 await interaction.followup.send("⌛ Game timed out!")
                 return
 
