@@ -1,8 +1,6 @@
 """Discord bot module for handling discord-related functionality."""
 
 import json
-
-# Standard library imports
 import logging
 import pathlib
 import typing
@@ -10,17 +8,14 @@ from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
-# Third-party imports
 import discord
-
-# Local imports
 from backend.db.database import Database
 from discord.ext import commands, tasks
 from discord.ext.commands import Context
 from frontend.onboarding.onboarding_manager import OnboardingManager
 
-from capy_app.stats import Statistics
 from config import settings
+from stats import Statistics  # type: ignore[attr-defined]
 
 
 class Bot(commands.AutoShardedBot):
